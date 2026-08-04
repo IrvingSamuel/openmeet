@@ -1,0 +1,22 @@
+# Chronos Meet — LiveKit SFU + (optional) dedicated redis
+# Uses host networking so UDP media works correctly on this VPS.
+
+services:
+  livekit:
+    # v1.8.4 rejects client 2.18+ `_data_track` DC → CLIENT_REQUEST_LEAVE loop ~15s
+    image: livekit/livekit-server:v1.13.4
+    container_name: chronos-meet-livekit
+    restart: unless-stopped
+    network_mode: host
+    command: ["--config", "/etc/livekit.yaml"]
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - /etc/nginx/ssl-certificates/meet.chronos.com.pt.crt:/etc/livekit/certs/meet.chronos.com.pt.crt:ro
+      - /etc/nginx/ssl-certificates/meet.chronos.com.pt.key:/etc/livekit/certs/meet.chronos.com.pt.key:ro
+    environment:
+      - LIVEKIT_CONFIG=
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"

@@ -1,0 +1,50 @@
+# LiveKit server config — Chronos Meet
+# Docs: https://docs.livekit.io/transport/self-hosting/deployment/
+
+port: 7880
+bind_addresses:
+  - ""
+log_level: info
+prometheus_port: 6789
+
+# Required for livekit-client >= 2.18 which always opens the `_data_track` DC.
+# Older servers (e.g. 1.8.4) log "unsupported datachannel" and the JS SDK
+# then full-restarts (~15s CLIENT_REQUEST_LEAVE loop).
+enable_data_tracks: true
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: true
+  # Prefer public IP; exclude docker bridge ranges from candidates
+  ips:
+    includes:
+      - 69.62.98.19/32
+    excludes:
+      - 172.16.0.0/12
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+
+redis:
+  address: 127.0.0.1:6379
+  db: 5
+
+keys:
+  chronosmeetb2ab39b0: 234bd76510c912e6078962cfd0d9125cfc5be2cb3d308b47a41ce1a5d8ef775a
+
+turn:
+  enabled: true
+  domain: meet.chronos.com.pt
+  tls_port: 5361
+  udp_port: 5361
+  # Must match UFW allow 30000:40000/udp
+  relay_range_start: 30000
+  relay_range_end: 40000
+  cert_file: /etc/livekit/certs/meet.chronos.com.pt.crt
+  key_file: /etc/livekit/certs/meet.chronos.com.pt.key
+
+webhook:
+  api_key: chronosmeetb2ab39b0
+  urls:
+    - http://127.0.0.1:3331/api/livekit/webhook
