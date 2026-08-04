@@ -114,7 +114,7 @@ export function exampleWebhookPayload(
         data: {
           summaryMarkdown:
             "## Principais pontos\n\n- Status do sprint alinhado\n- Board atualizado\n",
-          model: "gemini-2.5-flash",
+          model: "gemini-3.5-flash-lite",
         },
       };
     case "tasks.generated":

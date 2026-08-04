@@ -1,6 +1,6 @@
 {
   "name": "chronos-meet",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Open-source white-label videoconferencing with LiveKit, live captions, and a Chronos AI copilot that turns meetings into tasks.",
   "license": "MIT",
   "private": false,

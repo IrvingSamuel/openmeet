@@ -407,7 +407,7 @@ export default function AdminPage() {
                     onChange={(e) =>
                       setSettings({ ...settings, geminiModel: e.target.value })
                     }
-                    placeholder="gemini-2.5-flash-lite"
+                    placeholder="gemini-3.5-flash-lite"
                   />
                   <Input
                     label={t("ai.modelSummary")}
@@ -418,7 +418,7 @@ export default function AdminPage() {
                         geminiSummaryModel: e.target.value,
                       })
                     }
-                    placeholder="gemini-2.5-flash"
+                    placeholder="gemini-3.5-flash-lite"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 pt-2">

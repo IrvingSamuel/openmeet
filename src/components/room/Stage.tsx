@@ -111,7 +111,7 @@ export function Stage({
     return (
       <div
         ref={rootRef}
-        className="grid h-full place-items-center text-sm text-ink-faint"
+        className="relative z-0 grid h-full place-items-center text-sm text-ink-faint"
       >
         {t("waitingForParticipants")}
       </div>
@@ -124,7 +124,7 @@ export function Stage({
         ref={rootRef}
         layout
         transition={morphTransition}
-        className="flex h-full flex-col gap-3 lg:flex-row"
+        className="relative z-0 flex h-full flex-col gap-3 lg:flex-row"
       >
         <ParticipantTile
           trackRef={featured}
@@ -165,7 +165,7 @@ export function Stage({
       ref={rootRef}
       layout
       transition={morphTransition}
-      className={cn("grid h-full auto-rows-fr gap-2 sm:gap-3")}
+      className={cn("relative z-0 grid h-full auto-rows-fr gap-2 sm:gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
       {tracks.map((ref) => (

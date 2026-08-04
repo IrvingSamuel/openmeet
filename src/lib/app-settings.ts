@@ -117,13 +117,13 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
 
   const geminiApiKey = geminiApiKeyDb || envGeminiKey || undefined;
   const geminiModel =
-    geminiModelDb || envGeminiModel || "gemini-2.5-flash-lite";
+    geminiModelDb || envGeminiModel || "gemini-3.5-flash-lite";
   const geminiSummaryModel =
     geminiSummaryModelDb ||
     envSummaryModel ||
     geminiModelDb ||
     envGeminiModel ||
-    "gemini-2.5-flash";
+    "gemini-3.5-flash-lite";
   const deepgramApiKey = deepgramApiKeyDb || envDeepgram || undefined;
 
   return {

@@ -60,7 +60,7 @@ export function ParticipantTile({
       data-testid="participant-tile"
       data-has-video={showVideo ? "true" : "false"}
       className={cn(
-        "group relative min-h-0 min-w-0 overflow-hidden rounded-2xl border bg-black",
+        "group relative z-0 min-h-0 min-w-0 overflow-hidden rounded-2xl border bg-black",
         speaking && !isScreenShare
           ? "border-brand-secondary/80 shadow-[0_0_0_1px_var(--brand-secondary),0_0_50px_-14px_var(--brand-secondary)]"
           : "border-line",

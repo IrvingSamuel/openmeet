@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -442,16 +443,52 @@ function RoomRow({
   const tCommon = useTranslations("common");
   const formatAgo = useTimeAgoFormatter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const moreRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPos = useCallback(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const menuWidth = 192;
+    const pad = 8;
+    setMenuPos({
+      top: rect.bottom + pad,
+      left: Math.max(
+        pad,
+        Math.min(rect.left, window.innerWidth - menuWidth - pad),
+      ),
+    });
+  }, []);
 
   useEffect(() => {
-    if (!moreOpen) return;
+    if (!moreOpen) {
+      setMenuPos(null);
+      return;
+    }
+    updateMenuPos();
     function onDoc(e: MouseEvent) {
-      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
+      const target = e.target as Node;
+      if (
+        moreRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setMoreOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [moreOpen]);
+    window.addEventListener("resize", updateMenuPos);
+    window.addEventListener("scroll", updateMenuPos, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("resize", updateMenuPos);
+      window.removeEventListener("scroll", updateMenuPos, true);
+    };
+  }, [moreOpen, updateMenuPos]);
 
   return (
     <motion.div
@@ -520,47 +557,61 @@ function RoomRow({
             variant="ghost"
             aria-label={t("moreActions")}
             aria-expanded={moreOpen}
-            onClick={() => setMoreOpen((v) => !v)}
+            onClick={() => {
+              if (moreOpen) {
+                setMoreOpen(false);
+                return;
+              }
+              updateMenuPos();
+              setMoreOpen(true);
+            }}
             icon={<IconMore className="h-4 w-4" />}
           >
             {tCommon("actions.more")}
           </Button>
-          <AnimatePresence>
-            {moreOpen ? (
-              <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                transition={springSoft}
-                className="absolute bottom-[calc(100%+8px)] right-0 z-20 w-48 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_94%,black)] p-1.5 shadow-lift backdrop-blur-xl"
-              >
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    onRename();
-                  }}
-                >
-                  <IconPencil className="h-4 w-4" /> {tCommon("actions.rename")}
-                </button>
-                <Link
-                  href={`/r/${room.slug}/brand`}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
-                  onClick={() => setMoreOpen(false)}
-                >
-                  <IconPalette className="h-4 w-4" /> {t("brand")}
-                </Link>
-                <a
-                  href={`/api/rooms/${room.slug}/ics`}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
-                  onClick={() => setMoreOpen(false)}
-                >
-                  <IconCalendar className="h-4 w-4" /> {t("ics")}
-                </a>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+          {typeof document !== "undefined" &&
+            createPortal(
+              <AnimatePresence>
+                {moreOpen && menuPos ? (
+                  <motion.div
+                    ref={menuRef}
+                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                    transition={springSoft}
+                    style={{ top: menuPos.top, left: menuPos.left }}
+                    className="fixed z-[80] w-48 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_94%,black)] p-1.5 shadow-lift backdrop-blur-xl"
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        onRename();
+                      }}
+                    >
+                      <IconPencil className="h-4 w-4" />{" "}
+                      {tCommon("actions.rename")}
+                    </button>
+                    <Link
+                      href={`/r/${room.slug}/brand`}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
+                      onClick={() => setMoreOpen(false)}
+                    >
+                      <IconPalette className="h-4 w-4" /> {t("brand")}
+                    </Link>
+                    <a
+                      href={`/api/rooms/${room.slug}/ics`}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
+                      onClick={() => setMoreOpen(false)}
+                    >
+                      <IconCalendar className="h-4 w-4" /> {t("ics")}
+                    </a>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>,
+              document.body,
+            )}
         </div>
 
         <Button

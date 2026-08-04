@@ -76,8 +76,8 @@ Agent ──► Postgres
 
 | Chamada | Modelo (env) | Cap output | Notas |
 |---------|--------------|------------|-------|
-| Insights + chat | `GEMINI_MODEL` → `gemini-2.5-flash-lite` | 512 / 1024 | Cache insights; chat com 20 segs / 6 msgs (40/10 se expandir) |
-| Resumo pós | `GEMINI_SUMMARY_MODEL` → `gemini-2.5-flash` | 4096 | Transcript capped a 12k chars (amostra início/meio/fim) |
+| Insights + chat | `GEMINI_MODEL` → `gemini-3.5-flash-lite` | 512 / 1024 | Cache insights; chat com 20 segs / 6 msgs (40/10 se expandir) |
+| Resumo pós | `GEMINI_SUMMARY_MODEL` → `gemini-3.5-flash-lite` | 4096 | Transcript capped a 12k chars (amostra início/meio/fim) |
 
 Quotas: máx. 20 chats Gemini / participante / reunião; máx. 3 regenerações de insights / reunião. Deepgram STT continua a ser o maior custo em escala (VAD Silero = backlog).
 
