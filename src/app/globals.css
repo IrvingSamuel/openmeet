@@ -1,0 +1,284 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand tokens — overridden per-room by the brand engine */
+    --brand-primary: #6366f1;
+    --brand-secondary: #22d3ee;
+    --brand-tertiary: #a855f7;
+    --brand-font: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+      sans-serif;
+    --brand-bg: #05060f;
+
+    --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+
+    /* Surfaces derive from brand bg so white-label repaints everything */
+    --surface-0: var(--brand-bg);
+    --surface-1: color-mix(in srgb, var(--brand-bg) 88%, white 12%);
+    --surface-2: color-mix(in srgb, var(--brand-bg) 80%, white 20%);
+    --surface-3: color-mix(in srgb, var(--brand-bg) 72%, white 28%);
+
+    --line-subtle: rgb(255 255 255 / 0.06);
+    --line: rgb(255 255 255 / 0.1);
+    --line-strong: rgb(255 255 255 / 0.18);
+
+    --ink: #f5f7ff;
+    --ink-muted: rgb(226 232 240 / 0.68);
+    --ink-faint: rgb(226 232 240 / 0.42);
+
+    --radius: 1rem;
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--surface-0);
+    color: var(--ink);
+    font-family: var(--brand-font);
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+    color: white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+    background-clip: content-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-secondary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Frosted glass panel */
+  .glass {
+    background: linear-gradient(
+      160deg,
+      rgb(255 255 255 / 0.07),
+      rgb(255 255 255 / 0.02)
+    );
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--line);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.07),
+      0 20px 50px -24px rgb(0 0 0 / 0.8);
+  }
+
+  .glass-strong {
+    background: linear-gradient(
+      160deg,
+      rgb(255 255 255 / 0.11),
+      rgb(255 255 255 / 0.04)
+    );
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid var(--line-strong);
+  }
+
+  /* Gradient text using brand tokens */
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      var(--ink) 0%,
+      var(--ink) 30%,
+      var(--brand-secondary) 55%,
+      var(--brand-primary) 80%,
+      var(--brand-tertiary) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-brand-gradient {
+    background: linear-gradient(
+      100deg,
+      var(--brand-primary),
+      var(--brand-secondary) 55%,
+      var(--brand-tertiary)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Animated conic border used on hero cards & CTAs */
+  .border-gradient {
+    position: relative;
+    isolation: isolate;
+  }
+  .border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--angle, 0deg),
+      transparent 0deg,
+      var(--brand-primary) 70deg,
+      var(--brand-secondary) 140deg,
+      transparent 210deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: -1;
+    animation: rotate-angle 6s linear infinite;
+  }
+
+  /* Subtle film grain to kill banding on large gradients */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.22;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .mesh-bg {
+    background-image:
+      linear-gradient(to right, var(--line-subtle) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--line-subtle) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+  }
+
+  .shimmer-track {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-track::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.09),
+      transparent
+    );
+    animation: shimmer 2.2s infinite;
+  }
+
+  /* LiveKit component overrides so the SFU UI inherits the brand */
+  [data-lk-theme] {
+    --lk-bg: transparent;
+    --lk-accent-bg: var(--brand-primary);
+    --lk-accent-fg: #fff;
+    --lk-control-bg: rgb(255 255 255 / 0.07);
+    --lk-control-hover-bg: rgb(255 255 255 / 0.14);
+    --lk-border-color: var(--line);
+    --lk-fg: var(--ink);
+    --lk-font-family: var(--brand-font);
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .perspective {
+    perspective: 1200px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* Safe-area insets for notched devices / PWA standalone */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .p-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+}
+
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-angle {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

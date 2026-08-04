@@ -1,0 +1,42 @@
+=== 2026-07-28T19:40:01-03:00 ===
+-- load --
+ 19:40:01 up 33 days,  4:47,  5 users,  load average: 1.81, 1.61, 1.32
+-- mem --
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       9.9Gi       228Mi       1.6Gi       7.5Gi       5.8Gi
+Swap:          2.0Gi       2.0Gi       164Ki
+-- livekit container --
+CONTAINER ID   NAME                   CPU %     MEM USAGE / LIMIT     MEM %     NET I/O   BLOCK I/O   PIDS
+d3dcc3c43401   chronos-meet-livekit   0.23%     29.03MiB / 15.62GiB   0.18%     0B / 0B   0B / 0B     9
+-- sample metrics --
+# HELP go_goroutines Number of goroutines that currently exist.
+# TYPE go_goroutines gauge
+go_goroutines 105
+# HELP livekit_node_dropped_packets System level dropped outgoing packet percentage.
+# TYPE livekit_node_dropped_packets gauge
+livekit_node_dropped_packets{node_id="ND_HjHUqwjsJ62w",node_type="SERVER"} 0
+# HELP livekit_node_packet_total System level packet count. Count starts at 0 when service is first started.
+# TYPE livekit_node_packet_total gauge
+livekit_node_packet_total{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",type="dropped"} 0
+livekit_node_packet_total{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",type="out"} 61714
+# HELP livekit_room_duration_seconds 
+# TYPE livekit_room_duration_seconds histogram
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="5"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="10"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="60"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="300"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="600"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="1800"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="3600"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="7200"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="18000"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="36000"} 0
+livekit_room_duration_seconds_bucket{node_id="ND_HjHUqwjsJ62w",node_type="SERVER",le="+Inf"} 0
+livekit_room_duration_seconds_sum{node_id="ND_HjHUqwjsJ62w",node_type="SERVER"} 0
+livekit_room_duration_seconds_count{node_id="ND_HjHUqwjsJ62w",node_type="SERVER"} 0
+# HELP livekit_room_total 
+# TYPE livekit_room_total gauge
+livekit_room_total{node_id="ND_HjHUqwjsJ62w",node_type="SERVER"} 0
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 5.8789888e+07
