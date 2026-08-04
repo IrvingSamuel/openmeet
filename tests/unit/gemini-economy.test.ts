@@ -8,7 +8,7 @@ import {
 vi.mock("@/lib/app-settings", () => ({
   resolveAiConfig: vi.fn(async () => ({
     apiKey: "test",
-    model: "gemini-2.5-flash",
+    model: "gemini-3.5-flash-lite",
   })),
 }));
 
@@ -53,7 +53,7 @@ describe("defaultGeminiModel", () => {
   it("defaults to flash-lite when env unset", () => {
     const prev = process.env.GEMINI_MODEL;
     delete process.env.GEMINI_MODEL;
-    expect(defaultGeminiModel()).toBe("gemini-2.5-flash-lite");
+    expect(defaultGeminiModel()).toBe("gemini-3.5-flash-lite");
     if (prev !== undefined) process.env.GEMINI_MODEL = prev;
   });
 });

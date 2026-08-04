@@ -83,8 +83,8 @@ const baseRow = {
 
 const baseAi = {
   geminiApiKey: "env-key-1234",
-  geminiModel: "gemini-2.5-flash-lite",
-  geminiSummaryModel: "gemini-2.5-flash",
+  geminiModel: "gemini-3.5-flash-lite",
+  geminiSummaryModel: "gemini-3.5-flash-lite",
   deepgramApiKey: undefined,
   sources: {
     geminiApiKey: "env" as const,

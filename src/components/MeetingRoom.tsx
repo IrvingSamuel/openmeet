@@ -571,7 +571,7 @@ function RoomShell({
         </div>
       </header>
 
-      <main className="relative z-10 flex min-h-0 flex-1 gap-3 p-2 sm:p-4">
+      <main className="relative z-10 isolate flex min-h-0 flex-1 gap-3 p-2 sm:p-4">
         <div className="relative min-w-0 flex-1">
           <Stage layout={layout} pinnedKey={pinnedKey} onPin={handlePin} />
           <CaptionsOverlay captions={captions} visible={captionsOn} />
@@ -626,8 +626,8 @@ function RoomShell({
         ) : null}
       </main>
 
-      {/* Controls stay above banners and remain clickable during soft reconnect */}
-      <div className="pointer-events-none relative z-30 flex shrink-0 justify-center px-2 pb-safe">
+      {/* Controls stay above the video stage — isolation keeps <video> compositing contained */}
+      <div className="pointer-events-none relative z-50 flex shrink-0 justify-center px-2 pb-safe">
         <div className="pointer-events-auto pb-3 sm:pb-5">
           <ControlBar
             layout={layout}

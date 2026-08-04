@@ -29,7 +29,7 @@ export type GeminiResult = {
 };
 
 export type GeminiCallOpts = {
-  /** Override model (default: GEMINI_MODEL / gemini-2.5-flash-lite). */
+  /** Override model (default: GEMINI_MODEL / gemini-3.5-flash-lite). */
   model?: string;
   /** Cap completion length. */
   maxOutputTokens?: number;
@@ -37,15 +37,15 @@ export type GeminiCallOpts = {
 
 /** Default model for high-volume calls (insights + chat). Env-only sync fallback for tests. */
 export function defaultGeminiModel(): string {
-  return process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+  return process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 }
 
-/** Higher-quality model for post-meeting summaries. Env-only sync fallback for tests. */
+/** Model for post-meeting summaries. Env-only sync fallback for tests. */
 export function summaryGeminiModel(): string {
   return (
     process.env.GEMINI_SUMMARY_MODEL ||
     process.env.GEMINI_MODEL ||
-    "gemini-2.5-flash"
+    "gemini-3.5-flash-lite"
   );
 }
 
@@ -131,9 +131,17 @@ export async function callGeminiSafe(
       };
     }
     const json = JSON.parse(body) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string; thought?: boolean }>;
+        };
+      }>;
     };
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const parts = json.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+      .filter((p) => p.text && !p.thought)
+      .map((p) => p.text!)
+      .join("");
     return {
       text,
       offline: false,
