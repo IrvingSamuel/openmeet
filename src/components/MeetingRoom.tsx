@@ -8,12 +8,14 @@ import {
   useConnectionState,
   useParticipants,
   useRoomContext,
+  useTracks,
 } from "@livekit/components-react";
 import {
   ConnectionState,
   DisconnectReason,
   Room,
   RoomEvent,
+  Track,
   type AudioCaptureOptions,
   type RoomConnectOptions,
   type RoomOptions,
@@ -34,9 +36,15 @@ import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { LogoMark } from "@/components/layout/Logo";
 import { IconCopy, IconCheck } from "@/components/ui/icons";
+import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 import { isAgentParticipant } from "@/lib/participants";
 import { useIsLgUp } from "@/hooks/useMediaQuery";
+import {
+  useMeetingRecorder,
+  type RecordingClientConfig,
+} from "@/hooks/useMeetingRecorder";
 import { useRouter } from "@/i18n/navigation";
+import type { BgAnimation } from "@/lib/brand";
 
 type RoomRole = "host" | "participant" | "agent";
 
@@ -58,8 +66,12 @@ export function MeetingRoom({
   roomTitle,
   roomSlug,
   logoUrl,
+  bgAnimation,
+  patternUrl,
+  patternTintActive,
   meetingId,
   role = "participant",
+  recordingConfig = null,
   onLeave,
   onEndForAll,
   initialVideo = true,
@@ -72,8 +84,12 @@ export function MeetingRoom({
   roomTitle?: string;
   roomSlug: string;
   logoUrl?: string | null;
+  bgAnimation?: BgAnimation | null;
+  patternUrl?: string | null;
+  patternTintActive?: boolean;
   meetingId?: string;
   role?: RoomRole;
+  recordingConfig?: RecordingClientConfig | null;
   onLeave?: () => void;
   onEndForAll?: () => void | Promise<void>;
   initialVideo?: boolean;
@@ -219,9 +235,15 @@ export function MeetingRoom({
 
   return (
     <div
-      className="relative h-[100svh] w-full overflow-hidden bg-[var(--brand-bg)]"
+      className="relative h-[100svh] w-full overflow-hidden bg-[var(--brand-bg-solid)]"
       data-lk-theme="default"
     >
+      <BrandBackdrop
+        animation={bgAnimation || "none"}
+        patternUrl={patternUrl}
+        patternTintActive={patternTintActive}
+        intensity={0.45}
+      />
       <LiveKitRoom
         room={room}
         token={token}
@@ -233,7 +255,7 @@ export function MeetingRoom({
         onDisconnected={handleDisconnected}
         onMediaDeviceFailure={handleMediaDeviceFailure}
         onError={handleError}
-        className="h-full"
+        className="relative z-[1] h-full"
       >
         <RoomShell
           roomTitle={roomTitle}
@@ -241,6 +263,7 @@ export function MeetingRoom({
           logoUrl={logoUrl}
           meetingId={meetingId}
           isHost={role === "host"}
+          recordingConfig={recordingConfig}
           forcedExit={forcedExit}
           onLeave={requestLeave}
           onEndForAll={requestEndForAll}
@@ -271,6 +294,7 @@ function RoomShell({
   logoUrl,
   meetingId,
   isHost,
+  recordingConfig,
   forcedExit,
   onLeave,
   onEndForAll,
@@ -287,6 +311,7 @@ function RoomShell({
   logoUrl?: string | null;
   meetingId?: string;
   isHost: boolean;
+  recordingConfig: RecordingClientConfig | null;
   forcedExit: "ended" | "removed" | null;
   onLeave: () => void;
   onEndForAll: () => void | Promise<void>;
@@ -306,6 +331,18 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  const recorder = useMeetingRecorder({
+    room,
+    meetingId,
+    isHost,
+    config: recordingConfig,
+  });
+
+  useEffect(() => {
+    if (recorder.error) {
+      toast.error(recorder.error);
+    }
+  }, [recorder.error, toast]);
   const [panel, setPanel] = useState<PanelKind>("none");
   const captions = useCaptions(meetingId);
   const {
@@ -332,6 +369,22 @@ function RoomShell({
     setPinnedKey(key);
     if (key) setLayout("spotlight");
   }
+
+  const screenShareTracks = useTracks(
+    [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
+    { onlySubscribed: false },
+  );
+  const hasScreenShare = screenShareTracks.some((t) => t.publication);
+  const prevHasScreenShare = useRef(false);
+  useEffect(() => {
+    if (hasScreenShare && !prevHasScreenShare.current) {
+      setLayout("spotlight");
+    } else if (!hasScreenShare && prevHasScreenShare.current) {
+      setLayout("grid");
+    }
+    prevHasScreenShare.current = hasScreenShare;
+  }, [hasScreenShare]);
+
   const [captionsOn, setCaptionsOn] = useState(true);
   const [copied, setCopied] = useState(false);
   const [readChat, setReadChat] = useState(0);
@@ -546,6 +599,12 @@ function RoomShell({
         </div>
 
         <div className="flex items-center gap-2 pt-3 sm:pt-4">
+          {recorder.active ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-rose-200">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+              REC
+            </span>
+          ) : null}
           <ConnectionBadge state={state} count={humans.length} />
           <button
             onClick={copyLink}
@@ -640,6 +699,13 @@ function RoomShell({
             peopleCount={humans.length}
             insightCount={insights.length}
             isHost={isHost}
+            recordingActive={recorder.active}
+            recordingBusy={recorder.busy}
+            canToggleRecording={recorder.canToggle}
+            onToggleRecording={() => {
+              if (recorder.active) void recorder.stop();
+              else void recorder.start();
+            }}
             onLeave={onLeave}
             onEndForAll={onEndForAll}
           />

@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn, initials } from "@/lib/utils";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
 import {
-  Aurora,
   EASE_OUT_EXPO,
   Reveal,
   morphTransition,
@@ -15,6 +14,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Surface";
+import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
+import type { BgAnimation } from "@/lib/brand";
 import {
   IconArrowRight,
   IconMic,
@@ -38,6 +39,9 @@ export function Lobby({
   title,
   subtitle,
   logoUrl,
+  bgAnimation,
+  patternUrl,
+  patternTintActive,
   onJoin,
   requireLogin,
   showHostLoginHint,
@@ -50,6 +54,9 @@ export function Lobby({
   title: string;
   subtitle?: string | null;
   logoUrl?: string | null;
+  bgAnimation?: BgAnimation | null;
+  patternUrl?: string | null;
+  patternTintActive?: boolean;
   requireLogin?: boolean;
   /** Invite rooms: hint that the host must sign in to manage approvals. */
   showHostLoginHint?: boolean;
@@ -153,13 +160,18 @@ export function Lobby({
 
   return (
     <div className="relative grid min-h-screen place-items-center px-5 py-12">
-      <Aurora intensity={0.75} />
+      <BrandBackdrop
+        animation={bgAnimation || "aurora"}
+        patternUrl={patternUrl}
+        patternTintActive={patternTintActive}
+        intensity={0.75}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 24, filter: "blur(12px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.8, ease: EASE_OUT_EXPO }}
-        className="relative w-full max-w-5xl"
+        className="relative z-[1] w-full max-w-5xl"
       >
         <header className="mb-8 flex flex-col items-center text-center">
           {logoUrl ? (

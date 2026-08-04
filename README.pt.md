@@ -33,6 +33,19 @@ python3 -m venv venv
 # PM2 sobe chronos-meet-agent via ecosystem
 ```
 
+## Gravação
+
+Activar em `/admin` → **Gravação**: motor `browser` (recomendado nesta VPS) ou `egress` (LiveKit); controlo manual/automático; storage local ou S3 (preferir MinIO para testes Egress).
+
+Egress nesta VPS: **só testes curtos**, depois `down`:
+
+```bash
+cd infra
+docker compose -f docker-compose.egress.yml up -d
+# … teste …
+docker compose -f docker-compose.egress.yml down
+```
+
 ## Qualidade
 
 ```bash

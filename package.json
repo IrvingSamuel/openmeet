@@ -1,6 +1,6 @@
 {
   "name": "chronos-meet",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Open-source white-label videoconferencing with LiveKit, live captions, and a Chronos AI copilot that turns meetings into tasks.",
   "license": "MIT",
   "private": false,
@@ -42,6 +42,8 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1102.0",
+    "@aws-sdk/s3-request-presigner": "^3.1102.0",
     "@livekit/components-react": "^2.9.23",
     "@livekit/components-styles": "^1.2.0",
     "@serwist/next": "^9.5.12",

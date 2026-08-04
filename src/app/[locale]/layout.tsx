@@ -41,6 +41,18 @@ export async function generateMetadata({
       locale: OG_LOCALE[locale],
       siteName: "Chronos Meet",
       type: "website",
+      images: [
+        {
+          url: "/Chronos_Meet_Logo.png",
+          width: 1000,
+          height: 1000,
+          alt: "Chronos Meet",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary",
+      images: ["/Chronos_Meet_Logo.png"],
     },
   };
 }

@@ -4,7 +4,8 @@ export type OutboundWebhookEvent =
   | "transcript.ready"
   | "chat.ready"
   | "summary.ready"
-  | "tasks.generated";
+  | "tasks.generated"
+  | "recording.ready";
 
 export type WebhookMeetingMeta = {
   id: string;
@@ -27,6 +28,7 @@ export const OUTBOUND_WEBHOOK_EVENTS: OutboundWebhookEvent[] = [
   "chat.ready",
   "summary.ready",
   "tasks.generated",
+  "recording.ready",
 ];
 
 export function exampleWebhookPayload(
@@ -136,6 +138,25 @@ export function exampleWebhookPayload(
               description: "Documentar as mudanças da sprint.",
             },
           ],
+        },
+      };
+    case "recording.ready":
+      return {
+        event,
+        version: 1,
+        sentAt,
+        meeting,
+        data: {
+          recordingId: "88888888-8888-8888-8888-888888888888",
+          status: "ready",
+          engine: "browser",
+          storageBackend: "local",
+          mimeType: "video/webm",
+          bytes: 12_345_678,
+          downloadPath:
+            "/api/meetings/11111111-1111-1111-1111-111111111111/recording/88888888-8888-8888-8888-888888888888/file",
+          startedAt: "2026-08-04T11:00:10.000Z",
+          endedAt: "2026-08-04T11:30:00.000Z",
         },
       };
   }

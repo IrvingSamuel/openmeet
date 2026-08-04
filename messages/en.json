@@ -177,6 +177,9 @@
       "subtitle": "Open-source videoconferencing hosted on your domain. Every room inherits the logo, colors, and typography from the Chronos board — and you leave with minutes, decisions, and tasks already created.",
       "ctaCreate": "Create a room now",
       "ctaHow": "See how it works",
+      "ctaOpenSource": "Download open source",
+      "ctaOpenSourceAria": "Download Chronos Meet on GitHub — MIT open source",
+      "ctaOpenSourceHint": "MIT · fork, remix, and self-host with full creative freedom — built for the developer community.",
       "statLatencyLabel": "median SFU latency",
       "statLatencySuffix": " ms",
       "statOpenLabel": "open source and self-hostable",
@@ -270,12 +273,15 @@
       "titleGradient": "with the board already updated.",
       "body": "Create a room, import the board identity, and invite via link. Takes under a minute.",
       "openDashboard": "Open dashboard",
-      "loginChronos": "Sign in with Chronos"
+      "loginChronos": "Sign in with Chronos",
+      "openSource": "Free code on GitHub",
+      "openSourceAria": "Open the Chronos Meet open-source repository"
     },
     "footer": {
       "tagline": "Open-source · hosted at meet.chronos.com.pt",
       "panel": "Dashboard",
-      "status": "Status"
+      "status": "Status",
+      "github": "GitHub"
     },
     "roomPreview": {
       "ariaLabel": "Animated preview of a Chronos Meet room",
@@ -436,8 +442,8 @@
     "fields": {
       "lobbyTitle": "Lobby title",
       "lobbySubtitle": "Subtitle",
-      "logoUrl": "Logo (URL)",
-      "logoHint": "SVG or PNG with transparent background works best.",
+      "logoUrl": "Logo (URL or upload)",
+      "logoHint": "SVG or PNG with transparent background works best. Paste a link or upload a file.",
       "wordmark": "Wordmark",
       "wordmarkPlaceholder": "Name shown next to the logo",
       "boardPreset": "Board preset",
@@ -445,6 +451,26 @@
       "secondary": "Secondary",
       "tertiary": "Tertiary",
       "background": "Background",
+      "surface": "Background surface",
+      "patternUrl": "Background pattern",
+      "patternHint": "Tiled image (PNG/SVG). Combine with the gradient and theme tint.",
+      "patternSizeMode": "Size mode",
+      "patternSizePercent": "Percentage",
+      "patternSizeFixed": "Fixed size (px)",
+      "patternSize": "Pattern size",
+      "patternTint": "Color overlay",
+      "tintNone": "None",
+      "tintCustom": "Custom",
+      "patternTintColor": "Overlay color",
+      "patternTintOpacity": "Tint opacity (%)",
+      "bgAnimation": "Background animation",
+      "animNone": "None",
+      "animWave": "Wave",
+      "animBeam": "Beam",
+      "animAurora": "Aurora",
+      "animPulse": "Pulse",
+      "bgAnimationSpeed": "Speed",
+      "bgAnimationSpeedHint": "1 = slowest, 10 = fastest",
       "fontFamily": "Font family",
       "fontHint": "Use a CSS stack. The font must be available on the client.",
       "faviconUrl": "Favicon (URL)",
@@ -459,6 +485,23 @@
       "amber": "Amber",
       "sky": "Sky",
       "violet": "Violet"
+    },
+    "paint": {
+      "mode": "Color mode",
+      "solid": "Solid",
+      "gradient": "Gradient",
+      "linear": "Linear",
+      "radial": "Radial",
+      "angle": "Angle",
+      "stop": "Stop",
+      "addStop": "Add stop"
+    },
+    "asset": {
+      "upload": "Upload file",
+      "clear": "Remove",
+      "uploaded": "File uploaded.",
+      "uploadFailed": "Could not upload the file.",
+      "uploadNetworkFailed": "Network error during upload."
     }
   },
   "room": {
@@ -488,7 +531,9 @@
       "leaveMeeting": "Leave meeting",
       "leaveHint": "The meeting continues for others",
       "endForAll": "End for everyone",
-      "endForAllHint": "Removes everyone and generates the summary"
+      "endForAllHint": "Removes everyone and generates the summary",
+      "startRecording": "Start recording",
+      "stopRecording": "Stop recording"
     },
     "sidePanel": {
       "close": "Close panel",
@@ -564,6 +609,7 @@
     "copyMarkdown": "Copy markdown",
     "rawTranscript": "Raw transcript",
     "noSegmentsReady": "No transcribed segments in this meeting.",
+    "noAudioDetected": "No audio was detected in this meeting.",
     "suggestedTasks": "Suggested tasks",
     "noTasksReady": "No suggested tasks for this meeting.",
     "createInChronos": "Create {count} in Chronos",
@@ -585,16 +631,20 @@
     "exportUnavailable": "_Summary not available yet._",
     "exportNoSegments": "_(no transcribed segments)_",
     "exportRawHeading": "## Raw transcript",
-    "shareTitle": "Meeting summary — {slug}"
+    "shareTitle": "Meeting summary — {slug}",
+    "recordingsHeading": "Recordings",
+    "recordingsEmpty": "No recordings yet.",
+    "downloadRecording": "Download"
   },
   "admin": {
     "eyebrow": "System",
     "title": "Administration",
-    "description": "Configure language, AI keys, and outbound webhooks to integrate Meet with third-party platforms.",
+    "description": "Configure locale, AI keys, meeting recording, and outbound webhooks to integrate Meet with third-party platforms.",
     "tabs": {
       "general": "General",
       "ai": "AI",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "recording": "Recording"
     },
     "loadFailed": "Could not load administration.",
     "saveFailed": "Could not save.",
@@ -669,6 +719,10 @@
         "tasks": {
           "label": "Generated tasks",
           "description": "Action items suggested by the copilot."
+        },
+        "recording": {
+          "label": "Recording ready",
+          "description": "Metadata and download link when the recording is available."
         }
       },
       "save": "Save webhooks",
@@ -680,6 +734,30 @@
       "bodyLabel": "Body JSON",
       "sending": "Sending…",
       "sendTest": "Send test for this type"
+    },
+    "recording": {
+      "enabled": "Meeting recording enabled",
+      "engineLabel": "Recording engine",
+      "engineBrowser": "Browser (MediaRecorder) — light on the VPS",
+      "engineEgress": "LiveKit Egress — room quality (dedicated node recommended)",
+      "controlLabel": "Control",
+      "controlManual": "Manual — host starts and stops in the room",
+      "controlAuto": "Automatic — starts when the host joins (no stop)",
+      "storageLabel": "Storage",
+      "storageLocal": "Local disk on the server",
+      "storageS3": "S3-compatible (MinIO / Hetzner / AWS)",
+      "localDirHint": "Local folder (env RECORDINGS_DIR): {dir}",
+      "s3Endpoint": "S3 endpoint",
+      "s3EndpointPlaceholder": "https://fsn1.your-objectstorage.com",
+      "s3Bucket": "Bucket",
+      "s3Region": "Region",
+      "s3AccessKey": "Access key",
+      "s3SecretKey": "Secret key",
+      "s3SecretHint": "Leave empty to keep the current key (DB or .env).",
+      "save": "Save recording",
+      "clearS3Access": "Clear access key",
+      "clearS3Secret": "Clear secret key",
+      "egressNote": "Egress needs the livekit/egress service (see infra/docker-compose.egress.yml). Do not run on a 4-vCPU VPS without a dedicated node."
     }
   }
 }

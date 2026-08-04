@@ -33,6 +33,21 @@ export type SuggestedAction = {
 
 export { sampleTranscriptForSummary, SUMMARY_TRANSCRIPT_CHAR_CAP };
 
+/** Short report when the meeting produced no transcript — no LLM call. */
+export function emptyTranscriptSummaryMarkdown(locale: string): string {
+  const key = locale.toLowerCase().startsWith("pt")
+    ? "pt"
+    : locale.toLowerCase().slice(0, 2);
+  const messages: Record<string, string> = {
+    pt: "Nenhum áudio foi detectado nesta reunião.",
+    en: "No audio was detected in this meeting.",
+    es: "No se detectó audio en esta reunión.",
+    fr: "Aucun audio n'a été détecté dans cette réunion.",
+    de: "In diesem Meeting wurde kein Audio erkannt.",
+  };
+  return messages[key] || messages.pt;
+}
+
 export async function tryClaimSummary(
   meetingId: string,
   force?: boolean,
@@ -93,8 +108,48 @@ export async function generateMeetingSummary(meetingId: string) {
     .map((s) => `${s.speakerLabel}: ${s.text}`)
     .join("\n");
   const transcript = sampleTranscriptForSummary(transcriptFull);
-
   const locale = await resolveLocale();
+
+  // No transcribed audio: skip Gemini to avoid token spend / hallucinated report.
+  if (!transcriptFull.trim()) {
+    const summaryMarkdown = emptyTranscriptSummaryMarkdown(locale);
+    const model = "skipped-no-transcript";
+
+    await db
+      .insert(meetingSummaries)
+      .values({
+        meetingId: meeting.id,
+        summaryMarkdown,
+        model,
+      })
+      .onConflictDoUpdate({
+        target: meetingSummaries.meetingId,
+        set: {
+          summaryMarkdown,
+          model,
+        },
+      });
+
+    await db.delete(actionItems).where(eq(actionItems.meetingId, meeting.id));
+
+    await db
+      .update(meetings)
+      .set({ summaryStatus: "ready" })
+      .where(eq(meetings.id, meeting.id));
+
+    void dispatchSummaryReadyWebhooks(meeting.id).catch((err) => {
+      console.error("[chronos-meet] summary webhooks failed", err);
+    });
+
+    return {
+      summaryMarkdown,
+      actionItems: [],
+      offline: false,
+      billingDepleted: false,
+      warning: undefined,
+    };
+  }
+
   const lang = localePromptLabel(locale);
   const prompt = `Você é o copiloto Chronos Meet. Analise a reunião em ${lang}.
 
@@ -105,7 +160,7 @@ Produza markdown com exatamente estas secções (use estes títulos ##):
 ## Sugestões de tarefas
 
 Transcrição${transcriptFull.length > transcript.length ? " (amostrada início/meio/fim)" : ""}:
-${transcript || "(sem segmentos — reunião sem áudio transcrito)"}
+${transcript}
 
 No final, emita um bloco JSON estrito delimitado por <actions> e </actions> com array:
 [{

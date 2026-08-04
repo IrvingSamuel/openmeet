@@ -22,6 +22,7 @@ import {
   IconUsers,
   IconVideo,
   IconVideoOff,
+  IconRecord,
 } from "@/components/ui/icons";
 import type { StageLayout } from "@/components/room/Stage";
 import { FloatingMenu } from "@/components/room/FloatingMenu";
@@ -39,6 +40,10 @@ export function ControlBar({
   peopleCount,
   insightCount,
   isHost,
+  recordingActive,
+  recordingBusy,
+  canToggleRecording,
+  onToggleRecording,
   onLeave,
   onEndForAll,
 }: {
@@ -52,6 +57,10 @@ export function ControlBar({
   peopleCount: number;
   insightCount?: number;
   isHost?: boolean;
+  recordingActive?: boolean;
+  recordingBusy?: boolean;
+  canToggleRecording?: boolean;
+  onToggleRecording?: () => void;
   onLeave: () => void;
   onEndForAll?: () => void | Promise<void>;
 }) {
@@ -116,6 +125,18 @@ export function ControlBar({
             label={screen.enabled ? t("stopShare") : t("startShare")}
           >
             <IconScreen />
+          </ControlButton>
+        ) : null}
+
+        {canToggleRecording ? (
+          <ControlButton
+            active={Boolean(recordingActive)}
+            danger={Boolean(recordingActive)}
+            pending={Boolean(recordingBusy)}
+            onClick={() => onToggleRecording?.()}
+            label={recordingActive ? t("stopRecording") : t("startRecording")}
+          >
+            <IconRecord />
           </ControlButton>
         ) : null}
 

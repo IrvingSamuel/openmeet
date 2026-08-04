@@ -67,6 +67,18 @@ export const roomBrands = pgTable("room_brands", {
   lobbySubtitle: text("lobby_subtitle"),
   faviconUrl: text("favicon_url"),
   customCss: text("custom_css"),
+  primaryPaint: jsonb("primary_paint"),
+  secondaryPaint: jsonb("secondary_paint"),
+  tertiaryPaint: jsonb("tertiary_paint"),
+  backgroundPaint: jsonb("background_paint"),
+  patternUrl: text("pattern_url"),
+  patternSizeMode: text("pattern_size_mode").default("percent"),
+  patternSize: integer("pattern_size").default(24),
+  patternTint: text("pattern_tint").default("none"),
+  patternTintColor: text("pattern_tint_color"),
+  patternTintOpacity: integer("pattern_tint_opacity").default(55),
+  bgAnimation: text("bg_animation").default("none"),
+  bgAnimationSpeed: integer("bg_animation_speed").default(3),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -204,15 +216,43 @@ export const copilotChatMessages = pgTable(
   (t) => [index("copilot_chat_messages_meeting_idx").on(t.meetingId)],
 );
 
-export const recordings = pgTable("recordings", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  meetingId: uuid("meeting_id")
-    .notNull()
-    .references(() => meetings.id, { onDelete: "cascade" }),
-  storageUrl: text("storage_url"),
-  status: text("status").notNull().default("pending"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export type RecordingEngine = "egress" | "browser";
+export type RecordingStorageBackend = "local" | "s3";
+export type RecordingControlMode = "manual" | "auto";
+/** pending | recording | uploading | ready | failed */
+export type RecordingStatus =
+  | "pending"
+  | "recording"
+  | "uploading"
+  | "ready"
+  | "failed";
+
+export const recordings = pgTable(
+  "recordings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    meetingId: uuid("meeting_id")
+      .notNull()
+      .references(() => meetings.id, { onDelete: "cascade" }),
+    storageUrl: text("storage_url"),
+    status: text("status").notNull().default("pending"),
+    engine: text("engine").notNull().default("browser"), // egress | browser
+    storageBackend: text("storage_backend").notNull().default("local"), // local | s3
+    egressId: text("egress_id"),
+    filepath: text("filepath"),
+    objectKey: text("object_key"),
+    mimeType: text("mime_type"),
+    bytes: integer("bytes"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("recordings_meeting_idx").on(t.meetingId),
+    index("recordings_egress_idx").on(t.egressId),
+  ],
+);
 
 /** Singleton system settings for self-hosted admin (AI keys, locale, webhooks). */
 export const APP_SETTINGS_ROW_ID = "00000000-0000-0000-0000-000000000001";
@@ -222,6 +262,7 @@ export type WebhookEventsConfig = {
   chat: boolean;
   summary: boolean;
   tasks: boolean;
+  recording: boolean;
 };
 
 export const DEFAULT_WEBHOOK_EVENTS: WebhookEventsConfig = {
@@ -229,6 +270,7 @@ export const DEFAULT_WEBHOOK_EVENTS: WebhookEventsConfig = {
   chat: true,
   summary: true,
   tasks: true,
+  recording: true,
 };
 
 export const appSettings = pgTable("app_settings", {
@@ -242,6 +284,17 @@ export const appSettings = pgTable("app_settings", {
   webhookSecret: text("webhook_secret"),
   webhookEnabled: boolean("webhook_enabled").notNull().default(false),
   webhookEvents: jsonb("webhook_events").$type<WebhookEventsConfig>(),
+  recordingEnabled: boolean("recording_enabled").notNull().default(false),
+  recordingEngine: text("recording_engine").notNull().default("browser"), // egress | browser
+  recordingControlMode: text("recording_control_mode")
+    .notNull()
+    .default("manual"), // manual | auto
+  recordingStorage: text("recording_storage").notNull().default("local"), // local | s3
+  recordingS3Endpoint: text("recording_s3_endpoint"),
+  recordingS3Bucket: text("recording_s3_bucket"),
+  recordingS3Region: text("recording_s3_region"),
+  recordingS3AccessKey: text("recording_s3_access_key"),
+  recordingS3SecretKey: text("recording_s3_secret_key"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

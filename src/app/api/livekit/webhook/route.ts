@@ -5,6 +5,7 @@ import { meetings, participants, rooms } from "@/db/schema";
 import { getWebhookReceiver } from "@/lib/livekit";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
+import { handleEgressWebhook, stopMeetingRecording } from "@/lib/recording";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -19,7 +20,8 @@ export async function POST(req: NextRequest) {
       });
       if (room) {
         const active = await db.query.meetings.findFirst({
-          where: (m, { and, eq: e }) => and(e(m.roomId, room.id), e(m.status, "active")),
+          where: (m, { and, eq: e }) =>
+            and(e(m.roomId, room.id), e(m.status, "active")),
         });
         if (active) {
           await db
@@ -42,14 +44,28 @@ export async function POST(req: NextRequest) {
       });
       if (room) {
         const active = await db.query.meetings.findFirst({
-          where: and(eq(meetings.roomId, room.id), eq(meetings.status, "active")),
+          where: and(
+            eq(meetings.roomId, room.id),
+            eq(meetings.status, "active"),
+          ),
         });
         await db
           .update(meetings)
           .set({ status: "ended", endedAt: new Date() })
-          .where(and(eq(meetings.roomId, room.id), eq(meetings.status, "active")));
+          .where(
+            and(eq(meetings.roomId, room.id), eq(meetings.status, "active")),
+          );
 
         if (active) {
+          void stopMeetingRecording({
+            meetingId: active.id,
+            force: true,
+          }).catch((err) => {
+            console.error(
+              "[chronos-meet] stop recording on room_finished",
+              err,
+            );
+          });
           void dispatchMeetingEndedWebhooks(active.id).catch((err) => {
             console.error("[chronos-meet] meeting-ended webhooks failed", err);
           });
@@ -65,7 +81,6 @@ export async function POST(req: NextRequest) {
                 eq(meetings.summaryStatus, "pending"),
               ),
             );
-          // Fire-and-forget — webhook must respond quickly
           void generateMeetingSummary(active.id).catch(async (err) => {
             console.error("[chronos-meet] webhook summary failed", err);
             await db
@@ -82,6 +97,15 @@ export async function POST(req: NextRequest) {
         .update(participants)
         .set({ leftAt: new Date() })
         .where(eq(participants.livekitIdentity, event.participant.identity));
+    }
+
+    if (
+      (event.event === "egress_started" ||
+        event.event === "egress_updated" ||
+        event.event === "egress_ended") &&
+      event.egressInfo
+    ) {
+      await handleEgressWebhook(event.egressInfo);
     }
 
     return NextResponse.json({ ok: true });

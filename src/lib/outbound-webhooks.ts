@@ -34,6 +34,7 @@ const EVENT_TOGGLE: Record<
   "chat.ready": "chat",
   "summary.ready": "summary",
   "tasks.generated": "tasks",
+  "recording.ready": "recording",
 };
 
 async function loadMeetingMeta(

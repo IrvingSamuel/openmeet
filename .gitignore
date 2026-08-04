@@ -47,6 +47,12 @@ next-env.d.ts
 public/sw*
 public/swe-worker*
 
+# Uploaded brand assets (served via /brand-assets route from storage/)
+/storage/brand-assets/**
+!/storage/brand-assets/.gitkeep
+public/brand-assets/**
+!public/brand-assets/.gitkeep
+
 # Python agent
 agent/venv/
 agent/**/__pycache__/

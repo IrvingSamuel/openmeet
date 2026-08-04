@@ -78,6 +78,8 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Skip API, Next internals, static files, service worker, offline shell.
-  matcher: ["/((?!api|_next|_vercel|sw\\.js|~offline|.*\\..*).*)"],
+  // Skip API, brand asset files, Next internals, static files, service worker, offline shell.
+  matcher: [
+    "/((?!api|brand-assets|_next|_vercel|sw\\.js|~offline|.*\\..*).*)",
+  ],
 };

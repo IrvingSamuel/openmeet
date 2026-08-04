@@ -26,6 +26,12 @@ type Session = {
   audio: boolean;
   videoDeviceId?: string;
   audioDeviceId?: string;
+  recording?: {
+    enabled: boolean;
+    engine: "egress" | "browser";
+    controlMode: "manual" | "auto";
+    autoRecordingId?: string | null;
+  } | null;
 };
 
 function tabInstanceId() {
@@ -97,6 +103,7 @@ export default function RoomPage() {
         serverUrl: string;
         meetingId?: string;
         role?: string;
+        recording?: Session["recording"];
       },
       opts: JoinOptions,
     ) => {
@@ -112,6 +119,7 @@ export default function RoomPage() {
         audio: opts.audioEnabled,
         videoDeviceId: opts.videoDeviceId,
         audioDeviceId: opts.audioDeviceId,
+        recording: json.recording ?? null,
       });
     },
     [],
@@ -284,8 +292,16 @@ export default function RoomPage() {
           roomTitle={data.room.title}
           roomSlug={data.room.slug}
           logoUrl={data.brand?.logoUrl}
+          bgAnimation={data.brand?.bgAnimation}
+          patternUrl={data.brand?.patternUrl}
+          patternTintActive={
+            Boolean(
+              data.brand?.patternTint && data.brand.patternTint !== "none",
+            )
+          }
           meetingId={session.meetingId}
           role={session.role}
+          recordingConfig={session.recording ?? null}
           initialVideo={session.video}
           initialAudio={session.audio}
           videoDeviceId={session.videoDeviceId}
@@ -298,6 +314,13 @@ export default function RoomPage() {
           title={data.brand?.lobbyTitle || data.room.title}
           subtitle={data.brand?.lobbySubtitle}
           logoUrl={data.brand?.logoUrl}
+          bgAnimation={data.brand?.bgAnimation}
+          patternUrl={data.brand?.patternUrl}
+          patternTintActive={
+            Boolean(
+              data.brand?.patternTint && data.brand.patternTint !== "none",
+            )
+          }
           requireLogin={data.room.accessPolicy === "members"}
           showHostLoginHint={
             data.room.accessPolicy === "invite" && !me.isLoggedIn
