@@ -12,6 +12,7 @@ import {
   invalidateAppSettingsCache,
   maskSecret,
   resolveAiConfig,
+  resolveRecordingConfig,
   shouldSkipSecretUpdate,
   webhookEventsOrDefault,
 } from "@/lib/app-settings";
@@ -22,6 +23,7 @@ const webhookEventsSchema = z.object({
   chat: z.boolean(),
   summary: z.boolean(),
   tasks: z.boolean(),
+  recording: z.boolean().optional(),
 });
 
 const putSchema = z.object({
@@ -34,6 +36,15 @@ const putSchema = z.object({
   webhookSecret: z.string().nullable().optional(),
   webhookEnabled: z.boolean().optional(),
   webhookEvents: webhookEventsSchema.optional(),
+  recordingEnabled: z.boolean().optional(),
+  recordingEngine: z.enum(["egress", "browser"]).optional(),
+  recordingControlMode: z.enum(["manual", "auto"]).optional(),
+  recordingStorage: z.enum(["local", "s3"]).optional(),
+  recordingS3Endpoint: z.string().max(500).nullable().optional(),
+  recordingS3Bucket: z.string().max(200).nullable().optional(),
+  recordingS3Region: z.string().max(80).nullable().optional(),
+  recordingS3AccessKey: z.string().nullable().optional(),
+  recordingS3SecretKey: z.string().nullable().optional(),
 });
 
 async function requireAdmin() {
@@ -50,6 +61,7 @@ async function requireAdmin() {
 function publicSettingsPayload(
   row: typeof appSettings.$inferSelect,
   ai: Awaited<ReturnType<typeof resolveAiConfig>>,
+  recording: Awaited<ReturnType<typeof resolveRecordingConfig>>,
 ) {
   const events = webhookEventsOrDefault(row.webhookEvents);
   const geminiKeyMask = row.geminiApiKey?.trim()
@@ -71,6 +83,25 @@ function publicSettingsPayload(
         source: ai.sources.deepgramApiKey,
       };
 
+  const s3AccessMask = row.recordingS3AccessKey?.trim()
+    ? maskSecret(row.recordingS3AccessKey)
+    : {
+        configured: Boolean(recording.s3.accessKey),
+        preview: recording.s3.accessKey
+          ? `••••${recording.s3.accessKey.slice(-4)}`
+          : null,
+        source: recording.sources.s3AccessKey,
+      };
+  const s3SecretMask = row.recordingS3SecretKey?.trim()
+    ? maskSecret(row.recordingS3SecretKey)
+    : {
+        configured: Boolean(recording.s3.secretKey),
+        preview: recording.s3.secretKey
+          ? `••••${recording.s3.secretKey.slice(-4)}`
+          : null,
+        source: recording.sources.s3SecretKey,
+      };
+
   return {
     locale: row.locale || "pt-BR",
     geminiApiKey: geminiKeyMask,
@@ -87,6 +118,18 @@ function publicSettingsPayload(
       ? maskSecret(row.webhookSecret)
       : { configured: false, preview: null, source: "none" as const },
     webhookEvents: events,
+    recordingEnabled: recording.enabled,
+    recordingEngine: recording.engine,
+    recordingControlMode: recording.controlMode,
+    recordingStorage: recording.storage,
+    recordingLocalDir: recording.localDir,
+    recordingS3Endpoint: recording.s3.endpoint || "",
+    recordingS3Bucket: recording.s3.bucket || "",
+    recordingS3Region: recording.s3.region,
+    recordingS3AccessKey: s3AccessMask,
+    recordingS3SecretKey: s3SecretMask,
+    recordingS3EndpointSource: recording.sources.s3Endpoint,
+    recordingS3BucketSource: recording.sources.s3Bucket,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -97,7 +140,8 @@ export async function GET() {
 
   const row = await ensureAppSettings();
   const ai = await resolveAiConfig();
-  return NextResponse.json(publicSettingsPayload(row, ai));
+  const recording = await resolveRecordingConfig();
+  return NextResponse.json(publicSettingsPayload(row, ai, recording));
 }
 
 export async function PUT(req: NextRequest) {
@@ -156,7 +200,45 @@ export async function PUT(req: NextRequest) {
     patch.webhookEnabled = body.webhookEnabled;
   }
   if (body.webhookEvents !== undefined) {
-    patch.webhookEvents = body.webhookEvents;
+    patch.webhookEvents = {
+      transcript: body.webhookEvents.transcript,
+      chat: body.webhookEvents.chat,
+      summary: body.webhookEvents.summary,
+      tasks: body.webhookEvents.tasks,
+      recording: body.webhookEvents.recording ?? true,
+    };
+  }
+
+  if (body.recordingEnabled !== undefined) {
+    patch.recordingEnabled = body.recordingEnabled;
+  }
+  if (body.recordingEngine !== undefined) {
+    patch.recordingEngine = body.recordingEngine;
+  }
+  if (body.recordingControlMode !== undefined) {
+    patch.recordingControlMode = body.recordingControlMode;
+  }
+  if (body.recordingStorage !== undefined) {
+    patch.recordingStorage = body.recordingStorage;
+  }
+  if (body.recordingS3Endpoint !== undefined) {
+    patch.recordingS3Endpoint = body.recordingS3Endpoint?.trim() || null;
+  }
+  if (body.recordingS3Bucket !== undefined) {
+    patch.recordingS3Bucket = body.recordingS3Bucket?.trim() || null;
+  }
+  if (body.recordingS3Region !== undefined) {
+    patch.recordingS3Region = body.recordingS3Region?.trim() || null;
+  }
+  if (!shouldSkipSecretUpdate(body.recordingS3AccessKey)) {
+    patch.recordingS3AccessKey = body.recordingS3AccessKey!.trim() || null;
+  } else if (body.recordingS3AccessKey === null) {
+    patch.recordingS3AccessKey = null;
+  }
+  if (!shouldSkipSecretUpdate(body.recordingS3SecretKey)) {
+    patch.recordingS3SecretKey = body.recordingS3SecretKey!.trim() || null;
+  } else if (body.recordingS3SecretKey === null) {
+    patch.recordingS3SecretKey = null;
   }
 
   const [updated] = await db
@@ -169,8 +251,9 @@ export async function PUT(req: NextRequest) {
 
   const row = updated ?? (await ensureAppSettings());
   const ai = await resolveAiConfig();
+  const recording = await resolveRecordingConfig();
   return NextResponse.json({
     ok: true,
-    ...publicSettingsPayload(row, ai),
+    ...publicSettingsPayload(row, ai, recording),
   });
 }

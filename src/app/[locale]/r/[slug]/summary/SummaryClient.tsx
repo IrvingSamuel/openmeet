@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm";
 import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
-import { IconCopy, IconFileText, IconLink } from "@/components/ui/icons";
+import { IconCopy, IconDownload, IconFileText, IconLink } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import type { SuggestedAction } from "@/lib/meeting-summary";
 
@@ -20,6 +20,17 @@ type ActionItemRow = {
   chronosBoardId: string | null;
   status: string;
   raw: SuggestedAction | null;
+};
+
+type RecordingRow = {
+  id: string;
+  status: string;
+  engine: string;
+  mimeType: string | null;
+  bytes: number | null;
+  downloadUrl: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
 };
 
 type BoardOption = {
@@ -136,6 +147,7 @@ export default function MeetingSummaryPage() {
   const [pushing, setPushing] = useState(false);
   const [pushResult, setPushResult] = useState<string | null>(null);
   const [shareHint, setShareHint] = useState<string | null>(null);
+  const [recordings, setRecordings] = useState<RecordingRow[]>([]);
 
   const loadMembers = useCallback(async (boardId: string) => {
     if (!boardId) return;
@@ -185,6 +197,25 @@ export default function MeetingSummaryPage() {
     return () => {
       cancelled = true;
       clearInterval(t);
+    };
+  }, [meetingId, status]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    let cancelled = false;
+    fetch(`/api/meetings/${meetingId}/recording`)
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((json) => {
+        if (cancelled || !json) return;
+        const rows = (json.recordings ?? []) as RecordingRow[];
+        setRecordings(rows.filter((r) => r.status === "ready"));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
     };
   }, [meetingId, status]);
 
@@ -546,6 +577,42 @@ export default function MeetingSummaryPage() {
               </article>
             ) : (
               <p className="mt-6 text-sm text-ink-faint">{tMeta("waitingContent")}</p>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-line bg-white/[0.03] p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
+              {t("recordingsHeading")}
+            </h2>
+            {recordings.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-faint">{t("recordingsEmpty")}</p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {recordings.map((rec) => (
+                  <li
+                    key={rec.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-black/20 px-3 py-2.5 text-sm"
+                  >
+                    <span className="text-ink-muted">
+                      {rec.engine} ·{" "}
+                      {rec.bytes
+                        ? `${Math.round(rec.bytes / 1024 / 1024)} MB`
+                        : rec.mimeType || "video"}
+                    </span>
+                    {rec.downloadUrl ? (
+                      <a href={rec.downloadUrl} className="inline-flex">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          icon={<IconDownload className="h-3.5 w-3.5" />}
+                        >
+                          {t("downloadRecording")}
+                        </Button>
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
 

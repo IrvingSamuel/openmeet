@@ -25,6 +25,7 @@ import {
   IconSettings,
   IconShield,
   IconSparkles,
+  IconVideo,
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
@@ -44,6 +45,7 @@ type WebhookEvents = {
   chat: boolean;
   summary: boolean;
   tasks: boolean;
+  recording: boolean;
 };
 
 type AdminSettings = {
@@ -57,6 +59,16 @@ type AdminSettings = {
   webhookUrl: string;
   webhookSecret: SecretMask;
   webhookEvents: WebhookEvents;
+  recordingEnabled: boolean;
+  recordingEngine: "egress" | "browser";
+  recordingControlMode: "manual" | "auto";
+  recordingStorage: "local" | "s3";
+  recordingLocalDir: string;
+  recordingS3Endpoint: string;
+  recordingS3Bucket: string;
+  recordingS3Region: string;
+  recordingS3AccessKey: SecretMask;
+  recordingS3SecretKey: SecretMask;
 };
 
 type Me = {
@@ -69,6 +81,7 @@ type Me = {
 const TABS = [
   { key: "general", icon: IconSettings },
   { key: "ai", icon: IconSparkles },
+  { key: "recording", icon: IconVideo },
   { key: "webhooks", icon: IconBolt },
 ] as const;
 
@@ -82,6 +95,7 @@ const EVENT_META: Array<{
   { key: "chat", event: "chat.ready" },
   { key: "summary", event: "summary.ready" },
   { key: "tasks", event: "tasks.generated" },
+  { key: "recording", event: "recording.ready" },
 ];
 
 const AI_LOCALES = ["pt-BR", "en", "es", "fr", "de"] as const;
@@ -100,6 +114,8 @@ export default function AdminPage() {
   const [geminiKeyDraft, setGeminiKeyDraft] = useState("");
   const [deepgramKeyDraft, setDeepgramKeyDraft] = useState("");
   const [webhookSecretDraft, setWebhookSecretDraft] = useState("");
+  const [s3AccessDraft, setS3AccessDraft] = useState("");
+  const [s3SecretDraft, setS3SecretDraft] = useState("");
   const [exampleEvent, setExampleEvent] =
     useState<OutboundWebhookEvent>("summary.ready");
 
@@ -154,6 +170,8 @@ export default function AdminPage() {
       setGeminiKeyDraft("");
       setDeepgramKeyDraft("");
       setWebhookSecretDraft("");
+      setS3AccessDraft("");
+      setS3SecretDraft("");
       toast.success(t("saved"));
     } catch {
       toast.error(t("networkFailed"));
@@ -197,6 +215,30 @@ export default function AdminPage() {
       patch.webhookSecret = webhookSecretDraft.trim();
     }
     await save(patch);
+  }
+
+  async function saveRecording() {
+    if (!settings) return;
+    const patch: Record<string, unknown> = {
+      recordingEnabled: settings.recordingEnabled,
+      recordingEngine: settings.recordingEngine,
+      recordingControlMode: settings.recordingControlMode,
+      recordingStorage: settings.recordingStorage,
+      recordingS3Endpoint: settings.recordingS3Endpoint || null,
+      recordingS3Bucket: settings.recordingS3Bucket || null,
+      recordingS3Region: settings.recordingS3Region || null,
+    };
+    if (s3AccessDraft.trim()) patch.recordingS3AccessKey = s3AccessDraft.trim();
+    if (s3SecretDraft.trim()) patch.recordingS3SecretKey = s3SecretDraft.trim();
+    await save(patch);
+  }
+
+  async function clearS3Access() {
+    await save({ recordingS3AccessKey: null });
+  }
+
+  async function clearS3Secret() {
+    await save({ recordingS3SecretKey: null });
   }
 
   async function clearWebhookSecret() {
@@ -469,6 +511,155 @@ export default function AdminPage() {
               </div>
             ) : null}
 
+            {tab === "recording" ? (
+              <div className="max-w-xl space-y-5">
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-line"
+                    checked={settings.recordingEnabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        recordingEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>{t("recording.enabled")}</span>
+                </label>
+                <Select
+                  label={t("recording.engineLabel")}
+                  value={settings.recordingEngine}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      recordingEngine: e.target.value as "egress" | "browser",
+                    })
+                  }
+                >
+                  <option value="browser">{t("recording.engineBrowser")}</option>
+                  <option value="egress">{t("recording.engineEgress")}</option>
+                </Select>
+                {settings.recordingEngine === "egress" ? (
+                  <p className="text-xs text-ink-faint">
+                    {t("recording.egressNote")}
+                  </p>
+                ) : null}
+                <Select
+                  label={t("recording.controlLabel")}
+                  value={settings.recordingControlMode}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      recordingControlMode: e.target.value as "manual" | "auto",
+                    })
+                  }
+                >
+                  <option value="manual">{t("recording.controlManual")}</option>
+                  <option value="auto">{t("recording.controlAuto")}</option>
+                </Select>
+                <Select
+                  label={t("recording.storageLabel")}
+                  value={settings.recordingStorage}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      recordingStorage: e.target.value as "local" | "s3",
+                    })
+                  }
+                >
+                  <option value="local">{t("recording.storageLocal")}</option>
+                  <option value="s3">{t("recording.storageS3")}</option>
+                </Select>
+                {settings.recordingStorage === "local" ? (
+                  <p className="text-xs text-ink-faint">
+                    {t("recording.localDirHint", {
+                      dir: settings.recordingLocalDir,
+                    })}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <Input
+                      label={t("recording.s3Endpoint")}
+                      value={settings.recordingS3Endpoint}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          recordingS3Endpoint: e.target.value,
+                        })
+                      }
+                      placeholder={t("recording.s3EndpointPlaceholder")}
+                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input
+                        label={t("recording.s3Bucket")}
+                        value={settings.recordingS3Bucket}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            recordingS3Bucket: e.target.value,
+                          })
+                        }
+                      />
+                      <Input
+                        label={t("recording.s3Region")}
+                        value={settings.recordingS3Region}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            recordingS3Region: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <Input
+                      label={t("recording.s3AccessKey")}
+                      type="password"
+                      autoComplete="off"
+                      value={s3AccessDraft}
+                      onChange={(e) => setS3AccessDraft(e.target.value)}
+                      hint={
+                        settings.recordingS3AccessKey.configured
+                          ? settings.recordingS3AccessKey.preview ?? undefined
+                          : t("recording.s3SecretHint")
+                      }
+                    />
+                    <Input
+                      label={t("recording.s3SecretKey")}
+                      type="password"
+                      autoComplete="off"
+                      value={s3SecretDraft}
+                      onChange={(e) => setS3SecretDraft(e.target.value)}
+                      hint={t("recording.s3SecretHint")}
+                    />
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={saveRecording} disabled={saving}>
+                    {saving ? t("saving") : t("recording.save")}
+                  </Button>
+                  {settings.recordingS3AccessKey.source === "db" ? (
+                    <Button
+                      variant="ghost"
+                      onClick={clearS3Access}
+                      disabled={saving}
+                    >
+                      {t("recording.clearS3Access")}
+                    </Button>
+                  ) : null}
+                  {settings.recordingS3SecretKey.source === "db" ? (
+                    <Button
+                      variant="ghost"
+                      onClick={clearS3Secret}
+                      disabled={saving}
+                    >
+                      {t("recording.clearS3Secret")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {tab === "webhooks" ? (
               <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div className="space-y-5">
@@ -523,7 +714,7 @@ export default function AdminPage() {
                         <input
                           type="checkbox"
                           className="mt-0.5 h-4 w-4 rounded border-line"
-                          checked={settings.webhookEvents[item.key]}
+                          checked={settings.webhookEvents[item.key] ?? true}
                           onChange={(e) =>
                             setSettings({
                               ...settings,

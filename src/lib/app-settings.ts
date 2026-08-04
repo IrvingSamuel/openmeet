@@ -4,6 +4,9 @@ import {
   APP_SETTINGS_ROW_ID,
   DEFAULT_WEBHOOK_EVENTS,
   appSettings,
+  type RecordingControlMode,
+  type RecordingEngine,
+  type RecordingStorageBackend,
   type WebhookEventsConfig,
 } from "@/db/schema";
 
@@ -20,6 +23,27 @@ export type ResolvedAiConfig = {
     geminiModel: "db" | "env" | "default";
     geminiSummaryModel: "db" | "env" | "default";
     deepgramApiKey: "db" | "env" | "none";
+  };
+};
+
+export type ResolvedRecordingConfig = {
+  enabled: boolean;
+  engine: RecordingEngine;
+  controlMode: RecordingControlMode;
+  storage: RecordingStorageBackend;
+  localDir: string;
+  s3: {
+    endpoint: string | undefined;
+    bucket: string | undefined;
+    region: string;
+    accessKey: string | undefined;
+    secretKey: string | undefined;
+  };
+  sources: {
+    s3AccessKey: "db" | "env" | "none";
+    s3SecretKey: "db" | "env" | "none";
+    s3Bucket: "db" | "env" | "none";
+    s3Endpoint: "db" | "env" | "none";
   };
 };
 
@@ -59,6 +83,10 @@ export async function ensureAppSettings(): Promise<AppSettingsRow> {
       locale: "pt-BR",
       webhookEnabled: false,
       webhookEvents: DEFAULT_WEBHOOK_EVENTS,
+      recordingEnabled: false,
+      recordingEngine: "browser",
+      recordingControlMode: "manual",
+      recordingStorage: "local",
     })
     .onConflictDoNothing()
     .returning();
@@ -81,6 +109,7 @@ export function webhookEventsOrDefault(
     chat: events?.chat ?? DEFAULT_WEBHOOK_EVENTS.chat,
     summary: events?.summary ?? DEFAULT_WEBHOOK_EVENTS.summary,
     tasks: events?.tasks ?? DEFAULT_WEBHOOK_EVENTS.tasks,
+    recording: events?.recording ?? DEFAULT_WEBHOOK_EVENTS.recording,
   };
 }
 
@@ -148,6 +177,56 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
         : envDeepgram
           ? "env"
           : "none",
+    },
+  };
+}
+
+function asEngine(value: string | null | undefined): RecordingEngine {
+  return value === "egress" ? "egress" : "browser";
+}
+
+function asControlMode(value: string | null | undefined): RecordingControlMode {
+  return value === "auto" ? "auto" : "manual";
+}
+
+function asStorage(value: string | null | undefined): RecordingStorageBackend {
+  return value === "s3" ? "s3" : "local";
+}
+
+export async function resolveRecordingConfig(): Promise<ResolvedRecordingConfig> {
+  const row = await getAppSettings();
+
+  const endpointDb = row?.recordingS3Endpoint?.trim() || "";
+  const bucketDb = row?.recordingS3Bucket?.trim() || "";
+  const regionDb = row?.recordingS3Region?.trim() || "";
+  const accessDb = row?.recordingS3AccessKey?.trim() || "";
+  const secretDb = row?.recordingS3SecretKey?.trim() || "";
+
+  const endpointEnv = process.env.RECORDING_S3_ENDPOINT?.trim() || "";
+  const bucketEnv = process.env.RECORDING_S3_BUCKET?.trim() || "";
+  const regionEnv = process.env.RECORDING_S3_REGION?.trim() || "";
+  const accessEnv = process.env.RECORDING_S3_ACCESS_KEY?.trim() || "";
+  const secretEnv = process.env.RECORDING_S3_SECRET_KEY?.trim() || "";
+
+  return {
+    enabled: Boolean(row?.recordingEnabled),
+    engine: asEngine(row?.recordingEngine),
+    controlMode: asControlMode(row?.recordingControlMode),
+    storage: asStorage(row?.recordingStorage),
+    localDir:
+      process.env.RECORDINGS_DIR?.trim() || "/var/chronos-meet/recordings",
+    s3: {
+      endpoint: endpointDb || endpointEnv || undefined,
+      bucket: bucketDb || bucketEnv || undefined,
+      region: regionDb || regionEnv || "us-east-1",
+      accessKey: accessDb || accessEnv || undefined,
+      secretKey: secretDb || secretEnv || undefined,
+    },
+    sources: {
+      s3AccessKey: accessDb ? "db" : accessEnv ? "env" : "none",
+      s3SecretKey: secretDb ? "db" : secretEnv ? "env" : "none",
+      s3Bucket: bucketDb ? "db" : bucketEnv ? "env" : "none",
+      s3Endpoint: endpointDb ? "db" : endpointEnv ? "env" : "none",
     },
   };
 }

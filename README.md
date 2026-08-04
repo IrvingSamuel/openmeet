@@ -15,6 +15,7 @@
 
 - **True white-label** — logo, palette, typography, and CSS tokens per room
 - **Self-hosted media** — LiveKit SFU on your infrastructure, no seat tax
+- **Meeting recording** — browser or LiveKit Egress; local disk or S3-compatible (MinIO / Hetzner)
 - **AI that closes the loop** — live STT + post-meeting summary + MCP tasks on Chronos boards
 - **Multilingual UI** — English, Português, Español, Français, Deutsch (`messages/*.json`)
 - **Browser-only** — WebRTC, no plugins
@@ -46,6 +47,27 @@ cd agent
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
 ```
+
+## Meeting recording
+
+Enable in `/admin` → **Recording**:
+
+| Setting | Options |
+|---------|---------|
+| Engine | `browser` (MediaRecorder, light — preferred on shared VPS) or `egress` (LiveKit Room Composite) |
+| Control | `manual` (host start/stop) or `auto` (starts when host joins; no stop) |
+| Storage | `local` (`RECORDINGS_DIR`) or `s3` (MinIO / Hetzner / AWS) — prefer S3 for egress tests |
+
+**Egress on this VPS:** short isolated tests only (then tear down). Needs `SYS_ADMIN` and keys in `infra/egress.yaml` matching LiveKit.
+
+```bash
+cd infra
+docker compose -f docker-compose.egress.yml up -d   # start worker
+# run one short recording…
+docker compose -f docker-compose.egress.yml down  # stop when done
+```
+
+For frequent/production egress, use a dedicated media node (ADR-002).
 
 ## Branch model
 

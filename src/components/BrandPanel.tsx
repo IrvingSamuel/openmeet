@@ -3,20 +3,52 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion } from "motion/react";
-import { BOARD_THEMES, brandToCssVars, type BrandTokens } from "@/lib/brand";
+import {
+  BOARD_THEMES,
+  brandToCssVars,
+  resolvePaint,
+  solidPaint,
+  type BgAnimation,
+  type BrandTokens,
+  type PaintToken,
+  type PatternSizeMode,
+  type PatternTint,
+} from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { morphTransition, springSoft } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/Button";
-import { ColorField, Input, Textarea } from "@/components/ui/Field";
+import { ColorField, Input, Select, Textarea } from "@/components/ui/Field";
 import { Badge, Divider, Skeleton } from "@/components/ui/Surface";
 import { useToast } from "@/components/ui/Toast";
 import { RoomPreview } from "@/components/landing/RoomPreview";
 import { IconPalette, IconSparkles } from "@/components/ui/icons";
+import { PaintField } from "@/components/brand/PaintField";
+import { AssetUrlField } from "@/components/brand/AssetUrlField";
+import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 
 type Brand = BrandTokens & { customCss?: string | null };
 
 const TAB_KEYS = ["identity", "palette", "advanced"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
+
+function paintOf(
+  brand: Brand,
+  key: "primary" | "secondary" | "tertiary" | "background",
+): PaintToken {
+  const solids = {
+    primary: brand.primaryColor || "#6366f1",
+    secondary: brand.secondaryColor || "#22d3ee",
+    tertiary: brand.tertiaryColor || "#a855f7",
+    background: brand.background || "#0b1020",
+  };
+  const paints = {
+    primary: brand.primaryPaint,
+    secondary: brand.secondaryPaint,
+    tertiary: brand.tertiaryPaint,
+    background: brand.backgroundPaint,
+  };
+  return resolvePaint(paints[key], solids[key]);
+}
 
 export function BrandPanel({ slug }: { slug: string }) {
   const toast = useToast();
@@ -47,6 +79,28 @@ export function BrandPanel({ slug }: { slug: string }) {
     setBrand((prev) => ({ ...(prev ?? {}), ...next }));
   }
 
+  function setPaint(
+    key: "primary" | "secondary" | "tertiary" | "background",
+    paint: PaintToken,
+  ) {
+    const colorKey = {
+      primary: "primaryColor",
+      secondary: "secondaryColor",
+      tertiary: "tertiaryColor",
+      background: "background",
+    } as const;
+    const paintKey = {
+      primary: "primaryPaint",
+      secondary: "secondaryPaint",
+      tertiary: "tertiaryPaint",
+      background: "backgroundPaint",
+    } as const;
+    patch({
+      [paintKey[key]]: paint,
+      [colorKey[key]]: paint.solid,
+    });
+  }
+
   function applyPreset(key: string) {
     const preset = BOARD_THEMES[key];
     patch({
@@ -54,6 +108,9 @@ export function BrandPanel({ slug }: { slug: string }) {
       primaryColor: preset.primary,
       secondaryColor: preset.secondary,
       tertiaryColor: preset.tertiary,
+      primaryPaint: solidPaint(preset.primary),
+      secondaryPaint: solidPaint(preset.secondary),
+      tertiaryPaint: solidPaint(preset.tertiary),
     });
   }
 
@@ -96,6 +153,11 @@ export function BrandPanel({ slug }: { slug: string }) {
       </div>
     );
   }
+
+  const primaryPaint = paintOf(brand, "primary");
+  const secondaryPaint = paintOf(brand, "secondary");
+  const tertiaryPaint = paintOf(brand, "tertiary");
+  const backgroundPaint = paintOf(brand, "background");
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,430px)_1fr]">
@@ -154,12 +216,14 @@ export function BrandPanel({ slug }: { slug: string }) {
                 onChange={(e) => patch({ lobbySubtitle: e.target.value })}
                 placeholder={t("defaultSubtitle")}
               />
-              <Input
+              <AssetUrlField
                 label={tFields("logoUrl")}
-                value={brand.logoUrl || ""}
-                onChange={(e) => patch({ logoUrl: e.target.value })}
-                placeholder="https://…/logo.svg"
                 hint={tFields("logoHint")}
+                value={brand.logoUrl || ""}
+                onChange={(logoUrl) => patch({ logoUrl: logoUrl || null })}
+                slug={slug}
+                kind="logo"
+                placeholder="https://…/logo.svg"
               />
               <Input
                 label={tFields("wordmark")}
@@ -210,26 +274,140 @@ export function BrandPanel({ slug }: { slug: string }) {
 
               <Divider />
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ColorField
+              <div className="grid gap-3">
+                <PaintField
                   label={tFields("primary")}
-                  value={brand.primaryColor || "#6366f1"}
-                  onChange={(v) => patch({ primaryColor: v })}
+                  value={primaryPaint}
+                  onChange={(p) => setPaint("primary", p)}
+                  gradientCompanion={secondaryPaint.solid}
                 />
-                <ColorField
+                <PaintField
                   label={tFields("secondary")}
-                  value={brand.secondaryColor || "#22d3ee"}
-                  onChange={(v) => patch({ secondaryColor: v })}
+                  value={secondaryPaint}
+                  onChange={(p) => setPaint("secondary", p)}
+                  gradientCompanion={tertiaryPaint.solid}
                 />
-                <ColorField
+                <PaintField
                   label={tFields("tertiary")}
-                  value={brand.tertiaryColor || "#a855f7"}
-                  onChange={(v) => patch({ tertiaryColor: v })}
+                  value={tertiaryPaint}
+                  onChange={(p) => setPaint("tertiary", p)}
+                  gradientCompanion={primaryPaint.solid}
                 />
-                <ColorField
+                <PaintField
                   label={tFields("background")}
-                  value={brand.background || "#0b1020"}
-                  onChange={(v) => patch({ background: v })}
+                  value={backgroundPaint}
+                  onChange={(p) => setPaint("background", p)}
+                  gradientCompanion={primaryPaint.solid}
+                />
+              </div>
+
+              <Divider />
+
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                {tFields("surface")}
+              </p>
+
+              <AssetUrlField
+                label={tFields("patternUrl")}
+                hint={tFields("patternHint")}
+                value={brand.patternUrl || ""}
+                onChange={(patternUrl) => patch({ patternUrl: patternUrl || null })}
+                slug={slug}
+                kind="pattern"
+                placeholder="https://…/pattern.png"
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select
+                  label={tFields("patternSizeMode")}
+                  value={brand.patternSizeMode || "percent"}
+                  onChange={(e) =>
+                    patch({
+                      patternSizeMode: e.target.value as PatternSizeMode,
+                      patternSize:
+                        e.target.value === "fixed"
+                          ? brand.patternSize && brand.patternSize > 16
+                            ? brand.patternSize
+                            : 128
+                          : brand.patternSize && brand.patternSize <= 100
+                            ? brand.patternSize
+                            : 24,
+                    })
+                  }
+                >
+                  <option value="percent">{tFields("patternSizePercent")}</option>
+                  <option value="fixed">{tFields("patternSizeFixed")}</option>
+                </Select>
+                <Input
+                  label={tFields("patternSize")}
+                  type="number"
+                  min={brand.patternSizeMode === "fixed" ? 16 : 1}
+                  max={brand.patternSizeMode === "fixed" ? 512 : 100}
+                  value={brand.patternSize ?? (brand.patternSizeMode === "fixed" ? 128 : 24)}
+                  onChange={(e) =>
+                    patch({ patternSize: Number(e.target.value) || 24 })
+                  }
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select
+                  label={tFields("patternTint")}
+                  value={brand.patternTint || "none"}
+                  onChange={(e) =>
+                    patch({ patternTint: e.target.value as PatternTint })
+                  }
+                >
+                  <option value="none">{tFields("tintNone")}</option>
+                  <option value="primary">{tFields("primary")}</option>
+                  <option value="secondary">{tFields("secondary")}</option>
+                  <option value="tertiary">{tFields("tertiary")}</option>
+                  <option value="custom">{tFields("tintCustom")}</option>
+                </Select>
+                <Input
+                  label={tFields("patternTintOpacity")}
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={brand.patternTintOpacity ?? 55}
+                  onChange={(e) =>
+                    patch({ patternTintOpacity: Number(e.target.value) || 0 })
+                  }
+                />
+              </div>
+
+              {brand.patternTint === "custom" ? (
+                <ColorField
+                  label={tFields("patternTintColor")}
+                  value={brand.patternTintColor || primaryPaint.solid}
+                  onChange={(patternTintColor) => patch({ patternTintColor })}
+                />
+              ) : null}
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select
+                  label={tFields("bgAnimation")}
+                  value={brand.bgAnimation || "none"}
+                  onChange={(e) =>
+                    patch({ bgAnimation: e.target.value as BgAnimation })
+                  }
+                >
+                  <option value="none">{tFields("animNone")}</option>
+                  <option value="wave">{tFields("animWave")}</option>
+                  <option value="beam">{tFields("animBeam")}</option>
+                  <option value="aurora">{tFields("animAurora")}</option>
+                  <option value="pulse">{tFields("animPulse")}</option>
+                </Select>
+                <Input
+                  label={tFields("bgAnimationSpeed")}
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={brand.bgAnimationSpeed ?? 3}
+                  onChange={(e) =>
+                    patch({ bgAnimationSpeed: Number(e.target.value) || 3 })
+                  }
+                  hint={tFields("bgAnimationSpeedHint")}
                 />
               </div>
             </>
@@ -288,41 +466,48 @@ export function BrandPanel({ slug }: { slug: string }) {
           </Badge>
         </div>
 
-        <div
-          className="overflow-hidden rounded-3xl p-5"
-          style={{ background: brand.background || "#0b1020" }}
-        >
-          <div className="mb-4 flex items-center gap-3">
-            {brand.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={brand.logoUrl}
-                alt=""
-                className="h-9 max-w-[150px] object-contain"
-              />
-            ) : null}
-            <div>
-              <p
-                className="text-lg font-semibold tracking-tight"
-                style={{
-                  color: brand.primaryColor || "#6366f1",
-                  fontFamily: brand.fontFamily || undefined,
-                }}
-              >
-                {brand.lobbyTitle || brand.wordmark || t("yourRoom")}
-              </p>
-              <p
-                className="text-xs"
-                style={{
-                  color: brand.secondaryColor || "#22d3ee",
-                  fontFamily: brand.fontFamily || undefined,
-                }}
-              >
-                {brand.lobbySubtitle || t("defaultSubtitle")}
-              </p>
+        <div className="relative overflow-hidden rounded-3xl p-5">
+          <BrandBackdrop
+            animation={brand.bgAnimation || "none"}
+            patternUrl={brand.patternUrl}
+            patternTintActive={
+              Boolean(brand.patternTint && brand.patternTint !== "none")
+            }
+            intensity={0.55}
+          />
+          <div className="relative z-[1]">
+            <div className="mb-4 flex items-center gap-3">
+              {brand.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={brand.logoUrl}
+                  alt=""
+                  className="h-9 max-w-[150px] object-contain"
+                />
+              ) : null}
+              <div>
+                <p
+                  className="text-lg font-semibold tracking-tight"
+                  style={{
+                    color: primaryPaint.solid,
+                    fontFamily: brand.fontFamily || undefined,
+                  }}
+                >
+                  {brand.lobbyTitle || brand.wordmark || t("yourRoom")}
+                </p>
+                <p
+                  className="text-xs"
+                  style={{
+                    color: secondaryPaint.solid,
+                    fontFamily: brand.fontFamily || undefined,
+                  }}
+                >
+                  {brand.lobbySubtitle || t("defaultSubtitle")}
+                </p>
+              </div>
             </div>
+            <RoomPreview />
           </div>
-          <RoomPreview />
         </div>
       </motion.div>
     </div>

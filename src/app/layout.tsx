@@ -24,6 +24,14 @@ export const metadata: Metadata = {
   description:
     "Open-source videoconferencing with your own visual identity, live captions and a copilot that turns meetings into Chronos tasks.",
   applicationName: "Chronos Meet",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -31,6 +39,18 @@ export const metadata: Metadata = {
     title: "Chronos Meet — Smart white-label videoconferencing",
     description:
       "Rooms branded for your company, live captions and automatic minutes integrated with Chronos boards.",
+    images: [
+      {
+        url: "/Chronos_Meet_Logo.png",
+        width: 1000,
+        height: 1000,
+        alt: "Chronos Meet",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    images: ["/Chronos_Meet_Logo.png"],
   },
   robots: { index: true, follow: true },
 };

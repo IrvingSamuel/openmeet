@@ -1,0 +1,24 @@
+# LiveKit Egress — Chronos Meet (ephemeral test worker)
+# Docs: https://docs.livekit.io/home/egress/overview/
+#
+# Keys MUST match infra/livekit.yaml (and LIVEKIT_API_* in .env).
+# Redis db must match livekit.yaml. host network → 127.0.0.1 is fine.
+#
+# Prefer S3/MinIO storage from /admin for tests (avoids Chrome path mounts).
+# After a short trial: docker compose -f infra/docker-compose.egress.yml down
+
+log_level: info
+api_key: chronosmeetb2ab39b0
+api_secret: "234bd76510c912e6078962cfd0d9125cfc5be2cb3d308b47a41ce1a5d8ef775a"
+ws_url: ws://127.0.0.1:7880
+insecure: true
+redis:
+  address: 127.0.0.1:6379
+  db: 5
+health_port: 9090
+# Room composite is CPU-heavy — keep one short test recording at a time on this VPS.
+cpu_cost:
+  room_composite_cpu_cost: 4
+  web_cpu_cost: 4
+  track_composite_cpu_cost: 1
+  track_cpu_cost: 0.5

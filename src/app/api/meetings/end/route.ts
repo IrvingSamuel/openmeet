@@ -6,19 +6,22 @@ import { meetings, participants } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { getRoomServiceClient } from "@/lib/livekit";
 import { assertMeetingHost } from "@/lib/hostAuth";
+import { stopMeetingRecording } from "@/lib/recording";
 
 const schema = z.object({
   meetingId: z.string().uuid(),
 });
 
-/** Delete the LiveKit room (kicks everyone). Fall back to removing each participant. */
 async function evictEveryone(livekitRoomName: string) {
   const client = getRoomServiceClient();
   try {
     await client.deleteRoom(livekitRoomName);
     return;
   } catch (err) {
-    console.warn("[chronos-meet] deleteRoom failed, trying removeParticipant", err);
+    console.warn(
+      "[chronos-meet] deleteRoom failed, trying removeParticipant",
+      err,
+    );
   }
 
   try {
@@ -27,12 +30,13 @@ async function evictEveryone(livekitRoomName: string) {
       list.map((p) => client.removeParticipant(livekitRoomName, p.identity)),
     );
   } catch (err) {
-    // Room may already be gone — treat as success for eviction purposes.
-    console.warn("[chronos-meet] list/remove participants after deleteRoom", err);
+    console.warn(
+      "[chronos-meet] list/remove participants after deleteRoom",
+      err,
+    );
   }
 }
 
-/** Host ends the LiveKit room + marks meeting ended for everyone. */
 export async function POST(req: NextRequest) {
   const session = await getSession();
   const body = schema.parse(await req.json());
@@ -47,7 +51,12 @@ export async function POST(req: NextRequest) {
 
   const { room } = auth;
 
-  // Mark ended before kicking so guests can open the summary URL immediately.
+  try {
+    await stopMeetingRecording({ meetingId: body.meetingId, force: true });
+  } catch (err) {
+    console.warn("[chronos-meet] stop recording on end meeting", err);
+  }
+
   await db
     .update(meetings)
     .set({ status: "ended", endedAt: new Date() })
@@ -57,7 +66,10 @@ export async function POST(req: NextRequest) {
     .update(participants)
     .set({ leftAt: new Date() })
     .where(
-      and(eq(participants.meetingId, body.meetingId), isNull(participants.leftAt)),
+      and(
+        eq(participants.meetingId, body.meetingId),
+        isNull(participants.leftAt),
+      ),
     );
 
   try {

@@ -83,12 +83,14 @@ describe("webhookEventsOrDefault", () => {
       chat: true,
       summary: true,
       tasks: true,
+      recording: true,
     });
     expect(webhookEventsOrDefault({ transcript: false } as never)).toEqual({
       transcript: false,
       chat: true,
       summary: true,
       tasks: true,
+      recording: true,
     });
   });
 });

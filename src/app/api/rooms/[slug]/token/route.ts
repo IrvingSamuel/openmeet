@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { rooms, meetings, participants, joinRequests } from "@/db/schema";
+import { resolveRecordingConfig } from "@/lib/app-settings";
 import { getSession } from "@/lib/session";
 import { mintRoomToken, syncRoomMetadata } from "@/lib/livekit";
+import { startMeetingRecording } from "@/lib/recording";
 
 export async function POST(
   req: NextRequest,
@@ -78,7 +80,6 @@ export async function POST(
         });
       }
       if (existing.status === "approved") {
-        // Atomically consume so the same requestId cannot mint twice.
         const consumed = await db
           .update(joinRequests)
           .set({ status: "consumed", resolvedAt: new Date() })
@@ -95,7 +96,6 @@ export async function POST(
             { status: 409 },
           );
         }
-        // fall through to mint token
       } else {
         return NextResponse.json(
           { error: "invalid_request_status", status: existing.status },
@@ -103,7 +103,6 @@ export async function POST(
         );
       }
     } else {
-      // Reuse an open pending request for this tab, or create a new one.
       const pending = await db.query.joinRequests.findFirst({
         where: and(
           eq(joinRequests.roomId, room.id),
@@ -138,8 +137,6 @@ export async function POST(
     }
   }
 
-  // Unique per browser tab — identical identities cause CLIENT_REQUEST_LEAVE /
-  // DUPLICATE_IDENTITY fighting every ~15s when two tabs/windows are open.
   const livekitIdentity = session.identityId
     ? `user_${session.identityId}_${instance}`
     : `guest_${instance}`;
@@ -183,6 +180,25 @@ export async function POST(
     role,
   });
 
+  const recordingConfig = await resolveRecordingConfig();
+  let autoRecordingId: string | null = null;
+  if (
+    role === "host" &&
+    recordingConfig.enabled &&
+    recordingConfig.controlMode === "auto" &&
+    recordingConfig.engine === "egress"
+  ) {
+    const started = await startMeetingRecording({
+      meetingId: meeting!.id,
+      allowAuto: true,
+    });
+    if (started.ok) {
+      autoRecordingId = started.recording.id;
+    } else {
+      console.warn("[chronos-meet] auto recording start failed", started.error);
+    }
+  }
+
   return NextResponse.json({
     token,
     serverUrl: process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL,
@@ -196,5 +212,11 @@ export async function POST(
     role,
     identity: livekitIdentity,
     status: "ready",
+    recording: {
+      enabled: recordingConfig.enabled,
+      engine: recordingConfig.engine,
+      controlMode: recordingConfig.controlMode,
+      autoRecordingId,
+    },
   });
 }

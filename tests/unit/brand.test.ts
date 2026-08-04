@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { BOARD_THEMES, brandStyleString, brandToCssVars } from "@/lib/brand";
+import {
+  BOARD_THEMES,
+  brandStyleString,
+  brandToCssVars,
+  defaultGradientFromSolid,
+  paintToCss,
+  resolvePaint,
+  solidPaint,
+} from "@/lib/brand";
 
 describe("brandToCssVars", () => {
   it("falls back to the indigo preset when nothing is set", () => {
@@ -7,6 +15,9 @@ describe("brandToCssVars", () => {
     expect(vars["--brand-primary"]).toBe(BOARD_THEMES.indigo.primary);
     expect(vars["--brand-secondary"]).toBe(BOARD_THEMES.indigo.secondary);
     expect(vars["--brand-logo-url"]).toBe("none");
+    expect(vars["--brand-primary-paint"]).toBe(BOARD_THEMES.indigo.primary);
+    expect(vars["--brand-pattern-url"]).toBe("none");
+    expect(vars["--brand-bg-animation"]).toBe("none");
   });
 
   it("resolves colors from a named preset", () => {
@@ -30,7 +41,56 @@ describe("brandToCssVars", () => {
 
   it("wraps the logo in a css url()", () => {
     const vars = brandToCssVars({ logoUrl: "https://cdn.test/logo.svg" });
-    expect(vars["--brand-logo-url"]).toBe("url(https://cdn.test/logo.svg)");
+    expect(vars["--brand-logo-url"]).toBe('url("https://cdn.test/logo.svg")');
+  });
+
+  it("emits gradient paints and keeps solid for color tokens", () => {
+    const paint = defaultGradientFromSolid("#111111", "#222222");
+    const vars = brandToCssVars({
+      primaryColor: "#111111",
+      primaryPaint: paint,
+      background: "#010101",
+      backgroundPaint: paint,
+    });
+    expect(vars["--brand-primary"]).toBe("#111111");
+    expect(vars["--brand-primary-paint"]).toContain("linear-gradient");
+    expect(vars["--brand-bg"]).toContain("linear-gradient");
+    expect(vars["--brand-bg-solid"]).toBe("#111111");
+  });
+
+  it("emits pattern and animation vars", () => {
+    const vars = brandToCssVars({
+      patternUrl: "/brand-assets/x/pattern.png",
+      patternSizeMode: "fixed",
+      patternSize: 64,
+      patternTint: "primary",
+      patternTintOpacity: 40,
+      bgAnimation: "wave",
+      bgAnimationSpeed: 2,
+      primaryColor: "#6366f1",
+    });
+    expect(vars["--brand-pattern-url"]).toBe('url("/brand-assets/x/pattern.png")');
+    expect(vars["--brand-pattern-size"]).toBe("64px");
+    expect(vars["--brand-pattern-tint"]).toBe("#6366f1");
+    expect(vars["--brand-pattern-tint-opacity"]).toBe("0.4");
+    expect(vars["--brand-bg-animation"]).toBe("wave");
+    expect(vars["--brand-bg-animation-speed"]).toMatch(/s$/);
+  });
+});
+
+describe("paint helpers", () => {
+  it("resolvePaint falls back to solid hex for legacy brands", () => {
+    expect(resolvePaint(null, "#abcabc")).toEqual(solidPaint("#abcabc"));
+  });
+
+  it("paintToCss renders radial and linear gradients", () => {
+    const linear = defaultGradientFromSolid("#000000", "#ffffff");
+    expect(paintToCss(linear)).toMatch(/^linear-gradient/);
+    const radial = {
+      ...linear,
+      gradient: { ...linear.gradient!, type: "radial" as const },
+    };
+    expect(paintToCss(radial)).toMatch(/^radial-gradient/);
   });
 });
 
