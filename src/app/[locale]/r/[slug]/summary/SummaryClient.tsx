@@ -10,7 +10,8 @@ import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
 import { IconCopy, IconDownload, IconFileText, IconLink } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
+import { isPersonalBoard } from "@/lib/chronos-boards";
 import type { SuggestedAction } from "@/lib/meeting-summary";
 
 type ActionItemRow = {
@@ -38,6 +39,8 @@ type BoardOption = {
   id?: string;
   name?: string;
   title?: string;
+  is_shared?: boolean;
+  member_count?: number;
 };
 
 type MemberOption = { id: number; name?: string; email?: string };
@@ -63,12 +66,18 @@ type TranscriptSegment = {
   createdAt?: string;
 };
 
+type SummaryTab = "report" | "transcript" | "recordings" | "tasks";
+
 function boardIdOf(b: BoardOption) {
   return b.board_id || b.id || "";
 }
 
 function boardNameOf(b: BoardOption) {
   return b.name || b.title || boardIdOf(b);
+}
+
+function findBoard(boards: BoardOption[], boardId: string) {
+  return boards.find((b) => boardIdOf(b) === boardId);
 }
 
 /** Avoid duplicating the raw-transcript heading when offline fallback already embeds it. */
@@ -148,20 +157,14 @@ export default function MeetingSummaryPage() {
   const [pushResult, setPushResult] = useState<string | null>(null);
   const [shareHint, setShareHint] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<RecordingRow[]>([]);
+  const [tab, setTab] = useState<SummaryTab>("report");
 
   const loadMembers = useCallback(async (boardId: string) => {
     if (!boardId) return;
-    setMembersByBoard((prev) =>
-      prev[boardId] ? prev : { ...prev, [boardId]: [] },
-    );
     const res = await fetch(
       `/api/chronos/boards?boardId=${encodeURIComponent(boardId)}`,
     );
-    if (res.status === 401) {
-      setReauthNeeded(true);
-      return;
-    }
-    if (res.status === 400) {
+    if (res.status === 401 || res.status === 400) {
       setReauthNeeded(true);
       return;
     }
@@ -187,16 +190,15 @@ export default function MeetingSummaryPage() {
     }
 
     void loadTranscript();
-    // Keep polling while summary is still generating (late segments may arrive).
     if (status === "ready") {
       return () => {
         cancelled = true;
       };
     }
-    const t = setInterval(() => void loadTranscript(), 4000);
+    const timer = setInterval(() => void loadTranscript(), 4000);
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearInterval(timer);
     };
   }, [meetingId, status]);
 
@@ -221,8 +223,8 @@ export default function MeetingSummaryPage() {
 
   useEffect(() => {
     if (!shareHint) return;
-    const t = setTimeout(() => setShareHint(null), 2500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShareHint(null), 2500);
+    return () => clearTimeout(timer);
   }, [shareHint]);
 
   useEffect(() => {
@@ -259,7 +261,6 @@ export default function MeetingSummaryPage() {
           if (genJson.summaryMarkdown) setMarkdown(genJson.summaryMarkdown);
           if (genJson.status === "ready") {
             setStatus("ready");
-            // fall through to load action items on next tick
           }
         }
       }
@@ -322,14 +323,21 @@ export default function MeetingSummaryPage() {
 
   useEffect(() => {
     const ids = new Set(
-      tasks.map((t) => t.boardId).filter(Boolean) as string[],
+      tasks.map((task) => task.boardId).filter(Boolean) as string[],
     );
     if (defaultBoardId) ids.add(defaultBoardId);
-    for (const id of ids) void loadMembers(id);
-  }, [tasks, defaultBoardId, loadMembers]);
+    for (const id of ids) {
+      const board = findBoard(boards, id);
+      if (isPersonalBoard(board)) {
+        setMembersByBoard((prev) => ({ ...prev, [id]: [] }));
+        continue;
+      }
+      void loadMembers(id);
+    }
+  }, [tasks, defaultBoardId, boards, loadMembers]);
 
   const selectedCount = useMemo(
-    () => tasks.filter((t) => t.included).length,
+    () => tasks.filter((task) => task.included).length,
     [tasks],
   );
 
@@ -348,6 +356,13 @@ export default function MeetingSummaryPage() {
       }),
     [markdown, segments, slug, t],
   );
+
+  const tabs: { id: SummaryTab; label: string }[] = [
+    { id: "report", label: t("tabReport") },
+    { id: "transcript", label: t("tabTranscript") },
+    { id: "recordings", label: t("tabRecordings") },
+    { id: "tasks", label: t("tabTasks") },
+  ];
 
   function downloadMarkdown() {
     if (!exportMarkdown.trim()) return;
@@ -376,7 +391,6 @@ export default function MeetingSummaryPage() {
       }
       setShareHint(tCommon("toast.shareFailed"));
     } catch (err) {
-      // User cancelled share sheet — ignore AbortError
       if (err instanceof DOMException && err.name === "AbortError") return;
       try {
         await navigator.clipboard.writeText(url);
@@ -396,24 +410,31 @@ export default function MeetingSummaryPage() {
       const payload = {
         meetingId,
         tasks: tasks
-          .filter((t) => t.included)
-          .map((t) => ({
-            actionItemId: t.actionItemId,
-            title: t.title,
-            description: t.description || undefined,
-            boardId: t.boardId || defaultBoardId,
-            dueDate: t.dueDate || null,
-            priority: t.priority,
-            assigneeIds:
-              typeof t.assigneeId === "number" ? [t.assigneeId] : undefined,
-            assigneeHint: t.assigneeHint || undefined,
-            checklist: t.checklistText
-              .split("\n")
-              .map((s) => s.trim())
-              .filter(Boolean),
-          })),
+          .filter((task) => task.included)
+          .map((task) => {
+            const personal = isPersonalBoard(findBoard(boards, task.boardId));
+            return {
+              actionItemId: task.actionItemId,
+              title: task.title,
+              description: task.description || undefined,
+              boardId: task.boardId || defaultBoardId,
+              dueDate: task.dueDate || null,
+              priority: task.priority,
+              assigneeIds:
+                personal || typeof task.assigneeId !== "number"
+                  ? undefined
+                  : [task.assigneeId],
+              assigneeHint: personal
+                ? undefined
+                : task.assigneeHint || undefined,
+              checklist: task.checklistText
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean),
+            };
+          }),
       };
-      if (payload.tasks.some((t) => !t.boardId)) {
+      if (payload.tasks.some((task) => !task.boardId)) {
         setError(t("chooseBoard"));
         return;
       }
@@ -446,7 +467,7 @@ export default function MeetingSummaryPage() {
           : t("pushSuccess", { count: ok }),
       );
       setTasks((prev) =>
-        prev.map((t) => (t.included ? { ...t, included: false } : t)),
+        prev.map((task) => (task.included ? { ...task, included: false } : task)),
       );
     } catch {
       setError(t("pushNetworkFailed"));
@@ -521,8 +542,37 @@ export default function MeetingSummaryPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-6">
+      <div
+        role="tablist"
+        aria-label={t("tabsAria")}
+        className="mb-6 flex flex-wrap gap-2 border-b border-line pb-3"
+      >
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.id}
+            id={`summary-tab-${item.id}`}
+            onClick={() => setTab(item.id)}
+            className={cn(
+              "rounded-full px-4 py-2 text-sm transition-colors",
+              tab === item.id
+                ? "bg-white/10 text-ink"
+                : "text-ink-faint hover:bg-white/5 hover:text-ink-muted",
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        role="tabpanel"
+        aria-labelledby={`summary-tab-${tab}`}
+        className="min-h-[20rem]"
+      >
+        {tab === "report" ? (
           <section className="rounded-3xl border border-line bg-white/[0.03] p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
@@ -579,43 +629,9 @@ export default function MeetingSummaryPage() {
               <p className="mt-6 text-sm text-ink-faint">{tMeta("waitingContent")}</p>
             )}
           </section>
+        ) : null}
 
-          <section className="rounded-3xl border border-line bg-white/[0.03] p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
-              {t("recordingsHeading")}
-            </h2>
-            {recordings.length === 0 ? (
-              <p className="mt-4 text-sm text-ink-faint">{t("recordingsEmpty")}</p>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {recordings.map((rec) => (
-                  <li
-                    key={rec.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-black/20 px-3 py-2.5 text-sm"
-                  >
-                    <span className="text-ink-muted">
-                      {rec.engine} ·{" "}
-                      {rec.bytes
-                        ? `${Math.round(rec.bytes / 1024 / 1024)} MB`
-                        : rec.mimeType || "video"}
-                    </span>
-                    {rec.downloadUrl ? (
-                      <a href={rec.downloadUrl} className="inline-flex">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          icon={<IconDownload className="h-3.5 w-3.5" />}
-                        >
-                          {t("downloadRecording")}
-                        </Button>
-                      </a>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
+        {tab === "transcript" ? (
           <section className="rounded-3xl border border-line bg-white/[0.03] p-6">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
@@ -632,7 +648,7 @@ export default function MeetingSummaryPage() {
                   : tMeta("waitingSegments")}
               </p>
             ) : (
-              <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
+              <div className="mt-4 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
                 {segments.map((s) => (
                   <div key={s.id} className="text-sm leading-relaxed">
                     <span className="font-medium text-ink">{s.speakerLabel}</span>
@@ -643,58 +659,119 @@ export default function MeetingSummaryPage() {
               </div>
             )}
           </section>
-        </div>
+        ) : null}
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        {tab === "recordings" ? (
+          <section className="rounded-3xl border border-line bg-white/[0.03] p-6">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
-              {t("suggestedTasks")}
+              {t("recordingsHeading")}
             </h2>
-            <span className="text-xs text-ink-faint">
-              {tCommon("selectedCount", { count: selectedCount })}
-            </span>
-          </div>
+            {recordings.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-faint">{t("recordingsEmpty")}</p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {recordings.map((rec) => (
+                  <li
+                    key={rec.id}
+                    className="rounded-xl border border-line bg-black/20 p-3 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-ink-muted">
+                        {rec.engine} ·{" "}
+                        {rec.bytes != null
+                          ? formatBytes(rec.bytes)
+                          : rec.mimeType || "video"}
+                      </span>
+                      {rec.downloadUrl ? (
+                        <a
+                          href={`${rec.downloadUrl}?download=1`}
+                          className="inline-flex"
+                          download
+                        >
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            icon={<IconDownload className="h-3.5 w-3.5" />}
+                          >
+                            {t("downloadRecording")}
+                          </Button>
+                        </a>
+                      ) : null}
+                    </div>
+                    {rec.status === "ready" && rec.downloadUrl ? (
+                      <video
+                        className="mt-3 aspect-video w-full rounded-lg bg-black"
+                        controls
+                        preload="metadata"
+                        src={rec.downloadUrl}
+                        aria-label={t("playRecording")}
+                      />
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : null}
 
-          {tasks.length === 0 ? (
-            <p className="rounded-2xl border border-line px-4 py-8 text-center text-sm text-ink-faint">
-              {status === "ready"
-                ? t("noTasksReady")
-                : tMeta("extractingActionItems")}
-            </p>
-          ) : (
-            tasks.map((task, idx) => (
-              <TaskCard
-                key={task.key}
-                task={task}
-                boards={boards}
-                members={membersByBoard[task.boardId] || []}
-                onChange={(next) => {
-                  setTasks((prev) =>
-                    prev.map((t, i) => (i === idx ? next : t)),
-                  );
-                  if (next.boardId) void loadMembers(next.boardId);
-                }}
-              />
-            ))
-          )}
+        {tab === "tasks" ? (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
+                {t("suggestedTasks")}
+              </h2>
+              <span className="text-xs text-ink-faint">
+                {tCommon("selectedCount", { count: selectedCount })}
+              </span>
+            </div>
 
-          {error ? (
-            <p className="text-sm text-rose-300">{error}</p>
-          ) : null}
-          {pushResult ? (
-            <p className="text-sm text-emerald-300">{pushResult}</p>
-          ) : null}
+            {tasks.length === 0 ? (
+              <p className="rounded-2xl border border-line px-4 py-8 text-center text-sm text-ink-faint">
+                {status === "ready"
+                  ? t("noTasksReady")
+                  : tMeta("extractingActionItems")}
+              </p>
+            ) : (
+              tasks.map((task, idx) => (
+                <TaskCard
+                  key={task.key}
+                  task={task}
+                  boards={boards}
+                  members={membersByBoard[task.boardId] || []}
+                  onChange={(next) => {
+                    const personal = isPersonalBoard(
+                      findBoard(boards, next.boardId),
+                    );
+                    const normalized = personal
+                      ? { ...next, assigneeId: "" as const }
+                      : next;
+                    setTasks((prev) =>
+                      prev.map((item, i) => (i === idx ? normalized : item)),
+                    );
+                    if (next.boardId && !personal) void loadMembers(next.boardId);
+                  }}
+                />
+              ))
+            )}
 
-          <Button
-            size="lg"
-            className="w-full"
-            loading={pushing}
-            disabled={selectedCount === 0 || status !== "ready"}
-            onClick={() => void pushTasks()}
-          >
-            {t("createInChronos", { count: selectedCount || 0 })}
-          </Button>
-        </section>
+            {error ? (
+              <p className="text-sm text-rose-300">{error}</p>
+            ) : null}
+            {pushResult ? (
+              <p className="text-sm text-emerald-300">{pushResult}</p>
+            ) : null}
+
+            <Button
+              size="lg"
+              className="w-full"
+              loading={pushing}
+              disabled={selectedCount === 0 || status !== "ready"}
+              onClick={() => void pushTasks()}
+            >
+              {t("createInChronos", { count: selectedCount || 0 })}
+            </Button>
+          </section>
+        ) : null}
       </div>
     </Shell>
   );
@@ -713,6 +790,8 @@ function TaskCard({
 }) {
   const t = useTranslations("summary");
   const tCommon = useTranslations("common");
+  const personal = isPersonalBoard(findBoard(boards, task.boardId));
+
   return (
     <div
       className={cn(
@@ -759,6 +838,7 @@ function TaskCard({
                 {boards.map((b) => (
                   <option key={boardIdOf(b)} value={boardIdOf(b)}>
                     {boardNameOf(b)}
+                    {isPersonalBoard(b) ? ` (${t("personalBoard")})` : ""}
                   </option>
                 ))}
               </select>
@@ -774,32 +854,38 @@ function TaskCard({
                 className="mt-1 w-full rounded-xl border border-line bg-black/30 px-3 py-2 text-sm"
               />
             </label>
-            <label className="text-xs text-ink-faint">
-              {t("assignee")}
-              <select
-                value={task.assigneeId === "" ? "" : String(task.assigneeId)}
-                onChange={(e) =>
-                  onChange({
-                    ...task,
-                    assigneeId: e.target.value
-                      ? Number(e.target.value)
-                      : "",
-                  })
-                }
-                className="mt-1 w-full rounded-xl border border-line bg-black/30 px-3 py-2 text-sm text-ink"
-              >
-                <option value="">
-                  {task.assigneeHint
-                    ? t("assigneeHint", { hint: task.assigneeHint })
-                    : tCommon("actions.none")}
-                </option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name || m.email || m.id}
+            {!personal ? (
+              <label className="text-xs text-ink-faint">
+                {t("assignee")}
+                <select
+                  value={task.assigneeId === "" ? "" : String(task.assigneeId)}
+                  onChange={(e) =>
+                    onChange({
+                      ...task,
+                      assigneeId: e.target.value
+                        ? Number(e.target.value)
+                        : "",
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-line bg-black/30 px-3 py-2 text-sm text-ink"
+                >
+                  <option value="">
+                    {task.assigneeHint
+                      ? t("assigneeHint", { hint: task.assigneeHint })
+                      : tCommon("actions.none")}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name || m.email || m.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="text-xs text-ink-faint self-end pb-2">
+                {t("personalBoardNoAssignee")}
+              </p>
+            )}
             <label className="text-xs text-ink-faint">
               {t("priority")}
               <select

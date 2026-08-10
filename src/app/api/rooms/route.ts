@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const body = createSchema.parse(await req.json());
   const slug = body.slug || nanoid(10).toLowerCase();
   const livekitRoomName = `meet_${slug}`;
-  const preset = body.themePreset && BOARD_THEMES[body.themePreset] ? body.themePreset : "indigo";
+  const preset = body.themePreset && BOARD_THEMES[body.themePreset] ? body.themePreset : "violet";
   const colors = BOARD_THEMES[preset];
 
   const [room] = await db

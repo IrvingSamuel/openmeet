@@ -10,12 +10,12 @@ import {
 } from "@/lib/brand";
 
 describe("brandToCssVars", () => {
-  it("falls back to the indigo preset when nothing is set", () => {
+  it("falls back to the violet preset when nothing is set", () => {
     const vars = brandToCssVars({});
-    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.indigo.primary);
-    expect(vars["--brand-secondary"]).toBe(BOARD_THEMES.indigo.secondary);
+    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.violet.primary);
+    expect(vars["--brand-secondary"]).toBe(BOARD_THEMES.violet.secondary);
     expect(vars["--brand-logo-url"]).toBe("none");
-    expect(vars["--brand-primary-paint"]).toBe(BOARD_THEMES.indigo.primary);
+    expect(vars["--brand-primary-paint"]).toBe(BOARD_THEMES.violet.primary);
     expect(vars["--brand-pattern-url"]).toBe("none");
     expect(vars["--brand-bg-animation"]).toBe("none");
   });
@@ -27,7 +27,7 @@ describe("brandToCssVars", () => {
 
   it("ignores an unknown preset instead of emitting undefined", () => {
     const vars = brandToCssVars({ themePreset: "does-not-exist" });
-    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.indigo.primary);
+    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.violet.primary);
   });
 
   it("lets explicit colors win over the preset", () => {
@@ -67,11 +67,11 @@ describe("brandToCssVars", () => {
       patternTintOpacity: 40,
       bgAnimation: "wave",
       bgAnimationSpeed: 2,
-      primaryColor: "#6366f1",
+      primaryColor: "#8b5cf6",
     });
     expect(vars["--brand-pattern-url"]).toBe('url("/brand-assets/x/pattern.png")');
     expect(vars["--brand-pattern-size"]).toBe("64px");
-    expect(vars["--brand-pattern-tint"]).toBe("#6366f1");
+    expect(vars["--brand-pattern-tint"]).toBe("#8b5cf6");
     expect(vars["--brand-pattern-tint-opacity"]).toBe("0.4");
     expect(vars["--brand-bg-animation"]).toBe("wave");
     expect(vars["--brand-bg-animation-speed"]).toMatch(/s$/);

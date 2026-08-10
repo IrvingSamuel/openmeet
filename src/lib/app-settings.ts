@@ -147,12 +147,9 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
   const geminiApiKey = geminiApiKeyDb || envGeminiKey || undefined;
   const geminiModel =
     geminiModelDb || envGeminiModel || "gemini-3.5-flash-lite";
+  // Summary uses a stronger default; do not fall back to the lite insights model.
   const geminiSummaryModel =
-    geminiSummaryModelDb ||
-    envSummaryModel ||
-    geminiModelDb ||
-    envGeminiModel ||
-    "gemini-3.5-flash-lite";
+    geminiSummaryModelDb || envSummaryModel || "gemini-3.5-flash";
   const deepgramApiKey = deepgramApiKeyDb || envDeepgram || undefined;
 
   return {

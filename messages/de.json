@@ -479,12 +479,12 @@
       "customCssPlaceholder": ".lk-participant-tile { border-radius: 28px }"
     },
     "themes": {
-      "indigo": "Indigo (Standard)",
+      "indigo": "Indigo",
       "emerald": "Emerald",
       "rose": "Rose",
       "amber": "Amber",
       "sky": "Sky",
-      "violet": "Violet"
+      "violet": "Violet (Standard)"
     },
     "paint": {
       "mode": "Farbmodus",
@@ -512,6 +512,11 @@
     "mediaUnavailable": "Mediengerät nicht verfügbar",
     "endForAllFailed": "Meeting konnte nicht für alle beendet werden. Bitte erneut versuchen.",
     "waitingForParticipants": "Warte auf Teilnehmer…",
+    "recordingStarted": "Aufnahme gestartet",
+    "recordingStopped": "Aufnahme gestoppt",
+    "recordingScreenDenied": "Du musst diesen Meeting-Tab/Bildschirm freigeben, um aufzunehmen.",
+    "recordingScreenPrompt": "Die automatische Aufnahme muss diesen Meeting-Bildschirm erfassen. Wähle diesen Tab, wenn der Browser danach fragt.",
+    "recordingScreenPromptCta": "Aufnahme starten",
     "controlBar": {
       "muteMic": "Mikrofon stummschalten",
       "unmuteMic": "Mikrofon aktivieren",
@@ -554,8 +559,8 @@
       "transcriptEmpty": "Der Copilot hat noch nichts transkribiert.",
       "tabInsights": "Insights",
       "tabChat": "Chatten",
-      "insightsCached": "Cache — aktualisieren, wenn es neue Beiträge gibt.",
-      "insightsLive": "Insights aus dem aktuellen Transkript.",
+      "insightsCached": "Meeting-Cache — neue Generierung alle 1–3 Min. bei neuen Beiträgen.",
+      "insightsLive": "Insights zur aktuellen Agenda (eine gemeinsame Generierung pro Meeting).",
       "insightsRefreshFailed": "Insights konnten nicht aktualisiert werden.",
       "insightsEmpty": "Noch keine Insights. Weiter sprechen und Aktualisieren drücken, oder sagen „Hey Copilot, gib mir Insights“.",
       "copilotEmpty": "Fragen Sie alles zum laufenden Meeting.",
@@ -604,6 +609,13 @@
     "billingReload": "In AI Studio aufladen",
     "billingAfter": ", dann die Neuerzeugung auf dieser Seite erzwingen.",
     "report": "Bericht",
+    "tabReport": "Zusammenfassung",
+    "tabTranscript": "Transkript",
+    "tabRecordings": "Aufnahmen",
+    "tabTasks": "Vorgeschlagene Aufgaben",
+    "tabsAria": "Abschnitte der Meeting-Zusammenfassung",
+    "personalBoard": "persönlich",
+    "personalBoardNoAssignee": "Persönliches Board — keine Verantwortlichen.",
     "downloadMd": "Download .md",
     "share": "Teilen",
     "copyMarkdown": "Markdown kopieren",
@@ -634,7 +646,8 @@
     "shareTitle": "Meeting-Zusammenfassung — {slug}",
     "recordingsHeading": "Aufnahmen",
     "recordingsEmpty": "Noch keine Aufnahmen.",
-    "downloadRecording": "Herunterladen"
+    "downloadRecording": "Herunterladen",
+    "playRecording": "Abspielen"
   },
   "admin": {
     "eyebrow": "System",
@@ -686,7 +699,9 @@
       "geminiKeyHint": "Leer lassen, um den aktuellen Schlüssel zu behalten (DB oder .env).",
       "geminiKeyPlaceholder": "AIza…",
       "modelInsights": "Modell (Insights / Chat)",
+      "modelInsightsHint": "Hohes Volumen während des Meetings — Flash-Lite bevorzugen.",
       "modelSummary": "Modell (Zusammenfassung)",
+      "modelSummaryHint": "Eine Generierung nach dem Meeting — stärkeres Modell nutzen (z. B. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
       "deepgramKeyHint": "Der Python-Worker liest DEEPGRAM_API_KEY weiterhin aus der .env.",
       "save": "KI speichern",

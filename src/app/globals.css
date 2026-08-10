@@ -5,12 +5,12 @@
 @layer base {
   :root {
     /* Brand tokens — overridden per-room by the brand engine */
-    --brand-primary: #6366f1;
-    --brand-secondary: #22d3ee;
-    --brand-tertiary: #a855f7;
-    --brand-primary-paint: #6366f1;
-    --brand-secondary-paint: #22d3ee;
-    --brand-tertiary-paint: #a855f7;
+    --brand-primary: #8b5cf6;
+    --brand-secondary: #a78bfa;
+    --brand-tertiary: #d946ef;
+    --brand-primary-paint: #8b5cf6;
+    --brand-secondary-paint: #a78bfa;
+    --brand-tertiary-paint: #d946ef;
     --brand-font: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
       sans-serif;
     --brand-bg: #05060f;

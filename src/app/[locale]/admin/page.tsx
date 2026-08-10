@@ -450,6 +450,7 @@ export default function AdminPage() {
                       setSettings({ ...settings, geminiModel: e.target.value })
                     }
                     placeholder="gemini-3.5-flash-lite"
+                    hint={t("ai.modelInsightsHint")}
                   />
                   <Input
                     label={t("ai.modelSummary")}
@@ -460,7 +461,8 @@ export default function AdminPage() {
                         geminiSummaryModel: e.target.value,
                       })
                     }
-                    placeholder="gemini-3.5-flash-lite"
+                    placeholder="gemini-3.5-flash"
+                    hint={t("ai.modelSummaryHint")}
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 pt-2">

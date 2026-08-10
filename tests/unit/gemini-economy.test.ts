@@ -12,7 +12,7 @@ vi.mock("@/lib/app-settings", () => ({
   })),
 }));
 
-import { estimateTokens, defaultGeminiModel } from "@/lib/gemini";
+import { estimateTokens, defaultGeminiModel, summaryGeminiModel } from "@/lib/gemini";
 
 describe("needsExpandedContext", () => {
   it("expands for summary-like questions", () => {
@@ -55,5 +55,17 @@ describe("defaultGeminiModel", () => {
     delete process.env.GEMINI_MODEL;
     expect(defaultGeminiModel()).toBe("gemini-3.5-flash-lite");
     if (prev !== undefined) process.env.GEMINI_MODEL = prev;
+  });
+});
+
+describe("summaryGeminiModel", () => {
+  it("defaults to stronger flash (not lite) when env unset", () => {
+    const prev = process.env.GEMINI_SUMMARY_MODEL;
+    const prevLite = process.env.GEMINI_MODEL;
+    delete process.env.GEMINI_SUMMARY_MODEL;
+    delete process.env.GEMINI_MODEL;
+    expect(summaryGeminiModel()).toBe("gemini-3.5-flash");
+    if (prev !== undefined) process.env.GEMINI_SUMMARY_MODEL = prev;
+    if (prevLite !== undefined) process.env.GEMINI_MODEL = prevLite;
   });
 });

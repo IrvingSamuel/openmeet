@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
+import { createReadStream, existsSync } from "fs";
+import { stat } from "fs/promises";
+import { Readable } from "stream";
 import { db } from "@/db";
 import { meetings, recordings, rooms } from "@/db/schema";
 import { getSession, type SessionData } from "@/lib/session";
-import {
-  getRecordingSignedUrl,
-  openLocalRecordingStream,
-} from "@/lib/recording-storage";
-import { Readable } from "stream";
+import { getRecordingSignedUrl } from "@/lib/recording-storage";
 
 type Ctx = { params: Promise<{ id: string; recordingId: string }> };
 
@@ -33,7 +32,29 @@ async function canAccessRecording(
   return auth.ok;
 }
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
+function parseRange(
+  header: string | null,
+  size: number,
+): { start: number; end: number } | null {
+  if (!header || !header.startsWith("bytes=")) return null;
+  const part = header.slice(6).split(",")[0]?.trim();
+  if (!part) return null;
+  const [startStr, endStr] = part.split("-");
+  let start = startStr === "" ? NaN : Number(startStr);
+  let end = endStr === "" || endStr === undefined ? NaN : Number(endStr);
+  if (Number.isNaN(start)) {
+    // suffix: bytes=-500
+    if (Number.isNaN(end)) return null;
+    start = Math.max(0, size - end);
+    end = size - 1;
+  } else if (Number.isNaN(end)) {
+    end = size - 1;
+  }
+  if (start < 0 || end >= size || start > end) return null;
+  return { start, end };
+}
+
+export async function GET(req: NextRequest, ctx: Ctx) {
   const { id: meetingId, recordingId } = await ctx.params;
   const session = await getSession();
   if (!(await canAccessRecording(meetingId, session))) {
@@ -50,27 +71,55 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
+  const asDownload = req.nextUrl.searchParams.get("download") === "1";
   const filename = `meeting-${meetingId.slice(0, 8)}-${recordingId.slice(0, 8)}.${
     row.mimeType?.includes("mp4") ? "mp4" : "webm"
   }`;
+  const disposition = asDownload
+    ? `attachment; filename="${filename}"`
+    : `inline; filename="${filename}"`;
 
   if (row.storageBackend === "s3" && row.objectKey) {
     const url = await getRecordingSignedUrl({ objectKey: row.objectKey });
     return NextResponse.redirect(url, 302);
   }
 
-  if (!row.filepath) {
+  if (!row.filepath || !existsSync(row.filepath)) {
     return NextResponse.json({ error: "file_missing" }, { status: 404 });
   }
 
   try {
-    const { stream, size } = await openLocalRecordingStream(row.filepath);
+    const info = await stat(row.filepath);
+    const size = info.size;
+    const contentType = row.mimeType || "video/webm";
+    const range = parseRange(req.headers.get("range"), size);
+
+    if (range) {
+      const { start, end } = range;
+      const chunkSize = end - start + 1;
+      const stream = createReadStream(row.filepath, { start, end });
+      const webStream = Readable.toWeb(stream) as ReadableStream;
+      return new NextResponse(webStream, {
+        status: 206,
+        headers: {
+          "Content-Type": contentType,
+          "Content-Length": String(chunkSize),
+          "Content-Range": `bytes ${start}-${end}/${size}`,
+          "Accept-Ranges": "bytes",
+          "Content-Disposition": disposition,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
+    const stream = createReadStream(row.filepath);
     const webStream = Readable.toWeb(stream) as ReadableStream;
     return new NextResponse(webStream, {
       headers: {
-        "Content-Type": row.mimeType || "video/webm",
+        "Content-Type": contentType,
         "Content-Length": String(size),
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Accept-Ranges": "bytes",
+        "Content-Disposition": disposition,
         "Cache-Control": "private, no-store",
       },
     });

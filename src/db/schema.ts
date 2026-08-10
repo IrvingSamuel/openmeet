@@ -57,10 +57,10 @@ export const roomBrands = pgTable("room_brands", {
     .unique(),
   logoUrl: text("logo_url"),
   wordmark: text("wordmark"),
-  themePreset: text("theme_preset").default("indigo"),
-  primaryColor: text("primary_color").default("#6366f1"),
-  secondaryColor: text("secondary_color").default("#22d3ee"),
-  tertiaryColor: text("tertiary_color").default("#a855f7"),
+  themePreset: text("theme_preset").default("violet"),
+  primaryColor: text("primary_color").default("#8b5cf6"),
+  secondaryColor: text("secondary_color").default("#a78bfa"),
+  tertiaryColor: text("tertiary_color").default("#d946ef"),
   fontFamily: text("font_family").default("Inter, system-ui, sans-serif"),
   background: text("background").default("#0b1020"),
   lobbyTitle: text("lobby_title"),
@@ -100,6 +100,8 @@ export const meetings = pgTable(
     insightsCacheSegmentCount: integer("insights_cache_segment_count"),
     insightsCacheAt: timestamp("insights_cache_at", { withTimezone: true }),
     insightsRegenCount: integer("insights_regen_count").notNull().default(0),
+    /** idle | running — meeting-scoped single-flight for live insights */
+    insightsStatus: text("insights_status").notNull().default("idle"),
   },
   (t) => [index("meetings_room_idx").on(t.roomId)],
 );

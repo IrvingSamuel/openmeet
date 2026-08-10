@@ -42,10 +42,31 @@ async function activeRecording(meetingId: string) {
 }
 
 export async function listMeetingRecordings(meetingId: string) {
-  return db.query.recordings.findMany({
+  const rows = await db.query.recordings.findMany({
     where: eq(recordings.meetingId, meetingId),
     orderBy: [desc(recordings.createdAt)],
   });
+
+  // Backfill bytes for older rows that finished without a size in DB.
+  await Promise.all(
+    rows.map(async (row) => {
+      if (row.bytes != null || !row.filepath || !existsSync(row.filepath)) {
+        return;
+      }
+      try {
+        const info = await stat(row.filepath);
+        row.bytes = info.size;
+        await db
+          .update(recordings)
+          .set({ bytes: info.size })
+          .where(eq(recordings.id, row.id));
+      } catch {
+        // ignore missing/unreadable files
+      }
+    }),
+  );
+
+  return rows;
 }
 
 async function dispatchRecordingReady(recordingId: string) {

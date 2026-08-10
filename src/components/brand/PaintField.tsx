@@ -25,7 +25,7 @@ export function PaintField({
   label,
   value,
   onChange,
-  gradientCompanion = "#22d3ee",
+  gradientCompanion = "#a78bfa",
   className,
 }: PaintFieldProps) {
   const t = useTranslations("brand.paint");

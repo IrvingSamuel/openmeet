@@ -79,10 +79,10 @@ async function meetCreateRoom(args: {
       accessPolicy: "members",
     })
     .returning();
-  const colors = BOARD_THEMES.indigo;
+  const colors = BOARD_THEMES.violet;
   await db.insert(roomBrands).values({
     roomId: room.id,
-    themePreset: "indigo",
+    themePreset: "violet",
     primaryColor: colors.primary,
     secondaryColor: colors.secondary,
     tertiaryColor: colors.tertiary,

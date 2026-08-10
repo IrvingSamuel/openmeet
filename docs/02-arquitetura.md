@@ -63,7 +63,7 @@ Agent ──► Postgres
 | `app_settings` | Config system-wide (locale, chaves IA, webhooks outbound, gravação) |
 | `recordings` | Gravações AV (browser/egress → local ou S3) |
 
-`meetings` também guarda cache de insights (`insights_cache`, `insights_cache_segment_count`, `insights_regen_count`) para evitar Gemini em cada abertura do painel.
+`meetings` também guarda cache de insights (`insights_cache`, `insights_cache_segment_count`, `insights_regen_count`, `insights_status`) para uma única geração por reunião (single-flight) e evitar Gemini em cada abertura do painel.
 
 ### Administração e webhooks de saída
 
@@ -97,10 +97,11 @@ docker compose -f docker-compose.egress.yml down
 
 | Chamada | Modelo (env) | Cap output | Notas |
 |---------|--------------|------------|-------|
-| Insights + chat | `GEMINI_MODEL` → `gemini-3.5-flash-lite` | 512 / 1024 | Cache insights; chat com 20 segs / 6 msgs (40/10 se expandir) |
-| Resumo pós | `GEMINI_SUMMARY_MODEL` → `gemini-3.5-flash-lite` | 4096 | Transcript capped a 12k chars (amostra início/meio/fim) |
+| Insights (painel aberto) | `GEMINI_MODEL` → `gemini-3.5-flash-lite` | ~384 | 1 chamada / reunião / 1–3 min (time gate + lock); histórico em `insights_cache` |
+| Chat copiloto | `GEMINI_MODEL` → `gemini-3.5-flash-lite` | 1024 | 20 segs / 6 msgs (40/10 se expandir) |
+| Resumo pós | `GEMINI_SUMMARY_MODEL` → `gemini-3.5-flash` | 4096 | Uma geração completa; transcript capped a 12k chars + histórico de insights ao vivo |
 
-Quotas: máx. 20 chats Gemini / participante / reunião; máx. 3 regenerações de insights / reunião. Deepgram STT continua a ser o maior custo em escala (VAD Silero = backlog).
+Quotas: máx. 20 chats Gemini / participante / reunião; máx. 3 regenerações forçadas de insights / reunião. Deepgram STT continua a ser o maior custo em escala (VAD Silero = backlog).
 
 ## Branding
 

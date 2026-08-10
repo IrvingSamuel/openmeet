@@ -42,11 +42,7 @@ export function defaultGeminiModel(): string {
 
 /** Model for post-meeting summaries. Env-only sync fallback for tests. */
 export function summaryGeminiModel(): string {
-  return (
-    process.env.GEMINI_SUMMARY_MODEL ||
-    process.env.GEMINI_MODEL ||
-    "gemini-3.5-flash-lite"
-  );
+  return process.env.GEMINI_SUMMARY_MODEL || "gemini-3.5-flash";
 }
 
 /** Async model resolution (DB override → env → default). */

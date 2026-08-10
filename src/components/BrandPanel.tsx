@@ -36,9 +36,9 @@ function paintOf(
   key: "primary" | "secondary" | "tertiary" | "background",
 ): PaintToken {
   const solids = {
-    primary: brand.primaryColor || "#6366f1",
-    secondary: brand.secondaryColor || "#22d3ee",
-    tertiary: brand.tertiaryColor || "#a855f7",
+    primary: brand.primaryColor || "#8b5cf6",
+    secondary: brand.secondaryColor || "#a78bfa",
+    tertiary: brand.tertiaryColor || "#d946ef",
     background: brand.background || "#0b1020",
   };
   const paints = {
@@ -462,7 +462,7 @@ export function BrandPanel({ slug }: { slug: string }) {
             {t("livePreview")}
           </p>
           <Badge tone="brand" pulse>
-            {themeLabel(brand.themePreset || "indigo")}
+            {themeLabel(brand.themePreset || "violet")}
           </Badge>
         </div>
 

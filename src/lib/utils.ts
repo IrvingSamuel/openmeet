@@ -88,3 +88,15 @@ export function formatDuration(ms: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
+
+/** Human-readable file size — avoids Math.round(MB) showing "0 MB" for small files. */
+export function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return "0 B";
+  if (n < 1024) return `${Math.round(n)} B`;
+  if (n < 1024 * 1024) {
+    const kb = n / 1024;
+    return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`;
+  }
+  const mb = n / 1024 / 1024;
+  return `${mb < 10 ? mb.toFixed(2) : mb.toFixed(1)} MB`;
+}

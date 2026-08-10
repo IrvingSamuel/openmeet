@@ -14,6 +14,10 @@ import {
   resolveSummaryGeminiModel,
 } from "@/lib/gemini";
 import { localePromptLabel, resolveLocale } from "@/lib/app-settings";
+import {
+  formatInsightsHistoryForPrompt,
+  parseInsightsCache,
+} from "@/lib/insights-cache";
 import { recordLlmUsage } from "@/lib/llm-usage";
 import {
   sampleTranscriptForSummary,
@@ -151,17 +155,30 @@ export async function generateMeetingSummary(meetingId: string) {
   }
 
   const lang = localePromptLabel(locale);
-  const prompt = `Você é o copiloto Chronos Meet. Analise a reunião em ${lang}.
+  const liveInsights = formatInsightsHistoryForPrompt(
+    parseInsightsCache(meeting.insightsCache),
+  );
+  const liveBlock = liveInsights
+    ? `\nInsights gerados ao vivo durante a reunião (usar na secção Insights; sintetize sem descartar):\n${liveInsights}\n`
+    : "";
+
+  const prompt = `Você é o copiloto Chronos Meet. Analise a reunião em ${lang} com profundidade máxima.
 
 Produza markdown com exatamente estas secções (use estes títulos ##):
-## Principais pontos
-## Insights gerados
-## Observações e anotações
-## Sugestões de tarefas
+## Resumo Executivo
+(Uma breve descrição textual da pauta geral da reunião.)
+## Sumário Detalhado
+(Os assuntos discutidos de forma detalhada em tópicos, por ordem de discussão.)
+## Insights
+(Todos os insights relevantes da reunião, incluindo os gerados ao vivo se fornecidos.)
+## Tópicos principais
+(Quais os assuntos principais da reunião.)
+## Palavras-chave
+(Palavras relevantes e de importância usadas e mencionadas — lista concisa.)
 
 Transcrição${transcriptFull.length > transcript.length ? " (amostrada início/meio/fim)" : ""}:
 ${transcript}
-
+${liveBlock}
 No final, emita um bloco JSON estrito delimitado por <actions> e </actions> com array:
 [{
   "title":"...",

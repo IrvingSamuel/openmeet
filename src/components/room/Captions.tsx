@@ -85,6 +85,7 @@ export function useCopilotInsights(
   const [fromCache, setFromCache] = useState(false);
   const [regenCount, setRegenCount] = useState(0);
   const hydratedForMeeting = useRef<string | null>(null);
+  const nextPollAt = useRef(0);
 
   const applyPayload = useCallback(
     (json: {
@@ -93,6 +94,7 @@ export function useCopilotInsights(
       suggestions?: string[];
       cached?: boolean;
       regenCount?: number;
+      nextAllowedAt?: string;
     }) => {
       const batch: CopilotInsight[] = [];
       const at = Date.now();
@@ -111,6 +113,10 @@ export function useCopilotInsights(
       setInsights(batch.slice(-limit));
       setFromCache(Boolean(json.cached));
       if (typeof json.regenCount === "number") setRegenCount(json.regenCount);
+      if (typeof json.nextAllowedAt === "string") {
+        const next = Date.parse(json.nextAllowedAt);
+        if (!Number.isNaN(next)) nextPollAt.current = next;
+      }
     },
     [limit],
   );
@@ -152,13 +158,35 @@ export function useCopilotInsights(
 
   useDataChannel("insights", onMessage);
 
-  // Load cached (or generate once) when panel opens — no Gemini if cache fresh.
+  // Initial load when panel opens — server returns cache if time window is fresh.
   useEffect(() => {
     if (!panelOpen || !meetingId) return;
-    if (hydratedForMeeting.current === meetingId && insights.length > 0) return;
+    if (hydratedForMeeting.current === meetingId) return;
     hydratedForMeeting.current = meetingId;
     void fetchInsights(false);
-  }, [panelOpen, meetingId, fetchInsights, insights.length]);
+  }, [panelOpen, meetingId, fetchInsights]);
+
+  // While panel is open, poll on a 1–3 min cadence (server enforces meeting-scoped gate).
+  useEffect(() => {
+    if (!panelOpen || !meetingId) return;
+
+    const tick = () => {
+      const now = Date.now();
+      if (now < nextPollAt.current) return;
+      // Fallback poll cadence if server did not return nextAllowedAt yet.
+      nextPollAt.current = now + 90_000;
+      void fetchInsights(false);
+    };
+
+    const id = window.setInterval(tick, 15_000);
+    return () => window.clearInterval(id);
+  }, [panelOpen, meetingId, fetchInsights]);
+
+  // Reset hydration when panel closes so reopen can refresh from cache.
+  useEffect(() => {
+    if (panelOpen) return;
+    hydratedForMeeting.current = null;
+  }, [panelOpen]);
 
   const refreshInsights = useCallback(() => {
     return fetchInsights(true);

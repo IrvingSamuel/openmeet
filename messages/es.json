@@ -479,12 +479,12 @@
       "customCssPlaceholder": ".lk-participant-tile { border-radius: 28px }"
     },
     "themes": {
-      "indigo": "Indigo (predeterminado)",
+      "indigo": "Indigo",
       "emerald": "Emerald",
       "rose": "Rose",
       "amber": "Amber",
       "sky": "Sky",
-      "violet": "Violet"
+      "violet": "Violet (predeterminado)"
     },
     "paint": {
       "mode": "Modo de color",
@@ -512,6 +512,11 @@
     "mediaUnavailable": "dispositivo de medios no disponible",
     "endForAllFailed": "No se pudo terminar la reunión para todos. Inténtelo de nuevo.",
     "waitingForParticipants": "Esperando participantes…",
+    "recordingStarted": "Grabación iniciada",
+    "recordingStopped": "Grabación detenida",
+    "recordingScreenDenied": "Debes compartir esta pestaña/pantalla de la reunión para grabar.",
+    "recordingScreenPrompt": "La grabación automática necesita capturar la pantalla de esta reunión. Elige esta pestaña cuando el navegador lo pida.",
+    "recordingScreenPromptCta": "Iniciar grabación",
     "controlBar": {
       "muteMic": "Silenciar micrófono",
       "unmuteMic": "Activar micrófono",
@@ -554,8 +559,8 @@
       "transcriptEmpty": "El copiloto aún no ha transcrito nada.",
       "tabInsights": "Insights",
       "tabChat": "Conversar",
-      "insightsCached": "Caché — actualice cuando haya nuevas intervenciones.",
-      "insightsLive": "Insights de la transcripción reciente.",
+      "insightsCached": "Caché de la reunión — nueva generación cada 1–3 min con intervenciones nuevas.",
+      "insightsLive": "Insights de la pauta reciente (una generación compartida por reunión).",
       "insightsRefreshFailed": "No se pudieron actualizar los insights.",
       "insightsEmpty": "Aún no hay insights. Siga conversando y pulse Actualizar, o diga “Oye Copiloto, dame insights”.",
       "copilotEmpty": "Pregunte cualquier cosa sobre la reunión en curso.",
@@ -604,6 +609,13 @@
     "billingReload": "Recargar en AI Studio",
     "billingAfter": ", luego force la regeneración en esta página.",
     "report": "Informe",
+    "tabReport": "Resumen",
+    "tabTranscript": "Transcripción",
+    "tabRecordings": "Grabaciones",
+    "tabTasks": "Tareas sugeridas",
+    "tabsAria": "Secciones del resumen de la reunión",
+    "personalBoard": "personal",
+    "personalBoardNoAssignee": "Tablero personal — sin responsables.",
     "downloadMd": "Descargar .md",
     "share": "Compartir",
     "copyMarkdown": "Copiar markdown",
@@ -634,7 +646,8 @@
     "shareTitle": "Resumen de la reunión — {slug}",
     "recordingsHeading": "Grabaciones",
     "recordingsEmpty": "Aún no hay grabaciones.",
-    "downloadRecording": "Descargar"
+    "downloadRecording": "Descargar",
+    "playRecording": "Reproducir"
   },
   "admin": {
     "eyebrow": "Sistema",
@@ -686,7 +699,9 @@
       "geminiKeyHint": "Déjelo vacío para mantener la clave actual (DB o .env).",
       "geminiKeyPlaceholder": "AIza…",
       "modelInsights": "Modelo (insights / chat)",
+      "modelInsightsHint": "Alto volumen durante la reunión — preferir Flash-Lite.",
       "modelSummary": "Modelo (resumen)",
+      "modelSummaryHint": "Una generación post-reunión — usar un modelo más capaz (p. ej. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
       "deepgramKeyHint": "El worker de Python sigue leyendo DEEPGRAM_API_KEY del .env.",
       "save": "Guardar IA",

@@ -9,6 +9,7 @@ const onConflictDoUpdate = vi.fn();
 const deleteWhere = vi.fn();
 const updateWhere = vi.fn();
 const callGeminiSafe = vi.fn();
+const extractJsonBlock = vi.fn();
 const recordLlmUsage = vi.fn();
 const dispatchSummaryReadyWebhooks = vi.fn();
 const resolveLocale = vi.fn(async () => "pt-BR");
@@ -51,7 +52,7 @@ vi.mock("@/db", () => ({
 
 vi.mock("@/lib/gemini", () => ({
   callGeminiSafe: (...args: unknown[]) => callGeminiSafe(...args),
-  extractJsonBlock: vi.fn(),
+  extractJsonBlock: (...args: unknown[]) => extractJsonBlock(...args),
   offlineSummaryMarkdown: vi.fn(),
   resolveSummaryGeminiModel: vi.fn(async () => "gemini-test"),
 }));
@@ -167,5 +168,73 @@ describe("generateMeetingSummary — empty transcript", () => {
     expect(result.summaryMarkdown).toBe(
       "No audio was detected in this meeting.",
     );
+  });
+});
+
+describe("generateMeetingSummary — prompt sections", () => {
+  const meetingId = "22222222-2222-4222-8222-222222222222";
+
+  beforeEach(() => {
+    meetingsFindFirst.mockReset();
+    roomsFindFirst.mockReset();
+    segmentsFindMany.mockReset();
+    insertValues.mockReset();
+    onConflictDoUpdate.mockReset();
+    deleteWhere.mockReset();
+    updateWhere.mockReset();
+    callGeminiSafe.mockReset();
+    recordLlmUsage.mockReset();
+    dispatchSummaryReadyWebhooks.mockReset();
+    resolveLocale.mockReset();
+    resolveLocale.mockResolvedValue("pt-BR");
+    deleteWhere.mockResolvedValue(undefined);
+    updateWhere.mockResolvedValue(undefined);
+    dispatchSummaryReadyWebhooks.mockResolvedValue(undefined);
+  });
+
+  it("asks Gemini for the new summary sections and includes live insights", async () => {
+    extractJsonBlock.mockReturnValue({
+      rest: "## Resumo Executivo\nOk",
+      data: [],
+    });
+
+    meetingsFindFirst.mockResolvedValue({
+      id: meetingId,
+      roomId: "room-1",
+      insightsCache: {
+        insights: ["live A"],
+        observations: [],
+        suggestions: [],
+        history: [
+          {
+            at: "2030-01-01T00:00:00.000Z",
+            insights: ["live A"],
+            observations: [],
+            suggestions: [],
+          },
+        ],
+      },
+    });
+    roomsFindFirst.mockResolvedValue({ id: "room-1", boardId: null });
+    segmentsFindMany.mockResolvedValue([
+      { speakerLabel: "Ana", text: "Vamos alinhar a pauta." },
+    ]);
+    callGeminiSafe.mockResolvedValue({
+      text: "## Resumo Executivo\nOk\n<actions>[]</actions>",
+      offline: false,
+      model: "gemini-test",
+    });
+
+    await generateMeetingSummary(meetingId);
+
+    expect(callGeminiSafe).toHaveBeenCalledTimes(1);
+    const prompt = callGeminiSafe.mock.calls[0][0] as string;
+    expect(prompt).toContain("## Resumo Executivo");
+    expect(prompt).toContain("## Sumário Detalhado");
+    expect(prompt).toContain("## Insights");
+    expect(prompt).toContain("## Tópicos principais");
+    expect(prompt).toContain("## Palavras-chave");
+    expect(prompt).toContain("live A");
+    expect(prompt).not.toContain("## Principais pontos");
   });
 });

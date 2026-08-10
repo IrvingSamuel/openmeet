@@ -39,7 +39,9 @@ import { IconCopy, IconCheck } from "@/components/ui/icons";
 import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 import { isAgentParticipant } from "@/lib/participants";
 import { useIsLgUp } from "@/hooks/useMediaQuery";
+import { announceRecordingChange } from "@/lib/recording-beep";
 import {
+  DISPLAY_CAPTURE_DENIED,
   useMeetingRecorder,
   type RecordingClientConfig,
 } from "@/hooks/useMeetingRecorder";
@@ -340,9 +342,27 @@ function RoomShell({
 
   useEffect(() => {
     if (recorder.error) {
-      toast.error(recorder.error);
+      toast.error(
+        recorder.error === DISPLAY_CAPTURE_DENIED
+          ? t("recordingScreenDenied")
+          : recorder.error,
+      );
     }
-  }, [recorder.error, toast]);
+  }, [recorder.error, toast, t]);
+
+  const wasRecordingRef = useRef(false);
+  useEffect(() => {
+    if (recorder.active && !wasRecordingRef.current) {
+      const msg = t("recordingStarted");
+      toast.success(msg);
+      announceRecordingChange("start", msg);
+    } else if (!recorder.active && wasRecordingRef.current) {
+      const msg = t("recordingStopped");
+      toast.success(msg);
+      announceRecordingChange("stop", msg);
+    }
+    wasRecordingRef.current = recorder.active;
+  }, [recorder.active, toast, t]);
   const [panel, setPanel] = useState<PanelKind>("none");
   const captions = useCaptions(meetingId);
   const {
@@ -600,8 +620,11 @@ function RoomShell({
 
         <div className="flex items-center gap-2 pt-3 sm:pt-4">
           {recorder.active ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-rose-200">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" />
+            <span className="inline-flex animate-pulse items-center gap-1.5 rounded-full border border-rose-500/50 bg-rose-500/20 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-rose-100 shadow-[0_0_12px_rgba(244,63,94,0.35)]">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-400" />
+              </span>
               REC
             </span>
           ) : null}
@@ -711,6 +734,35 @@ function RoomShell({
           />
         </div>
       </div>
+
+      <AnimatePresence>
+        {recorder.needsScreenCaptureConfirm ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[55] grid place-items-center bg-[var(--brand-bg)]/92 px-6 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md rounded-3xl glass-strong p-8 text-center shadow-lift">
+              <h2 className="text-xl font-semibold tracking-tight">
+                {t("recordingScreenPromptCta")}
+              </h2>
+              <p className="mt-2 text-sm text-ink-muted">
+                {t("recordingScreenPrompt")}
+              </p>
+              <div className="mt-7 flex justify-center">
+                <Button
+                  size="lg"
+                  loading={recorder.busy}
+                  onClick={() => void recorder.startAuto()}
+                >
+                  {t("recordingScreenPromptCta")}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

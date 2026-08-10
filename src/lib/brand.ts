@@ -2,8 +2,14 @@ export const BOARD_THEMES: Record<
   string,
   { label: string; primary: string; secondary: string; tertiary: string }
 > = {
+  violet: {
+    label: "Violet (padrão)",
+    primary: "#8b5cf6",
+    secondary: "#a78bfa",
+    tertiary: "#d946ef",
+  },
   indigo: {
-    label: "Indigo (padrão)",
+    label: "Indigo",
     primary: "#6366f1",
     secondary: "#22d3ee",
     tertiary: "#a855f7",
@@ -31,12 +37,6 @@ export const BOARD_THEMES: Record<
     primary: "#0ea5e9",
     secondary: "#38bdf8",
     tertiary: "#818cf8",
-  },
-  violet: {
-    label: "Violet",
-    primary: "#8b5cf6",
-    secondary: "#a78bfa",
-    tertiary: "#d946ef",
   },
 };
 
@@ -128,7 +128,7 @@ export function paintToCss(paint: PaintToken): string {
 
 export function defaultGradientFromSolid(
   solid: string,
-  second = "#22d3ee",
+  second = "#a78bfa",
 ): PaintToken {
   return {
     mode: "gradient",
@@ -179,7 +179,7 @@ function patternSizeCss(brand: BrandTokens): string {
 }
 
 export function brandToCssVars(brand: BrandTokens): Record<string, string> {
-  const preset = BOARD_THEMES[brand.themePreset || "indigo"] || BOARD_THEMES.indigo;
+  const preset = BOARD_THEMES[brand.themePreset || "violet"] || BOARD_THEMES.violet;
   const primarySolid = brand.primaryColor || preset.primary;
   const secondarySolid = brand.secondaryColor || preset.secondary;
   const tertiarySolid = brand.tertiaryColor || preset.tertiary;
