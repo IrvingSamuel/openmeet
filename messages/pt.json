@@ -168,16 +168,7 @@
     "openMenu": "Abrir menu",
     "closeMenu": "Fechar menu",
     "admin": "Administração",
-    "settings": {
-      "eyebrow": "Pessoal",
-      "title": "UI predefinida",
-      "description": "Esta identidade visual é aplicada a novas salas e reuniões instantâneas quando não sobrescreve a marca.",
-      "signedOut": {
-        "title": "Entre para editar as definições",
-        "body": "A sua conta Chronos guarda a UI white-label predefinida para reuniões instantâneas.",
-        "login": "Entrar com Chronos"
-      }
-    }
+    "settings": "Definições"
   },
   "landing": {
     "hero": {

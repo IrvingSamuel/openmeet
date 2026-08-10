@@ -168,16 +168,7 @@
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu",
     "admin": "Administration",
-    "settings": {
-      "eyebrow": "Personnel",
-      "title": "UI par défaut",
-      "description": "Cette identité visuelle s’applique aux nouvelles salles et réunions instantanées lorsque vous ne remplacez pas la marque.",
-      "signedOut": {
-        "title": "Connectez-vous pour modifier les paramètres",
-        "body": "Votre compte Chronos stocke l’UI white-label par défaut pour les réunions instantanées.",
-        "login": "Se connecter avec Chronos"
-      }
-    }
+    "settings": "Paramètres"
   },
   "landing": {
     "hero": {

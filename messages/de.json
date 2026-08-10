@@ -168,16 +168,7 @@
     "openMenu": "Menü öffnen",
     "closeMenu": "Menü schließen",
     "admin": "Administration",
-    "settings": {
-      "eyebrow": "Persönlich",
-      "title": "Standard-UI",
-      "description": "Diese visuelle Identität gilt für neue Räume und Sofortmeetings, wenn Sie die Marke nicht überschreiben.",
-      "signedOut": {
-        "title": "Anmelden, um Einstellungen zu bearbeiten",
-        "body": "Ihr Chronos-Konto speichert die White-Label-Standard-UI für Sofortmeetings.",
-        "login": "Mit Chronos anmelden"
-      }
-    }
+    "settings": "Einstellungen"
   },
   "landing": {
     "hero": {
