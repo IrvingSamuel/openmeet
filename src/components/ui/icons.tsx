@@ -179,6 +179,12 @@ export const IconSettings = (p: IconProps) => (
   </Base>
 );
 
+export const IconTrash = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M8 7l1 12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6" />
+  </Base>
+);
+
 export const IconLogout = (p: IconProps) => (
   <Base {...p}>
     <path d="M15 17l5-5-5-5M20 12H9M11 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" />

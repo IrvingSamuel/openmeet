@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "@/db";
-import { rooms, roomBrands } from "@/db/schema";
+import { rooms } from "@/db/schema";
 import { getSession } from "@/lib/session";
-import { BOARD_THEMES } from "@/lib/brand";
+import { createRoomWithBrand } from "@/lib/rooms";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -34,32 +33,15 @@ export async function POST(req: NextRequest) {
   }
 
   const body = createSchema.parse(await req.json());
-  const slug = body.slug || nanoid(10).toLowerCase();
-  const livekitRoomName = `meet_${slug}`;
-  const preset = body.themePreset && BOARD_THEMES[body.themePreset] ? body.themePreset : "violet";
-  const colors = BOARD_THEMES[preset];
-
-  const [room] = await db
-    .insert(rooms)
-    .values({
-      slug,
-      title: body.title,
-      ownerIdentityId: session.identityId,
-      boardId: body.boardId,
-      accessPolicy: body.accessPolicy || "members",
-      livekitRoomName,
-    })
-    .returning();
-
-  await db.insert(roomBrands).values({
-    roomId: room.id,
-    themePreset: preset,
-    primaryColor: colors.primary,
-    secondaryColor: colors.secondary,
-    tertiaryColor: colors.tertiary,
-    wordmark: body.title,
-    lobbyTitle: body.title,
-    lobbySubtitle: "Powered by Chronos Meet",
+  const { room } = await createRoomWithBrand({
+    title: body.title,
+    ownerIdentityId: session.identityId,
+    slug: body.slug,
+    boardId: body.boardId,
+    accessPolicy: body.accessPolicy,
+    themePreset: body.themePreset,
+    kind: "persistent",
+    useIdentityBrand: true,
   });
 
   return NextResponse.json({ room }, { status: 201 });

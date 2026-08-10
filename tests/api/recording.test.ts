@@ -20,16 +20,9 @@ vi.mock("@/lib/hostAuth", () => ({
   assertMeetingHost: (...args: unknown[]) => assertMeetingHost(...args),
 }));
 
-vi.mock("@/lib/app-settings", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/app-settings")>(
-    "@/lib/app-settings",
-  );
-  return {
-    ...actual,
-    resolveRecordingConfig: (...args: unknown[]) =>
-      resolveRecordingConfig(...args),
-  };
-});
+vi.mock("@/lib/app-settings", () => ({
+  resolveRecordingConfig: (...args: unknown[]) => resolveRecordingConfig(...args),
+}));
 
 vi.mock("@/lib/recording", () => ({
   startMeetingRecording: (...args: unknown[]) => startMeetingRecording(...args),

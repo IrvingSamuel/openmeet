@@ -24,7 +24,7 @@ Agent ──► Postgres
 
 ### Next.js (`/` na porta 3331)
 - UI (lobby, sala, branding, dashboard).
-- API routes: auth, rooms, tokens, webhooks, brand, health.
+- API routes: auth, rooms (CRUD + instant), tokens, webhooks, brand, health, `POST /api/v1/instant-meetings`, Redoc em `/api-docs`.
 - Sessão cookie (iron-session ou similar).
 - Drizzle ORM → Postgres.
 
@@ -52,9 +52,10 @@ Agent ──► Postgres
 | Tabela | Papel |
 |--------|-------|
 | `chronos_identities` | User Chronos ↔ Meet + tokens |
-| `rooms` | Sala lógica (slug, board_id, owner) |
-| `room_brands` | Tokens de marca |
-| `meetings` | Sessão (início/fim) |
+| `rooms` | Sala lógica (slug, board_id, owner, kind persistent|instant) |
+| `room_brands` | Tokens de marca por sala |
+| `identity_brands` | UI predefinida do utilizador (reuniões instantâneas / novas salas) |
+| `meetings` | Sessão (início/fim); cascade ao apagar sala |
 | `participants` | Quem entrou/saiu |
 | `transcript_segments` | Legendas |
 | `meeting_summaries` | Resumo pós |

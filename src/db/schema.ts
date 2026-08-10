@@ -28,6 +28,9 @@ export const chronosIdentities = pgTable(
   (t) => [uniqueIndex("chronos_identities_user_uidx").on(t.chronosUserId)],
 );
 
+/** persistent = dashboard room; instant = one-off meeting room */
+export type RoomKind = "persistent" | "instant";
+
 export const rooms = pgTable(
   "rooms",
   {
@@ -39,6 +42,7 @@ export const rooms = pgTable(
       .references(() => chronosIdentities.id),
     boardId: text("board_id"),
     accessPolicy: text("access_policy").notNull().default("members"), // public | members | invite
+    kind: text("kind").notNull().default("persistent"), // persistent | instant
     livekitRoomName: text("livekit_room_name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -46,6 +50,7 @@ export const rooms = pgTable(
   (t) => [
     uniqueIndex("rooms_slug_uidx").on(t.slug),
     index("rooms_board_idx").on(t.boardId),
+    index("rooms_owner_idx").on(t.ownerIdentityId),
   ],
 );
 
@@ -82,13 +87,47 @@ export const roomBrands = pgTable("room_brands", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Per-user default UI brand applied to new / instant rooms when no override is sent. */
+export const identityBrands = pgTable("identity_brands", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  identityId: uuid("identity_id")
+    .notNull()
+    .references(() => chronosIdentities.id, { onDelete: "cascade" })
+    .unique(),
+  logoUrl: text("logo_url"),
+  wordmark: text("wordmark"),
+  themePreset: text("theme_preset").default("violet"),
+  primaryColor: text("primary_color").default("#8b5cf6"),
+  secondaryColor: text("secondary_color").default("#a78bfa"),
+  tertiaryColor: text("tertiary_color").default("#d946ef"),
+  fontFamily: text("font_family").default("Inter, system-ui, sans-serif"),
+  background: text("background").default("#0b1020"),
+  lobbyTitle: text("lobby_title"),
+  lobbySubtitle: text("lobby_subtitle"),
+  faviconUrl: text("favicon_url"),
+  customCss: text("custom_css"),
+  primaryPaint: jsonb("primary_paint"),
+  secondaryPaint: jsonb("secondary_paint"),
+  tertiaryPaint: jsonb("tertiary_paint"),
+  backgroundPaint: jsonb("background_paint"),
+  patternUrl: text("pattern_url"),
+  patternSizeMode: text("pattern_size_mode").default("percent"),
+  patternSize: integer("pattern_size").default(24),
+  patternTint: text("pattern_tint").default("none"),
+  patternTintColor: text("pattern_tint_color"),
+  patternTintOpacity: integer("pattern_tint_opacity").default(55),
+  bgAnimation: text("bg_animation").default("none"),
+  bgAnimationSpeed: integer("bg_animation_speed").default(3),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const meetings = pgTable(
   "meetings",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     roomId: uuid("room_id")
       .notNull()
-      .references(() => rooms.id),
+      .references(() => rooms.id, { onDelete: "cascade" }),
     startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     livekitRoomSid: text("livekit_room_sid"),

@@ -87,6 +87,7 @@ white-label por sala repinta inclusive os componentes do LiveKit.
 1. Cliente OAuth já criado: `meet.chronos.com.pt` → callback `/api/auth/callback/chronos`
 2. Login OAuth com scope `chronos:mcp` — o Meet usa o access token da conta para criar tarefas (sem token MCP manual)
 3. Ferramentas Meet MCP em `POST /api/mcp` (`meet_create_room`, `meet_get_transcript`)
+4. API de reuniões instantâneas: `POST /api/v1/instant-meetings` — documentação Redoc em `/api-docs`
 
 ## Ops
 

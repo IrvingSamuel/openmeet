@@ -11,7 +11,9 @@ type AssetUrlFieldProps = {
   hint?: string;
   value: string;
   onChange: (url: string) => void;
-  slug: string;
+  /** @deprecated prefer uploadUrl */
+  slug?: string;
+  uploadUrl?: string;
   kind: "logo" | "pattern";
   placeholder?: string;
 };
@@ -22,6 +24,7 @@ export function AssetUrlField({
   value,
   onChange,
   slug,
+  uploadUrl,
   kind,
   placeholder,
 }: AssetUrlFieldProps) {
@@ -29,6 +32,8 @@ export function AssetUrlField({
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const endpoint =
+    uploadUrl || (slug ? `/api/rooms/${slug}/brand/upload` : "/api/me/brand/upload");
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -37,7 +42,7 @@ export function AssetUrlField({
       const form = new FormData();
       form.set("kind", kind);
       form.set("file", file);
-      const res = await fetch(`/api/rooms/${slug}/brand/upload`, {
+      const res = await fetch(endpoint, {
         method: "POST",
         body: form,
       });

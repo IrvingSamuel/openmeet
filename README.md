@@ -104,6 +104,7 @@ npm run test:coverage
 1. OAuth client callback: `/api/auth/callback/chronos`
 2. MCP token in the dashboard so the copilot can create tasks
 3. Meet MCP tools at `POST /api/mcp`
+4. Instant meetings API (Bearer or session): `POST /api/v1/instant-meetings` — Redoc at [`/api-docs`](https://meet.chronos.com.pt/api-docs), OpenAPI at `/api/openapi/instant-meetings`
 
 ## License
 

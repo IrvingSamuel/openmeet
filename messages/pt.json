@@ -42,7 +42,8 @@
       "select": "Selecionar…",
       "none": "Ninguém",
       "createInChronos": "Criar {count} no Chronos",
-      "install": "Instalar"
+      "install": "Instalar",
+      "delete": "Eliminar"
     },
     "accessPolicy": {
       "members": "Membros (login)",
@@ -166,7 +167,17 @@
     "backToHome": "Voltar para a página inicial",
     "openMenu": "Abrir menu",
     "closeMenu": "Fechar menu",
-    "admin": "Administração"
+    "admin": "Administração",
+    "settings": {
+      "eyebrow": "Pessoal",
+      "title": "UI predefinida",
+      "description": "Esta identidade visual é aplicada a novas salas e reuniões instantâneas quando não sobrescreve a marca.",
+      "signedOut": {
+        "title": "Entre para editar as definições",
+        "body": "A sua conta Chronos guarda a UI white-label predefinida para reuniões instantâneas.",
+        "login": "Entrar com Chronos"
+      }
+    }
   },
   "landing": {
     "hero": {
@@ -412,7 +423,22 @@
       "login": "Entrar com Chronos",
       "backHome": "Voltar para a página inicial"
     },
-    "statConnected": "Conectada"
+    "statConnected": "Conectada",
+    "instantMeeting": "Reunião instantânea",
+    "instantBadge": "instantânea",
+    "instantStarted": "Reunião instantânea pronta.",
+    "instantFailed": "Não foi possível iniciar a reunião instantânea.",
+    "instantNetworkFailed": "Falha de rede ao iniciar a reunião instantânea.",
+    "deleteRoom": "Eliminar sala",
+    "roomDeleted": "Sala “{title}” eliminada.",
+    "deleteFailed": "Não foi possível eliminar a sala.",
+    "deleteNetworkFailed": "Falha de rede ao eliminar a sala.",
+    "deleteModal": {
+      "title": "Eliminar sala",
+      "description": "Eliminar permanentemente “{title}” e todas as reuniões, transcrições e gravações associadas.",
+      "warning": "Esta ação não pode ser desfeita. Participantes ativos serão desligados.",
+      "submit": "Eliminar permanentemente"
+    }
   },
   "brand": {
     "page": {
@@ -773,6 +799,16 @@
       "clearS3Access": "Limpar access key",
       "clearS3Secret": "Limpar secret key",
       "egressNote": "Egress requer o serviço livekit/egress (ver infra/docker-compose.egress.yml). Não execute na VPS de 4 vCPU sem nó dedicado."
+    }
+  },
+  "settings": {
+    "eyebrow": "Pessoal",
+    "title": "UI predefinida",
+    "description": "Esta identidade visual é aplicada a novas salas e reuniões instantâneas quando não sobrescreve a marca.",
+    "signedOut": {
+      "title": "Entre para editar as definições",
+      "body": "A sua conta Chronos guarda a UI white-label predefinida para reuniões instantâneas.",
+      "login": "Entrar com Chronos"
     }
   }
 }

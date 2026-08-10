@@ -176,11 +176,7 @@ async function captureMeetingDisplay(
     }
   }
 
-  const onTrackSubscribed = (
-    track: RemoteTrack,
-    _publication: unknown,
-    _participant: unknown,
-  ) => {
+  const onTrackSubscribed = (track: RemoteTrack) => {
     audioMix.attachAudio(track);
   };
   const onLocalTrackPublished = (publication: {

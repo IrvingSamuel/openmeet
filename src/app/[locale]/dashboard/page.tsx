@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Aurora,
@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/Toast";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
 import {
   IconArrowRight,
+  IconBolt,
   IconCalendar,
   IconCheck,
   IconCopy,
@@ -29,8 +30,10 @@ import {
   IconPalette,
   IconPencil,
   IconPlus,
+  IconSettings,
   IconShield,
   IconSparkles,
+  IconTrash,
   IconVideo,
 } from "@/components/ui/icons";
 import { cn, formatDuration, initials, timeAgo } from "@/lib/utils";
@@ -50,6 +53,7 @@ type Room = {
   title: string;
   boardId?: string | null;
   accessPolicy?: string;
+  kind?: string;
   createdAt: string;
 };
 
@@ -86,6 +90,7 @@ function useTimeAgoFormatter() {
 
 export default function DashboardPage() {
   const toast = useToast();
+  const router = useRouter();
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const tHeader = useTranslations("header");
@@ -95,6 +100,9 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [renameRoom, setRenameRoom] = useState<Room | null>(null);
+  const [deleteRoom, setDeleteRoom] = useState<Room | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [startingInstant, setStartingInstant] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -162,6 +170,46 @@ export default function DashboardPage() {
     }
   }
 
+  async function startInstantMeeting() {
+    setStartingInstant(true);
+    try {
+      const res = await fetch("/api/rooms/instant", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || t("instantFailed"));
+        return;
+      }
+      toast.success(t("instantStarted"));
+      router.push(`/r/${data.room.slug}`);
+    } catch {
+      toast.error(t("instantNetworkFailed"));
+    } finally {
+      setStartingInstant(false);
+    }
+  }
+
+  async function confirmDeleteRoom() {
+    if (!deleteRoom) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/rooms/${deleteRoom.slug}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || t("deleteFailed"));
+        return;
+      }
+      toast.success(t("roomDeleted", { title: deleteRoom.title }));
+      setDeleteRoom(null);
+      await refresh();
+    } catch {
+      toast.error(t("deleteNetworkFailed"));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // Hold the shell back until the session resolves, otherwise anonymous
   // visitors briefly see the authenticated header before the sign-in card.
   if (me === null) return <SessionLoading />;
@@ -179,6 +227,15 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher compact />
             <InstallPrompt />
+            <Link href="/settings">
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<IconSettings className="h-4 w-4" />}
+              >
+                <span className="hidden sm:inline">{tHeader("settings")}</span>
+              </Button>
+            </Link>
             {me.isAdmin ? (
               <Link href="/admin">
                 <Button
@@ -234,15 +291,26 @@ export default function DashboardPage() {
                 {t("subtitle")}
               </p>
             </div>
-            <motion.div layoutId="create-room-surface" transition={morphTransition}>
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="lg"
-                icon={<IconPlus />}
-                onClick={() => setCreateOpen(true)}
+                variant="outline"
+                icon={<IconBolt />}
+                loading={startingInstant}
+                onClick={() => void startInstantMeeting()}
               >
-                {t("newRoom")}
+                {t("instantMeeting")}
               </Button>
-            </motion.div>
+              <motion.div layoutId="create-room-surface" transition={morphTransition}>
+                <Button
+                  size="lg"
+                  icon={<IconPlus />}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  {t("newRoom")}
+                </Button>
+              </motion.div>
+            </div>
           </div>
         </Reveal>
 
@@ -316,6 +384,7 @@ export default function DashboardPage() {
                     copied={copied === room.slug}
                     onCopy={() => copyLink(room.slug)}
                     onRename={() => setRenameRoom(room)}
+                    onDelete={() => setDeleteRoom(room)}
                   />
                 </motion.li>
               ))
@@ -390,6 +459,39 @@ export default function DashboardPage() {
           await refresh();
         }}
       />
+
+      <Modal
+        open={Boolean(deleteRoom)}
+        onClose={() => {
+          if (!deleting) setDeleteRoom(null);
+        }}
+        title={t("deleteModal.title")}
+        description={
+          deleteRoom
+            ? t("deleteModal.description", { title: deleteRoom.title })
+            : undefined
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => setDeleteRoom(null)}
+            >
+              {tCommon("actions.cancel")}
+            </Button>
+            <Button
+              loading={deleting}
+              onClick={() => void confirmDeleteRoom()}
+              icon={<IconTrash className="h-4 w-4" />}
+            >
+              {t("deleteModal.submit")}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-ink-muted">{t("deleteModal.warning")}</p>
+      </Modal>
     </div>
   );
 }
@@ -433,11 +535,13 @@ function RoomRow({
   copied,
   onCopy,
   onRename,
+  onDelete,
 }: {
   room: Room;
   copied: boolean;
   onCopy: () => void;
   onRename: () => void;
+  onDelete: () => void;
 }) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
@@ -514,6 +618,9 @@ function RoomRow({
           {room.boardId ? (
             <Badge tone="brand">{tCommon("badges.linkedBoard")}</Badge>
           ) : null}
+          {room.kind === "instant" ? (
+            <Badge tone="brand">{t("instantBadge")}</Badge>
+          ) : null}
           {room.accessPolicy === "invite" ? (
             <Badge tone="warn">{tCommon("badges.private")}</Badge>
           ) : room.accessPolicy === "public" ? (
@@ -549,6 +656,15 @@ function RoomRow({
               {t("ics")}
             </Button>
           </a>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDelete}
+            icon={<IconTrash className="h-4 w-4" />}
+            aria-label={t("deleteRoom")}
+          >
+            {tCommon("actions.delete")}
+          </Button>
         </div>
 
         <div ref={moreRef} className="relative md:hidden">
@@ -607,6 +723,17 @@ function RoomRow({
                     >
                       <IconCalendar className="h-4 w-4" /> {t("ics")}
                     </a>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-rose-300 hover:bg-rose-500/10"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        onDelete();
+                      }}
+                    >
+                      <IconTrash className="h-4 w-4" />{" "}
+                      {tCommon("actions.delete")}
+                    </button>
                   </motion.div>
                 ) : null}
               </AnimatePresence>,

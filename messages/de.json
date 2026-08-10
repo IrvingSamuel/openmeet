@@ -42,7 +42,8 @@
       "select": "Auswählen…",
       "none": "Niemand",
       "createInChronos": "{count} in Chronos erstellen",
-      "install": "Installieren"
+      "install": "Installieren",
+      "delete": "Löschen"
     },
     "accessPolicy": {
       "members": "Mitglieder (Login)",
@@ -166,7 +167,17 @@
     "backToHome": "Zurück zur Startseite",
     "openMenu": "Menü öffnen",
     "closeMenu": "Menü schließen",
-    "admin": "Administration"
+    "admin": "Administration",
+    "settings": {
+      "eyebrow": "Persönlich",
+      "title": "Standard-UI",
+      "description": "Diese visuelle Identität gilt für neue Räume und Sofortmeetings, wenn Sie die Marke nicht überschreiben.",
+      "signedOut": {
+        "title": "Anmelden, um Einstellungen zu bearbeiten",
+        "body": "Ihr Chronos-Konto speichert die White-Label-Standard-UI für Sofortmeetings.",
+        "login": "Mit Chronos anmelden"
+      }
+    }
   },
   "landing": {
     "hero": {
@@ -412,7 +423,22 @@
       "login": "Mit Chronos anmelden",
       "backHome": "Zurück zur Startseite"
     },
-    "statConnected": "Verbunden"
+    "statConnected": "Verbunden",
+    "instantMeeting": "Sofortmeeting",
+    "instantBadge": "sofort",
+    "instantStarted": "Sofortmeeting bereit.",
+    "instantFailed": "Sofortmeeting konnte nicht gestartet werden.",
+    "instantNetworkFailed": "Netzwerkfehler beim Starten des Sofortmeetings.",
+    "deleteRoom": "Raum löschen",
+    "roomDeleted": "Raum „{title}“ gelöscht.",
+    "deleteFailed": "Raum konnte nicht gelöscht werden.",
+    "deleteNetworkFailed": "Netzwerkfehler beim Löschen des Raums.",
+    "deleteModal": {
+      "title": "Raum löschen",
+      "description": "„{title}“ und alle zugehörigen Meetings, Transkripte und Aufzeichnungen dauerhaft löschen.",
+      "warning": "Dies kann nicht rückgängig gemacht werden. Aktive Teilnehmer werden getrennt.",
+      "submit": "Dauerhaft löschen"
+    }
   },
   "brand": {
     "page": {
@@ -773,6 +799,16 @@
       "clearS3Access": "Access key löschen",
       "clearS3Secret": "Secret key löschen",
       "egressNote": "Egress benötigt den livekit/egress-Dienst (siehe infra/docker-compose.egress.yml). Nicht auf einer 4-vCPU-VPS ohne dedizierten Knoten ausführen."
+    }
+  },
+  "settings": {
+    "eyebrow": "Persönlich",
+    "title": "Standard-UI",
+    "description": "Diese visuelle Identität gilt für neue Räume und Sofortmeetings, wenn Sie die Marke nicht überschreiben.",
+    "signedOut": {
+      "title": "Anmelden, um Einstellungen zu bearbeiten",
+      "body": "Ihr Chronos-Konto speichert die White-Label-Standard-UI für Sofortmeetings.",
+      "login": "Mit Chronos anmelden"
     }
   }
 }

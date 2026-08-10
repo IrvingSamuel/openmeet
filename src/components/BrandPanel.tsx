@@ -50,7 +50,20 @@ function paintOf(
   return resolvePaint(paints[key], solids[key]);
 }
 
-export function BrandPanel({ slug }: { slug: string }) {
+type BrandPanelProps = {
+  /** Room brand editor — when set, defaults APIs to `/api/rooms/{slug}/brand`. */
+  slug?: string;
+  brandUrl?: string;
+  uploadUrl?: string;
+  showImportFromBoard?: boolean;
+};
+
+export function BrandPanel({
+  slug,
+  brandUrl,
+  uploadUrl,
+  showImportFromBoard,
+}: BrandPanelProps) {
   const toast = useToast();
   const t = useTranslations("brand.panel");
   const tTabs = useTranslations("brand.tabs");
@@ -63,12 +76,19 @@ export function BrandPanel({ slug }: { slug: string }) {
   const [importing, setImporting] = useState(false);
   const [tab, setTab] = useState<TabKey>("identity");
 
+  const resolvedBrandUrl =
+    brandUrl || (slug ? `/api/rooms/${slug}/brand` : "/api/me/brand");
+  const resolvedUploadUrl =
+    uploadUrl ||
+    (slug ? `/api/rooms/${slug}/brand/upload` : "/api/me/brand/upload");
+  const canImport = showImportFromBoard ?? Boolean(slug);
+
   useEffect(() => {
-    fetch(`/api/rooms/${slug}/brand`)
+    fetch(resolvedBrandUrl)
       .then((r) => r.json())
       .then((d) => setBrand(d.brand || {}))
       .catch(() => toast.error(t("loadFailed")));
-  }, [slug, toast, t]);
+  }, [resolvedBrandUrl, toast, t]);
 
   const previewVars = useMemo(
     () => (brand ? brandToCssVars(brand) : {}),
@@ -125,7 +145,7 @@ export function BrandPanel({ slug }: { slug: string }) {
     if (importFromBoard) setImporting(true);
     else setSaving(true);
     try {
-      const res = await fetch(`/api/rooms/${slug}/brand`, {
+      const res = await fetch(resolvedBrandUrl, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -167,15 +187,17 @@ export function BrandPanel({ slug }: { slug: string }) {
             <IconPalette className="text-brand-secondary" />
             {t("title")}
           </h2>
-          <Button
-            size="sm"
-            variant="ghost"
-            loading={importing}
-            icon={<IconSparkles className="h-4 w-4" />}
-            onClick={() => persist({ importFromBoard: true }, true)}
-          >
-            {t("importFromBoard")}
-          </Button>
+          {canImport ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={importing}
+              icon={<IconSparkles className="h-4 w-4" />}
+              onClick={() => persist({ importFromBoard: true }, true)}
+            >
+              {t("importFromBoard")}
+            </Button>
+          ) : null}
         </div>
 
         <div className="mt-5 flex gap-1 rounded-xl border border-line bg-black/25 p-1">
@@ -221,7 +243,7 @@ export function BrandPanel({ slug }: { slug: string }) {
                 hint={tFields("logoHint")}
                 value={brand.logoUrl || ""}
                 onChange={(logoUrl) => patch({ logoUrl: logoUrl || null })}
-                slug={slug}
+                uploadUrl={resolvedUploadUrl}
                 kind="logo"
                 placeholder="https://…/logo.svg"
               />
@@ -312,7 +334,7 @@ export function BrandPanel({ slug }: { slug: string }) {
                 hint={tFields("patternHint")}
                 value={brand.patternUrl || ""}
                 onChange={(patternUrl) => patch({ patternUrl: patternUrl || null })}
-                slug={slug}
+                uploadUrl={resolvedUploadUrl}
                 kind="pattern"
                 placeholder="https://…/pattern.png"
               />
