@@ -847,6 +847,8 @@ function MeetingRow({ meeting }: { meeting: MeetingHistoryItem }) {
               <Badge tone="brand" pulse>
                 {tCommon("badges.inProgress")}
               </Badge>
+            ) : meeting.status === "scheduled" ? (
+              <Badge>{tCommon("badges.scheduled")}</Badge>
             ) : (
               <SummaryStatusBadge status={meeting.summaryStatus} hasSummary={meeting.hasSummary} />
             )}

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { meetings, participants } from "@/db/schema";
+import { participants } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { getRoomServiceClient } from "@/lib/livekit";
 import { assertMeetingHost } from "@/lib/hostAuth";
+import { endMeetingRow } from "@/lib/meeting-lifecycle";
 import { stopMeetingRecording } from "@/lib/recording";
 
 const schema = z.object({
@@ -57,10 +58,7 @@ export async function POST(req: NextRequest) {
     console.warn("[chronos-meet] stop recording on end meeting", err);
   }
 
-  await db
-    .update(meetings)
-    .set({ status: "ended", endedAt: new Date() })
-    .where(and(eq(meetings.id, body.meetingId), eq(meetings.status, "active")));
+  await endMeetingRow(body.meetingId);
 
   await db
     .update(participants)

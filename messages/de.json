@@ -63,6 +63,7 @@
       "summaryFailed": "Zusammenfassung fehlgeschlagen",
       "noSummary": "Keine Zusammenfassung",
       "inProgress": "Läuft",
+      "scheduled": "Wartend",
       "connected": "Verbunden",
       "noToken": "Kein Token",
       "tokenConfigured": "Token konfiguriert",

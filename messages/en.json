@@ -63,6 +63,7 @@
       "summaryFailed": "Summary failed",
       "noSummary": "No summary",
       "inProgress": "In progress",
+      "scheduled": "Waiting",
       "connected": "Connected",
       "noToken": "No token",
       "tokenConfigured": "Token configured",

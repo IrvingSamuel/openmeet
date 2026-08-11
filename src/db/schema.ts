@@ -138,7 +138,8 @@ export const meetings = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     livekitRoomSid: text("livekit_room_sid"),
-    status: text("status").notNull().default("active"), // active | ended
+    /** scheduled = created, awaiting first join; active = in call; ended = closed */
+    status: text("status").notNull().default("scheduled"), // scheduled | active | ended
     summaryStatus: text("summary_status").notNull().default("pending"),
     insightsCache: jsonb("insights_cache"),
     insightsCacheSegmentCount: integer("insights_cache_segment_count"),

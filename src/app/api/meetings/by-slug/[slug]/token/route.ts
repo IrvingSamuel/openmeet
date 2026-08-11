@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { meetings, participants, joinRequests } from "@/db/schema";
+import { participants, joinRequests } from "@/db/schema";
 import { resolveRecordingConfig } from "@/lib/app-settings";
 import { getSession } from "@/lib/session";
 import { mintRoomToken, syncRoomMetadata } from "@/lib/livekit";
+import {
+  activateMeetingIfScheduled,
+  loadMeetingBySlugAfterExpiry,
+} from "@/lib/meeting-lifecycle";
 import { startMeetingRecording } from "@/lib/recording";
 
 export async function POST(
@@ -19,9 +23,7 @@ export async function POST(
     requestId?: string;
   };
 
-  const meeting = await db.query.meetings.findFirst({
-    where: eq(meetings.slug, slug),
-  });
+  const meeting = await loadMeetingBySlugAfterExpiry(slug);
   if (!meeting) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
@@ -166,6 +168,8 @@ export async function POST(
   } catch (err) {
     console.error("[chronos-meet] syncRoomMetadata failed", err);
   }
+
+  await activateMeetingIfScheduled(meeting.id);
 
   const token = await mintRoomToken({
     roomName: meeting.livekitRoomName,

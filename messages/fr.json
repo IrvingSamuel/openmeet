@@ -63,6 +63,7 @@
       "summaryFailed": "Résumé échoué",
       "noSummary": "Pas de résumé",
       "inProgress": "En cours",
+      "scheduled": "En attente",
       "connected": "Connecté",
       "noToken": "Sans jeton",
       "tokenConfigured": "Jeton configuré",

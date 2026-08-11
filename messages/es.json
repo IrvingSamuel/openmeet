@@ -63,6 +63,7 @@
       "summaryFailed": "Resumen fallido",
       "noSummary": "Sin resumen",
       "inProgress": "En curso",
+      "scheduled": "En espera",
       "connected": "Conectado",
       "noToken": "Sin token",
       "tokenConfigured": "Token configurado",

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { meetings, meetingBrands } from "@/db/schema";
+import { meetingBrands } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { loadMeetingBySlugAfterExpiry } from "@/lib/meeting-lifecycle";
 
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await ctx.params;
-  const meeting = await db.query.meetings.findFirst({
-    where: eq(meetings.slug, slug),
-  });
+  const meeting = await loadMeetingBySlugAfterExpiry(slug);
   if (!meeting) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }

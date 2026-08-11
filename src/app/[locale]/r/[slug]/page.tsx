@@ -78,7 +78,7 @@ export default function RoomTemplatePage() {
         if (cancelled || !payload?.meetings) return;
         const active = payload.meetings.find(
           (m: { status: string; room?: { id?: string | null; slug?: string } }) =>
-            m.status === "active" && m.room?.slug,
+            (m.status === "active" || m.status === "scheduled") && m.room?.slug,
         );
         // no auto-redirect — user starts explicitly
         void active;

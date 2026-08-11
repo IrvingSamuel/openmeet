@@ -186,7 +186,7 @@ export async function createMeetingWithBrand(
       accessPolicy,
       livekitRoomName: `meet_${slug}`,
       roomId,
-      status: "active",
+      status: "scheduled",
     })
     .returning();
 

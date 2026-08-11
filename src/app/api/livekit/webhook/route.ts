@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
 import { getWebhookReceiver } from "@/lib/livekit";
+import { activateMeetingIfScheduled } from "@/lib/meeting-lifecycle";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
 import { handleEgressWebhook, stopMeetingRecording } from "@/lib/recording";
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
         where: eq(meetings.livekitRoomName, event.room.name),
       });
       if (meeting) {
+        await activateMeetingIfScheduled(meeting.id);
         await db
           .update(meetings)
           .set({ livekitRoomSid: event.room.sid })
@@ -30,10 +32,11 @@ export async function POST(req: NextRequest) {
       const meeting = await db.query.meetings.findFirst({
         where: and(
           eq(meetings.livekitRoomName, event.room.name),
-          eq(meetings.status, "active"),
+          inArray(meetings.status, ["active", "scheduled"]),
         ),
       });
       if (meeting) {
+        const wasActive = meeting.status === "active";
         await db
           .update(meetings)
           .set({ status: "ended", endedAt: new Date() })
@@ -48,27 +51,31 @@ export async function POST(req: NextRequest) {
             err,
           );
         });
-        void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
-          console.error("[chronos-meet] meeting-ended webhooks failed", err);
-        });
 
-        if (meeting.summaryStatus === "pending") {
-          await db
-            .update(meetings)
-            .set({ summaryStatus: "running" })
-            .where(
-              and(
-                eq(meetings.id, meeting.id),
-                eq(meetings.summaryStatus, "pending"),
-              ),
-            );
-          void generateMeetingSummary(meeting.id).catch(async (err) => {
-            console.error("[chronos-meet] webhook summary failed", err);
+        // Never-started (scheduled) meetings skip webhooks/summary.
+        if (wasActive) {
+          void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
+            console.error("[chronos-meet] meeting-ended webhooks failed", err);
+          });
+
+          if (meeting.summaryStatus === "pending") {
             await db
               .update(meetings)
-              .set({ summaryStatus: "failed" })
-              .where(eq(meetings.id, meeting.id));
-          });
+              .set({ summaryStatus: "running" })
+              .where(
+                and(
+                  eq(meetings.id, meeting.id),
+                  eq(meetings.summaryStatus, "pending"),
+                ),
+              );
+            void generateMeetingSummary(meeting.id).catch(async (err) => {
+              console.error("[chronos-meet] webhook summary failed", err);
+              await db
+                .update(meetings)
+                .set({ summaryStatus: "failed" })
+                .where(eq(meetings.id, meeting.id));
+            });
+          }
         }
       }
     }
