@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { meetings, participants, rooms } from "@/db/schema";
+import { meetings, participants } from "@/db/schema";
 import { getWebhookReceiver } from "@/lib/livekit";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
@@ -15,78 +15,59 @@ export async function POST(req: NextRequest) {
     const event = await receiver.receive(body, auth);
 
     if (event.event === "room_started" && event.room) {
-      const room = await db.query.rooms.findFirst({
-        where: eq(rooms.livekitRoomName, event.room.name),
+      const meeting = await db.query.meetings.findFirst({
+        where: eq(meetings.livekitRoomName, event.room.name),
       });
-      if (room) {
-        const active = await db.query.meetings.findFirst({
-          where: (m, { and, eq: e }) =>
-            and(e(m.roomId, room.id), e(m.status, "active")),
-        });
-        if (active) {
-          await db
-            .update(meetings)
-            .set({ livekitRoomSid: event.room.sid })
-            .where(eq(meetings.id, active.id));
-        } else {
-          await db.insert(meetings).values({
-            roomId: room.id,
-            livekitRoomSid: event.room.sid,
-            status: "active",
-          });
-        }
+      if (meeting) {
+        await db
+          .update(meetings)
+          .set({ livekitRoomSid: event.room.sid })
+          .where(eq(meetings.id, meeting.id));
       }
     }
 
     if (event.event === "room_finished" && event.room) {
-      const room = await db.query.rooms.findFirst({
-        where: eq(rooms.livekitRoomName, event.room.name),
+      const meeting = await db.query.meetings.findFirst({
+        where: and(
+          eq(meetings.livekitRoomName, event.room.name),
+          eq(meetings.status, "active"),
+        ),
       });
-      if (room) {
-        const active = await db.query.meetings.findFirst({
-          where: and(
-            eq(meetings.roomId, room.id),
-            eq(meetings.status, "active"),
-          ),
-        });
+      if (meeting) {
         await db
           .update(meetings)
           .set({ status: "ended", endedAt: new Date() })
-          .where(
-            and(eq(meetings.roomId, room.id), eq(meetings.status, "active")),
+          .where(eq(meetings.id, meeting.id));
+
+        void stopMeetingRecording({
+          meetingId: meeting.id,
+          force: true,
+        }).catch((err) => {
+          console.error(
+            "[chronos-meet] stop recording on room_finished",
+            err,
           );
+        });
+        void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
+          console.error("[chronos-meet] meeting-ended webhooks failed", err);
+        });
 
-        if (active) {
-          void stopMeetingRecording({
-            meetingId: active.id,
-            force: true,
-          }).catch((err) => {
-            console.error(
-              "[chronos-meet] stop recording on room_finished",
-              err,
-            );
-          });
-          void dispatchMeetingEndedWebhooks(active.id).catch((err) => {
-            console.error("[chronos-meet] meeting-ended webhooks failed", err);
-          });
-        }
-
-        if (active && active.summaryStatus === "pending") {
+        if (meeting.summaryStatus === "pending") {
           await db
             .update(meetings)
             .set({ summaryStatus: "running" })
             .where(
               and(
-                eq(meetings.id, active.id),
+                eq(meetings.id, meeting.id),
                 eq(meetings.summaryStatus, "pending"),
               ),
             );
-          void generateMeetingSummary(active.id).catch(async (err) => {
+          void generateMeetingSummary(meeting.id).catch(async (err) => {
             console.error("[chronos-meet] webhook summary failed", err);
             await db
               .update(meetings)
               .set({ summaryStatus: "failed" })
-              .where(eq(meetings.id, active.id));
+              .where(eq(meetings.id, meeting.id));
           });
         }
       }

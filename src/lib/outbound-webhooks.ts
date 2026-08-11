@@ -6,7 +6,6 @@ import {
   copilotChatMessages,
   meetingSummaries,
   meetings,
-  rooms,
   transcriptSegments,
   type WebhookEventsConfig,
 } from "@/db/schema";
@@ -44,13 +43,10 @@ async function loadMeetingMeta(
     where: eq(meetings.id, meetingId),
   });
   if (!meeting) return null;
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
   return {
     id: meeting.id,
-    roomSlug: room?.slug ?? "",
-    roomTitle: room?.title ?? "",
+    roomSlug: meeting.slug,
+    roomTitle: meeting.title,
     startedAt: meeting.startedAt.toISOString(),
     endedAt: meeting.endedAt ? meeting.endedAt.toISOString() : null,
   };

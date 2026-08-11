@@ -256,7 +256,7 @@ describe("DELETE /api/rooms/[slug]", () => {
     expect(res.status).toBe(403);
   });
 
-  it("deletes an owned room and evicts LiveKit", async () => {
+  it("deletes an owned room without requiring LiveKit eviction", async () => {
     session.isLoggedIn = true;
     session.identityId = "identity-1";
     roomsFindFirst.mockResolvedValue({
@@ -266,14 +266,12 @@ describe("DELETE /api/rooms/[slug]", () => {
       ownerIdentityId: "identity-1",
       livekitRoomName: "meet_weekly",
     });
-    meetingsFindFirst.mockResolvedValue({ id: "m1", status: "active" });
 
     const res = await deleteRoom({} as never, {
       params: Promise.resolve({ slug: "weekly" }),
     });
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true, slug: "weekly" });
-    expect(deleteRoomLivekit).toHaveBeenCalledWith("meet_weekly");
     expect(deleteWhere).toHaveBeenCalled();
   });
 });

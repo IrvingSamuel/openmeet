@@ -429,7 +429,11 @@
       "description": "Supprimer définitivement « {title} » ainsi que toutes les réunions, transcriptions et enregistrements associés.",
       "warning": "Cette action est irréversible. Les participants actifs seront déconnectés.",
       "submit": "Supprimer définitivement"
-    }
+    },
+    "startMeeting": "Démarrer la réunion",
+    "brandTemplateBadge": "marque",
+    "startFromRoomFailed": "Impossible de démarrer une réunion depuis ce modèle.",
+    "startFromRoomNetworkFailed": "Erreur réseau lors du démarrage de la réunion."
   },
   "brand": {
     "page": {
@@ -801,5 +805,15 @@
       "body": "Votre compte Chronos stocke l’UI white-label par défaut pour les réunions instantanées.",
       "login": "Se connecter avec Chronos"
     }
+  },
+  "roomTemplate": {
+    "eyebrow": "Modèle de marque",
+    "description": "Cette salle définit uniquement l’identité visuelle. Démarrer une réunion crée une session indépendante avec son propre lien.",
+    "startMeeting": "Démarrer la réunion",
+    "loginToStart": "Connectez-vous pour démarrer",
+    "editBrand": "Modifier la marque",
+    "notFound": "Modèle introuvable",
+    "startFailed": "Impossible de démarrer la réunion.",
+    "startNetworkFailed": "Erreur réseau lors du démarrage de la réunion."
   }
 }

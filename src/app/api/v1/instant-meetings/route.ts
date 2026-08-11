@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { brandFieldsSchema } from "@/lib/brand-schema";
-import {
-  authorizeBearer,
-  createRoomWithBrand,
-  resolveOwnerIdentityId,
-} from "@/lib/rooms";
+import { createMeetingWithBrand } from "@/lib/meetings";
+import { authorizeBearer, resolveOwnerIdentityId } from "@/lib/rooms";
 
 const schema = z.object({
   title: z.string().min(1).max(200).optional(),
   access_policy: z.enum(["public", "members", "invite"]).optional(),
   board_id: z.string().optional(),
+  /** Brand template room — visual only; does not create or own the meeting. */
+  room_id: z.string().uuid().optional(),
   owner_identity_id: z.string().uuid().optional(),
   chronos_user_id: z.string().min(1).optional(),
   ui: brandFieldsSchema.optional(),
@@ -37,9 +36,11 @@ export async function POST(req: NextRequest) {
 
   let ownerIdentityId: string;
   try {
-    if (session.isLoggedIn && session.identityId && !bearerOk) {
-      ownerIdentityId = session.identityId;
-    } else if (session.isLoggedIn && session.identityId && !body.owner_identity_id && !body.chronos_user_id) {
+    if (
+      session.isLoggedIn &&
+      session.identityId &&
+      (!bearerOk || (!body.owner_identity_id && !body.chronos_user_id))
+    ) {
       ownerIdentityId = session.identityId;
     } else if (bearerOk) {
       ownerIdentityId = await resolveOwnerIdentityId({
@@ -61,27 +62,37 @@ export async function POST(req: NextRequest) {
     body.title?.trim() ||
     `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
 
-  const { room, url, joinPath } = await createRoomWithBrand({
-    title,
-    ownerIdentityId,
-    boardId: body.board_id,
-    accessPolicy: body.access_policy || "public",
-    kind: "instant",
-    ui: body.ui,
-    // API with explicit ui uses that; otherwise seed from owner defaults
-    useIdentityBrand: !body.ui,
-  });
+  try {
+    const { meeting, url, joinPath } = await createMeetingWithBrand({
+      title,
+      ownerIdentityId,
+      boardId: body.board_id,
+      accessPolicy: body.access_policy || "public",
+      roomId: body.room_id ?? null,
+      ui: body.ui,
+      useIdentityBrand: !body.ui,
+    });
 
-  return NextResponse.json(
-    {
-      room_id: room.id,
-      slug: room.slug,
-      url,
-      join_path: joinPath,
-      kind: room.kind,
-      access_policy: room.accessPolicy,
-      title: room.title,
-    },
-    { status: 201 },
-  );
+    return NextResponse.json(
+      {
+        meeting_id: meeting.id,
+        slug: meeting.slug,
+        url,
+        join_path: joinPath,
+        access_policy: meeting.accessPolicy,
+        title: meeting.title,
+        brand_room_id: meeting.roomId,
+      },
+      { status: 201 },
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === "room_template_not_found") {
+      return NextResponse.json({ error: "room_not_found" }, { status: 404 });
+    }
+    return NextResponse.json(
+      { error: "create_failed", detail: message },
+      { status: 500 },
+    );
+  }
 }

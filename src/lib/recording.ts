@@ -11,7 +11,7 @@ import {
   type EgressInfo,
 } from "livekit-server-sdk";
 import { db } from "@/db";
-import { meetings, recordings, rooms } from "@/db/schema";
+import { meetings, recordings } from "@/db/schema";
 import {
   getAppSettings,
   resolveRecordingConfig,
@@ -79,9 +79,6 @@ async function dispatchRecordingReady(recordingId: string) {
     where: eq(meetings.id, row.meetingId),
   });
   if (!meeting) return;
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
 
   const settings = await getAppSettings();
   if (!settings?.webhookEnabled || !settings.webhookUrl?.trim()) return;
@@ -94,8 +91,8 @@ async function dispatchRecordingReady(recordingId: string) {
     sentAt: new Date().toISOString(),
     meeting: {
       id: meeting.id,
-      roomSlug: room?.slug ?? "",
-      roomTitle: room?.title ?? "",
+      roomSlug: meeting.slug,
+      roomTitle: meeting.title,
       startedAt: meeting.startedAt.toISOString(),
       endedAt: meeting.endedAt ? meeting.endedAt.toISOString() : null,
     },
@@ -149,13 +146,6 @@ export async function startMeetingRecording(opts: {
     return { ok: true, recording: existing, engine: existing.engine };
   }
 
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
-  if (!room) {
-    return { ok: false, error: "room_not_found", status: 404 };
-  }
-
   if (config.storage === "s3") {
     if (!config.s3.bucket || !config.s3.accessKey || !config.s3.secretKey) {
       return { ok: false, error: "s3_not_configured", status: 400 };
@@ -178,7 +168,7 @@ export async function startMeetingRecording(opts: {
     try {
       const egressId = await startEgressComposite({
         config,
-        livekitRoomName: room.livekitRoomName,
+        livekitRoomName: meeting.livekitRoomName,
         meetingId: opts.meetingId,
         recordingId: row.id,
       });

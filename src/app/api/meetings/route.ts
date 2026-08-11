@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   actionItems,
   meetingSummaries,
   meetings,
   participants,
-  rooms,
 } from "@/db/schema";
 import { getSession } from "@/lib/session";
 
 const DEFAULT_LIMIT = 40;
 const MAX_LIMIT = 100;
 
-/** First usable preview line from summary markdown (skip headings / empty). */
 function summaryPreview(markdown: string | null | undefined, max = 160): string | null {
   if (!markdown?.trim()) return null;
   for (const raw of markdown.split("\n")) {
@@ -38,31 +36,12 @@ export async function GET(req: NextRequest) {
   }
 
   const identityId = session.identityId;
-  const slug = req.nextUrl.searchParams.get("slug")?.trim() || null;
   const limitRaw = Number(req.nextUrl.searchParams.get("limit") || DEFAULT_LIMIT);
   const limit = Math.min(
     MAX_LIMIT,
     Math.max(1, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : DEFAULT_LIMIT),
   );
 
-  // Rooms the user owns (optional slug filter).
-  const ownedRooms = await db
-    .select({
-      id: rooms.id,
-      slug: rooms.slug,
-      title: rooms.title,
-    })
-    .from(rooms)
-    .where(
-      slug
-        ? and(eq(rooms.ownerIdentityId, identityId), eq(rooms.slug, slug))
-        : eq(rooms.ownerIdentityId, identityId),
-    );
-
-  const ownedRoomIds = ownedRooms.map((r) => r.id);
-  const ownedRoomIdSet = new Set(ownedRoomIds);
-
-  // Meetings where the user appeared as a Chronos-linked participant.
   const participated = await db
     .selectDistinct({ meetingId: participants.meetingId })
     .from(participants)
@@ -70,46 +49,24 @@ export async function GET(req: NextRequest) {
 
   const participatedMeetingIds = participated.map((p) => p.meetingId);
 
-  if (slug && ownedRooms.length === 0 && participatedMeetingIds.length === 0) {
-    // Slug filter with no ownership — still allow if they participated in that room.
-    const room = await db.query.rooms.findFirst({ where: eq(rooms.slug, slug) });
-    if (!room) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-  }
-
-  if (ownedRoomIds.length === 0 && participatedMeetingIds.length === 0) {
-    return NextResponse.json({ meetings: [] });
-  }
-
-  const filters = [];
-  if (ownedRoomIds.length > 0) {
-    filters.push(inArray(meetings.roomId, ownedRoomIds));
-  }
+  const filters = [eq(meetings.ownerIdentityId, identityId)];
   if (participatedMeetingIds.length > 0) {
     filters.push(inArray(meetings.id, participatedMeetingIds));
   }
 
-  let whereClause = filters.length === 1 ? filters[0]! : or(...filters);
-
-  if (slug) {
-    const slugRoom = await db.query.rooms.findFirst({
-      where: eq(rooms.slug, slug),
-    });
-    if (!slugRoom) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-    whereClause = and(whereClause, eq(meetings.roomId, slugRoom.id));
-  }
+  const whereClause = filters.length === 1 ? filters[0]! : or(...filters);
 
   const rows = await db
     .select({
       id: meetings.id,
+      slug: meetings.slug,
+      title: meetings.title,
       roomId: meetings.roomId,
       startedAt: meetings.startedAt,
       endedAt: meetings.endedAt,
       status: meetings.status,
       summaryStatus: meetings.summaryStatus,
+      ownerIdentityId: meetings.ownerIdentityId,
       summaryMarkdown: meetingSummaries.summaryMarkdown,
       summaryModel: meetingSummaries.model,
       summaryCreatedAt: meetingSummaries.createdAt,
@@ -117,12 +74,8 @@ export async function GET(req: NextRequest) {
         select count(*)::int from ${actionItems}
         where ${actionItems.meetingId} = ${meetings.id}
       )`,
-      roomSlug: rooms.slug,
-      roomTitle: rooms.title,
-      roomOwnerId: rooms.ownerIdentityId,
     })
     .from(meetings)
-    .innerJoin(rooms, eq(rooms.id, meetings.roomId))
     .leftJoin(
       meetingSummaries,
       eq(meetingSummaries.meetingId, meetings.id),
@@ -136,7 +89,7 @@ export async function GET(req: NextRequest) {
     const ended = row.endedAt ? new Date(row.endedAt) : null;
     const durationMs =
       started && ended ? Math.max(0, ended.getTime() - started.getTime()) : null;
-    const isOwner = ownedRoomIdSet.has(row.roomId) || row.roomOwnerId === identityId;
+    const isOwner = row.ownerIdentityId === identityId;
 
     return {
       id: row.id,
@@ -153,10 +106,10 @@ export async function GET(req: NextRequest) {
       relation: isOwner ? ("owner" as const) : ("participant" as const),
       room: {
         id: row.roomId,
-        slug: row.roomSlug,
-        title: row.roomTitle,
+        slug: row.slug,
+        title: row.title,
       },
-      summaryUrl: `/r/${row.roomSlug}/summary?meetingId=${row.id}`,
+      summaryUrl: `/m/${row.slug}/summary?meetingId=${row.id}`,
     };
   });
 

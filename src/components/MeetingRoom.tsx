@@ -873,7 +873,7 @@ function ForcedExitOverlay({
   const router = useRouter();
   const summaryHref =
     kind === "ended" && meetingId
-      ? `/r/${roomSlug}/summary?meetingId=${meetingId}`
+      ? `/m/${roomSlug}/summary?meetingId=${meetingId}`
       : null;
 
   return (

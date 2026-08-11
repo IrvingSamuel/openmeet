@@ -429,7 +429,11 @@
       "description": "„{title}“ und alle zugehörigen Meetings, Transkripte und Aufzeichnungen dauerhaft löschen.",
       "warning": "Dies kann nicht rückgängig gemacht werden. Aktive Teilnehmer werden getrennt.",
       "submit": "Dauerhaft löschen"
-    }
+    },
+    "startMeeting": "Meeting starten",
+    "brandTemplateBadge": "Marke",
+    "startFromRoomFailed": "Meeting aus dieser Vorlage konnte nicht gestartet werden.",
+    "startFromRoomNetworkFailed": "Netzwerkfehler beim Starten des Meetings."
   },
   "brand": {
     "page": {
@@ -801,5 +805,15 @@
       "body": "Ihr Chronos-Konto speichert die White-Label-Standard-UI für Sofortmeetings.",
       "login": "Mit Chronos anmelden"
     }
+  },
+  "roomTemplate": {
+    "eyebrow": "Markenvorlage",
+    "description": "Dieser Raum definiert nur die visuelle Identität. Ein Meeting zu starten erzeugt eine unabhängige Sitzung mit eigenem Link.",
+    "startMeeting": "Meeting starten",
+    "loginToStart": "Anmelden zum Starten",
+    "editBrand": "Marke bearbeiten",
+    "notFound": "Vorlage nicht gefunden",
+    "startFailed": "Meeting konnte nicht gestartet werden.",
+    "startNetworkFailed": "Netzwerkfehler beim Starten des Meetings."
   }
 }

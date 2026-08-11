@@ -5,7 +5,6 @@ import {
   transcriptSegments,
   meetingSummaries,
   actionItems,
-  rooms,
 } from "@/db/schema";
 import {
   callGeminiSafe,
@@ -100,9 +99,6 @@ export async function generateMeetingSummary(meetingId: string) {
   });
   if (!meeting) throw new Error("not_found");
 
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
   const segments = await db.query.transcriptSegments.findMany({
     where: eq(transcriptSegments.meetingId, meeting.id),
     orderBy: [asc(transcriptSegments.createdAt)],
@@ -251,7 +247,7 @@ Escreva o markdown e os títulos das tarefas em ${lang}.`;
         meetingId: meeting.id,
         title: a.title.trim(),
         assigneeHint: a.assigneeHint,
-        chronosBoardId: room?.boardId,
+        chronosBoardId: meeting.boardId,
         status: "pending",
         raw: a,
       })

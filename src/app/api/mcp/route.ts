@@ -44,19 +44,33 @@ async function meetCreateRoom(args: {
 async function meetGetTranscript(args: {
   meeting_id?: string;
   room_slug?: string;
+  meeting_slug?: string;
 }) {
   let meetingId = args.meeting_id;
-  if (!meetingId && args.room_slug) {
-    const room = await db.query.rooms.findFirst({
-      where: eq(rooms.slug, args.room_slug),
-    });
-    if (!room) throw new Error("room not found");
+  if (!meetingId && args.meeting_slug) {
     const meeting = await db.query.meetings.findFirst({
-      where: eq(meetings.roomId, room.id),
+      where: eq(meetings.slug, args.meeting_slug),
     });
     meetingId = meeting?.id;
   }
-  if (!meetingId) throw new Error("meeting_id or room_slug required");
+  if (!meetingId && args.room_slug) {
+    const meeting = await db.query.meetings.findFirst({
+      where: eq(meetings.slug, args.room_slug),
+    });
+    if (!meeting) {
+      const room = await db.query.rooms.findFirst({
+        where: eq(rooms.slug, args.room_slug),
+      });
+      if (!room) throw new Error("room not found");
+      const linked = await db.query.meetings.findFirst({
+        where: eq(meetings.roomId, room.id),
+      });
+      meetingId = linked?.id;
+    } else {
+      meetingId = meeting.id;
+    }
+  }
+  if (!meetingId) throw new Error("meeting_id or meeting_slug required");
   const segments = await db.query.transcriptSegments.findMany({
     where: eq(transcriptSegments.meetingId, meetingId),
     orderBy: [asc(transcriptSegments.createdAt)],

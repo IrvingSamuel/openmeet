@@ -327,7 +327,7 @@ function PeoplePanel({
     }
     setBusyId(`${identity}:${action}`);
     try {
-      const res = await fetch(`/api/rooms/${encodeURIComponent(roomSlug)}/moderate`, {
+      const res = await fetch(`/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/moderate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, identity, meetingId }),
@@ -465,7 +465,7 @@ function WaitingQueue({ roomSlug }: { roomSlug: string }) {
     const load = async () => {
       try {
         const res = await fetch(
-          `/api/rooms/${encodeURIComponent(roomSlug)}/join-requests`,
+          `/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/join-requests`,
         );
         if (!res.ok || cancelled) return;
         const json = await res.json();
@@ -486,7 +486,7 @@ function WaitingQueue({ roomSlug }: { roomSlug: string }) {
     setBusyId(id);
     try {
       const res = await fetch(
-        `/api/rooms/${encodeURIComponent(roomSlug)}/join-requests/${id}/${decision}`,
+        `/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/join-requests/${id}/${decision}`,
         { method: "POST" },
       );
       if (!res.ok) {

@@ -429,7 +429,11 @@
       "login": "Sign in with Chronos",
       "backHome": "Back to home"
     },
-    "statConnected": "Connected"
+    "statConnected": "Connected",
+    "startMeeting": "Start meeting",
+    "brandTemplateBadge": "brand",
+    "startFromRoomFailed": "Could not start a meeting from this template.",
+    "startFromRoomNetworkFailed": "Network error starting the meeting."
   },
   "settings": {
     "eyebrow": "Personal",
@@ -801,5 +805,15 @@
       "clearS3Secret": "Clear secret key",
       "egressNote": "Egress needs the livekit/egress service (see infra/docker-compose.egress.yml). Do not run on a 4-vCPU VPS without a dedicated node."
     }
+  },
+  "roomTemplate": {
+    "eyebrow": "Brand template",
+    "description": "This room only defines the visual identity. Starting a meeting creates an independent session with its own join link.",
+    "startMeeting": "Start meeting",
+    "loginToStart": "Sign in to start",
+    "editBrand": "Edit brand",
+    "notFound": "Template not found",
+    "startFailed": "Could not start the meeting.",
+    "startNetworkFailed": "Network error starting the meeting."
   }
 }

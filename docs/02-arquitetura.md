@@ -52,10 +52,11 @@ Agent ──► Postgres
 | Tabela | Papel |
 |--------|-------|
 | `chronos_identities` | User Chronos ↔ Meet + tokens |
-| `rooms` | Sala lógica (slug, board_id, owner, kind persistent|instant) |
-| `room_brands` | Tokens de marca por sala |
-| `identity_brands` | UI predefinida do utilizador (reuniões instantâneas / novas salas) |
-| `meetings` | Sessão (início/fim); cascade ao apagar sala |
+| `rooms` | Template de marca (slug, board_id, owner) — não contém reuniões |
+| `room_brands` | Tokens de marca do template |
+| `identity_brands` | UI predefinida do utilizador |
+| `meetings` | Sessão independente (slug, título, LiveKit, owner); `room_id` opcional (SET NULL) |
+| `meeting_brands` | Snapshot de marca da reunião |
 | `participants` | Quem entrou/saiu |
 | `transcript_segments` | Legendas |
 | `meeting_summaries` | Resumo pós |

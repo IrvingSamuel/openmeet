@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
   title: Chronos Meet — Instant Meetings API
-  version: 1.0.0
+  version: 2.0.0
   description: |
-    Create an instant (ephemeral) meeting room with optional full white-label UI
-    configuration. Returns a join URL for redirect or storage by third-party platforms.
+    Create an independent meeting (no room row). Optionally apply a brand template
+    via `room_id`, request `ui`, or the owner's personal default UI.
 
     Authentication (either):
     - Session cookie from Chronos OAuth (`chronos_meet_session`)
@@ -20,9 +20,8 @@ paths:
       operationId: createInstantMeeting
       summary: Create an instant meeting
       description: |
-        Creates a room with `kind=instant`, seeds brand from the request `ui` object
-        (or from the owner's personal default UI when `ui` is omitted), and returns
-        the absolute join URL.
+        Creates a meeting with its own join URL (`/m/{slug}`). Does **not** create a room.
+        Brand is snapshotted from `ui`, else `room_id` template, else owner identity defaults.
       security:
         - bearerAuth: []
         - cookieAuth: []
@@ -34,9 +33,15 @@ paths:
               $ref: "#/components/schemas/CreateInstantMeetingRequest"
             examples:
               minimal:
-                summary: Minimal (uses owner default UI)
+                summary: Minimal (owner default UI)
                 value:
                   title: Quick sync
+                  chronos_user_id: "chronos-user-123"
+              withRoomBrand:
+                summary: Reuse a brand template room
+                value:
+                  title: Weekly partner sync
+                  room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
                   chronos_user_id: "chronos-user-123"
               fullUi:
                 summary: Full UI override
@@ -46,23 +51,8 @@ paths:
                   chronos_user_id: "chronos-user-123"
                   ui:
                     lobbyTitle: Acme Kickoff
-                    lobbySubtitle: Powered by Chronos Meet
-                    wordmark: Acme
                     themePreset: emerald
                     primaryColor: "#10b981"
-                    secondaryColor: "#22c55e"
-                    tertiaryColor: "#14b8a6"
-                    background: "#0b1020"
-                    fontFamily: "Inter, system-ui, sans-serif"
-                    logoUrl: "https://example.com/logo.svg"
-                    faviconUrl: "https://example.com/favicon.png"
-                    bgAnimation: aurora
-                    bgAnimationSpeed: 4
-                    patternTint: primary
-                    patternTintOpacity: 40
-                    primaryPaint:
-                      mode: solid
-                      solid: "#10b981"
       responses:
         "201":
           description: Instant meeting created
@@ -71,168 +61,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateInstantMeetingResponse"
               example:
-                room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                meeting_id: "8c3e2a1b-5717-4562-b3fc-2c963f66afa6"
                 slug: "x7k9m2pqab"
-                url: "https://meet.chronos.com.pt/r/x7k9m2pqab"
-                join_path: "/r/x7k9m2pqab"
-                kind: instant
+                url: "https://meet.chronos.com.pt/m/x7k9m2pqab"
+                join_path: "/m/x7k9m2pqab"
                 access_policy: public
                 title: Quick sync
+                brand_room_id: null
         "400":
           description: Invalid body or owner resolve failed
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
         "401":
           description: Missing or invalid authentication
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      description: MEET_MCP_TOKEN or AGENT_SHARED_SECRET
     cookieAuth:
       type: apiKey
       in: cookie
       name: chronos_meet_session
   schemas:
-    PaintStop:
-      type: object
-      required: [color, at]
-      properties:
-        color:
-          type: string
-        at:
-          type: number
-          minimum: 0
-          maximum: 100
-    PaintToken:
-      type: object
-      nullable: true
-      required: [mode, solid]
-      properties:
-        mode:
-          type: string
-          enum: [solid, gradient]
-        solid:
-          type: string
-        gradient:
-          type: object
-          properties:
-            type:
-              type: string
-              enum: [linear, radial]
-            angle:
-              type: number
-            stops:
-              type: array
-              items:
-                $ref: "#/components/schemas/PaintStop"
-              minItems: 2
-              maxItems: 5
     BrandUi:
       type: object
-      description: Full white-label UI tokens applied to the instant room
-      properties:
-        logoUrl:
-          type: string
-          nullable: true
-        wordmark:
-          type: string
-          nullable: true
-        themePreset:
-          type: string
-          enum: [violet, indigo, emerald, rose, amber, sky]
-        primaryColor:
-          type: string
-        secondaryColor:
-          type: string
-        tertiaryColor:
-          type: string
-        fontFamily:
-          type: string
-        background:
-          type: string
-        lobbyTitle:
-          type: string
-        lobbySubtitle:
-          type: string
-        faviconUrl:
-          type: string
-          nullable: true
-        customCss:
-          type: string
-          nullable: true
-        primaryPaint:
-          $ref: "#/components/schemas/PaintToken"
-        secondaryPaint:
-          $ref: "#/components/schemas/PaintToken"
-        tertiaryPaint:
-          $ref: "#/components/schemas/PaintToken"
-        backgroundPaint:
-          $ref: "#/components/schemas/PaintToken"
-        patternUrl:
-          type: string
-          nullable: true
-        patternSizeMode:
-          type: string
-          enum: [percent, fixed]
-          nullable: true
-        patternSize:
-          type: integer
-          nullable: true
-        patternTint:
-          type: string
-          enum: [none, primary, secondary, tertiary, custom]
-          nullable: true
-        patternTintColor:
-          type: string
-          nullable: true
-        patternTintOpacity:
-          type: integer
-          minimum: 0
-          maximum: 100
-          nullable: true
-        bgAnimation:
-          type: string
-          enum: [none, wave, beam, aurora, pulse]
-          nullable: true
-        bgAnimationSpeed:
-          type: integer
-          minimum: 1
-          maximum: 10
-          nullable: true
+      additionalProperties: true
     CreateInstantMeetingRequest:
       type: object
       properties:
         title:
           type: string
-          maxLength: 200
         access_policy:
           type: string
           enum: [public, members, invite]
-          default: public
         board_id:
           type: string
+        room_id:
+          type: string
+          format: uuid
+          description: Optional brand template room (visual only)
         owner_identity_id:
           type: string
           format: uuid
-          description: Required with Bearer auth unless chronos_user_id is set
         chronos_user_id:
           type: string
-          description: Chronos Organizador user id (creates identity if missing)
         ui:
           $ref: "#/components/schemas/BrandUi"
     CreateInstantMeetingResponse:
       type: object
-      required: [room_id, slug, url, join_path]
+      required: [meeting_id, slug, url, join_path]
       properties:
-        room_id:
+        meeting_id:
           type: string
           format: uuid
         slug:
@@ -240,21 +118,14 @@ components:
         url:
           type: string
           format: uri
-          description: Absolute join URL for redirect or storage
         join_path:
           type: string
-          example: /r/x7k9m2pqab
-        kind:
-          type: string
-          example: instant
+          example: /m/x7k9m2pqab
         access_policy:
           type: string
         title:
           type: string
-    Error:
-      type: object
-      properties:
-        error:
+        brand_room_id:
           type: string
-        detail:
-          type: string
+          format: uuid
+          nullable: true

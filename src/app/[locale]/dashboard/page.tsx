@@ -180,7 +180,7 @@ export default function DashboardPage() {
         return;
       }
       toast.success(t("instantStarted"));
-      router.push(`/r/${data.room.slug}`);
+      router.push(`/m/${data.slug || data.meeting?.slug}`);
     } catch {
       toast.error(t("instantNetworkFailed"));
     } finally {
@@ -546,7 +546,10 @@ function RoomRow({
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const formatAgo = useTimeAgoFormatter();
+  const toast = useToast();
+  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
     null,
   );
@@ -594,6 +597,23 @@ function RoomRow({
     };
   }, [moreOpen, updateMenuPos]);
 
+  async function startFromTemplate() {
+    setStarting(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.slug}/start`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || t("startFromRoomFailed"));
+        return;
+      }
+      router.push(`/m/${data.slug}`);
+    } catch {
+      toast.error(t("startFromRoomNetworkFailed"));
+    } finally {
+      setStarting(false);
+    }
+  }
+
   return (
     <motion.div
       whileHover={{ y: -3 }}
@@ -618,9 +638,7 @@ function RoomRow({
           {room.boardId ? (
             <Badge tone="brand">{tCommon("badges.linkedBoard")}</Badge>
           ) : null}
-          {room.kind === "instant" ? (
-            <Badge tone="brand">{t("instantBadge")}</Badge>
-          ) : null}
+          <Badge>{t("brandTemplateBadge")}</Badge>
           {room.accessPolicy === "invite" ? (
             <Badge tone="warn">{tCommon("badges.private")}</Badge>
           ) : room.accessPolicy === "public" ? (
@@ -756,11 +774,14 @@ function RoomRow({
         >
           {copied ? tCommon("actions.copied") : tCommon("actions.link")}
         </Button>
-        <Link href={`/r/${room.slug}`} className="min-[380px]:ml-0">
-          <Button size="sm" iconRight={<IconArrowRight className="h-4 w-4" />}>
-            {tCommon("actions.enter")}
-          </Button>
-        </Link>
+        <Button
+          size="sm"
+          loading={starting}
+          onClick={() => void startFromTemplate()}
+          iconRight={<IconArrowRight className="h-4 w-4" />}
+        >
+          {t("startMeeting")}
+        </Button>
       </div>
     </motion.div>
   );

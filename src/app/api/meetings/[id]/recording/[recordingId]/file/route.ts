@@ -4,7 +4,7 @@ import { createReadStream, existsSync } from "fs";
 import { stat } from "fs/promises";
 import { Readable } from "stream";
 import { db } from "@/db";
-import { meetings, recordings, rooms } from "@/db/schema";
+import { meetings, recordings } from "@/db/schema";
 import { getSession, type SessionData } from "@/lib/session";
 import { getRecordingSignedUrl } from "@/lib/recording-storage";
 
@@ -20,12 +20,7 @@ async function canAccessRecording(
     where: eq(meetings.id, meetingId),
   });
   if (!meeting) return false;
-
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
-  if (!room) return false;
-  if (room.ownerIdentityId === session.identityId) return true;
+  if (meeting.ownerIdentityId === session.identityId) return true;
 
   const { assertMeetingHost } = await import("@/lib/hostAuth");
   const auth = await assertMeetingHost({ meetingId, session });

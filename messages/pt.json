@@ -429,7 +429,11 @@
       "description": "Eliminar permanentemente “{title}” e todas as reuniões, transcrições e gravações associadas.",
       "warning": "Esta ação não pode ser desfeita. Participantes ativos serão desligados.",
       "submit": "Eliminar permanentemente"
-    }
+    },
+    "startMeeting": "Iniciar reunião",
+    "brandTemplateBadge": "marca",
+    "startFromRoomFailed": "Não foi possível iniciar uma reunião a partir deste modelo.",
+    "startFromRoomNetworkFailed": "Falha de rede ao iniciar a reunião."
   },
   "brand": {
     "page": {
@@ -801,5 +805,15 @@
       "body": "A sua conta Chronos guarda a UI white-label predefinida para reuniões instantâneas.",
       "login": "Entrar com Chronos"
     }
+  },
+  "roomTemplate": {
+    "eyebrow": "Modelo de marca",
+    "description": "Esta sala define apenas a identidade visual. Iniciar uma reunião cria uma sessão independente com o seu próprio link.",
+    "startMeeting": "Iniciar reunião",
+    "loginToStart": "Entre para iniciar",
+    "editBrand": "Editar marca",
+    "notFound": "Modelo não encontrado",
+    "startFailed": "Não foi possível iniciar a reunião.",
+    "startNetworkFailed": "Falha de rede ao iniciar a reunião."
   }
 }

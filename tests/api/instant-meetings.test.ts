@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = { isLoggedIn: false, identityId: undefined as string | undefined };
 const identityBrandsFindFirst = vi.fn();
-const chronosIdentitiesFindFirst = vi.fn();
 const insertReturning = vi.fn();
+const chronosIdentitiesFindFirst = vi.fn();
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
@@ -15,6 +15,12 @@ vi.mock("@/db", () => ({
     query: {
       identityBrands: {
         findFirst: (...args: unknown[]) => identityBrandsFindFirst(...args),
+      },
+      roomBrands: {
+        findFirst: vi.fn().mockResolvedValue(undefined),
+      },
+      rooms: {
+        findFirst: vi.fn(),
       },
       chronosIdentities: {
         findFirst: (...args: unknown[]) => chronosIdentitiesFindFirst(...args),
@@ -42,8 +48,8 @@ beforeEach(() => {
   session.isLoggedIn = false;
   session.identityId = undefined;
   identityBrandsFindFirst.mockReset();
-  chronosIdentitiesFindFirst.mockReset();
   insertReturning.mockReset();
+  chronosIdentitiesFindFirst.mockReset();
   identityBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
   delete process.env.AGENT_SHARED_SECRET;
@@ -55,29 +61,29 @@ describe("POST /api/rooms/instant", () => {
     expect(res.status).toBe(401);
   });
 
-  it("creates an instant room for the session user", async () => {
+  it("creates a meeting with /m join url", async () => {
     session.isLoggedIn = true;
     session.identityId = "id-1";
     insertReturning
       .mockResolvedValueOnce([
         {
-          id: "r1",
+          id: "m1",
           slug: "inst123456",
           title: "Instant",
-          kind: "instant",
           accessPolicy: "public",
+          roomId: null,
         },
       ])
-      .mockResolvedValueOnce([{ roomId: "r1" }]);
+      .mockResolvedValueOnce([{ meetingId: "m1" }]);
 
     const res = await postInstant(
       jsonRequest("http://localhost/api/rooms/instant", { title: "Instant" }),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.room.kind).toBe("instant");
-    expect(body.url).toContain("/r/inst123456");
-    expect(body.join_path).toBe("/r/inst123456");
+    expect(body.meeting_id).toBe("m1");
+    expect(body.url).toContain("/m/inst123456");
+    expect(body.join_path).toBe("/m/inst123456");
   });
 });
 
@@ -89,20 +95,20 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(res.status).toBe(401);
   });
 
-  it("creates via bearer + chronos_user_id with ui", async () => {
+  it("creates via bearer + chronos_user_id", async () => {
     process.env.MEET_MCP_TOKEN = "secret-token";
     chronosIdentitiesFindFirst.mockResolvedValue({ id: "owner-1" });
     insertReturning
       .mockResolvedValueOnce([
         {
-          id: "r2",
+          id: "m2",
           slug: "apiroom001",
           title: "Partner",
-          kind: "instant",
           accessPolicy: "public",
+          roomId: null,
         },
       ])
-      .mockResolvedValueOnce([{ roomId: "r2", lobbyTitle: "Acme" }]);
+      .mockResolvedValueOnce([{ meetingId: "m2" }]);
 
     const res = await postV1(
       jsonRequest(
@@ -118,8 +124,8 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.slug).toBe("apiroom001");
-    expect(body.url).toContain("/r/apiroom001");
-    expect(body.kind).toBe("instant");
+    expect(body.url).toContain("/m/apiroom001");
+    expect(body.meeting_id).toBe("m2");
   });
 
   it("creates via session cookie", async () => {
@@ -128,14 +134,14 @@ describe("POST /api/v1/instant-meetings", () => {
     insertReturning
       .mockResolvedValueOnce([
         {
-          id: "r3",
+          id: "m3",
           slug: "sessroom01",
           title: "Quick",
-          kind: "instant",
           accessPolicy: "public",
+          roomId: null,
         },
       ])
-      .mockResolvedValueOnce([{ roomId: "r3" }]);
+      .mockResolvedValueOnce([{ meetingId: "m3" }]);
 
     const res = await postV1(
       jsonRequest("http://localhost/api/v1/instant-meetings", { title: "Quick" }),
@@ -143,5 +149,6 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.slug).toBe("sessroom01");
+    expect(body.join_path).toBe("/m/sessroom01");
   });
 });

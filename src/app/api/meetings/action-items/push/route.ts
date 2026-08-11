@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { actionItems, meetings, rooms } from "@/db/schema";
+import { actionItems, meetings } from "@/db/schema";
 import {
   createBoardTask,
   extractBoardMembers,
@@ -43,10 +43,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
-
   let accessToken: string;
   try {
     accessToken = await getValidAccessToken(session.identityId);
@@ -77,7 +73,7 @@ export async function POST(req: NextRequest) {
       {
         description:
           task.description ||
-          `Gerado pelo Chronos Meet a partir da reunião ${room?.slug ?? meeting.id}`,
+          `Gerado pelo Chronos Meet a partir da reunião ${meeting.slug}`,
         dueDate: task.dueDate,
         priority: task.priority,
         assigneeIds,

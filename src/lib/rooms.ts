@@ -19,7 +19,6 @@ import {
   BRAND_ASSETS_ROOT,
   LEGACY_BRAND_ASSETS_ROOT,
 } from "@/lib/brand-assets";
-import { getRoomServiceClient } from "@/lib/livekit";
 
 export type CreateRoomInput = {
   title: string;
@@ -216,15 +215,6 @@ export function authorizeBearer(req: {
   return token === expected;
 }
 
-async function evictLiveKitRoom(livekitRoomName: string) {
-  try {
-    const client = getRoomServiceClient();
-    await client.deleteRoom(livekitRoomName);
-  } catch (err) {
-    console.warn("[chronos-meet] livekit deleteRoom on room delete", err);
-  }
-}
-
 async function removeBrandAssetDirs(roomId: string) {
   for (const root of [BRAND_ASSETS_ROOT, LEGACY_BRAND_ASSETS_ROOT]) {
     try {
@@ -235,16 +225,8 @@ async function removeBrandAssetDirs(roomId: string) {
   }
 }
 
-/** Hard-delete a room and related rows (DB cascade). Owner must already be checked. */
+/** Hard-delete a brand-template room. Meetings that referenced it keep their history (roomId set null). */
 export async function deleteRoomFully(room: typeof rooms.$inferSelect) {
-  const active = await db.query.meetings.findFirst({
-    where: (m, { and: a, eq: e }) =>
-      a(e(m.roomId, room.id), e(m.status, "active")),
-  });
-  if (active || room.livekitRoomName) {
-    await evictLiveKitRoom(room.livekitRoomName);
-  }
-
   await db.delete(rooms).where(eq(rooms.id, room.id));
   await removeBrandAssetDirs(room.id);
 }
