@@ -425,9 +425,9 @@
     "deleteFailed": "Raum konnte nicht gelöscht werden.",
     "deleteNetworkFailed": "Netzwerkfehler beim Löschen des Raums.",
     "deleteModal": {
-      "title": "Raum löschen",
-      "description": "„{title}“ und alle zugehörigen Meetings, Transkripte und Aufzeichnungen dauerhaft löschen.",
-      "warning": "Dies kann nicht rückgängig gemacht werden. Aktive Teilnehmer werden getrennt.",
+      "title": "Markenvorlage löschen",
+      "description": "Markenvorlage „{title}“ dauerhaft löschen. Der Meeting-Verlauf bleibt erhalten.",
+      "warning": "Dies kann nicht rückgängig gemacht werden. Frühere Meetings und Aufzeichnungen bleiben im Verlauf.",
       "submit": "Dauerhaft löschen"
     },
     "startMeeting": "Meeting starten",

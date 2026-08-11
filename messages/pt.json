@@ -425,9 +425,9 @@
     "deleteFailed": "Não foi possível eliminar a sala.",
     "deleteNetworkFailed": "Falha de rede ao eliminar a sala.",
     "deleteModal": {
-      "title": "Eliminar sala",
-      "description": "Eliminar permanentemente “{title}” e todas as reuniões, transcrições e gravações associadas.",
-      "warning": "Esta ação não pode ser desfeita. Participantes ativos serão desligados.",
+      "title": "Eliminar modelo de marca",
+      "description": "Eliminar permanentemente o modelo de marca “{title}”. O histórico de reuniões mantém-se.",
+      "warning": "Esta ação não pode ser desfeita. Reuniões e gravações anteriores permanecem no histórico.",
       "submit": "Eliminar permanentemente"
     },
     "startMeeting": "Iniciar reunião",

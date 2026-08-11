@@ -425,9 +425,9 @@
     "deleteFailed": "Impossible de supprimer la salle.",
     "deleteNetworkFailed": "Erreur réseau lors de la suppression de la salle.",
     "deleteModal": {
-      "title": "Supprimer la salle",
-      "description": "Supprimer définitivement « {title} » ainsi que toutes les réunions, transcriptions et enregistrements associés.",
-      "warning": "Cette action est irréversible. Les participants actifs seront déconnectés.",
+      "title": "Supprimer le modèle de marque",
+      "description": "Supprimer définitivement le modèle de marque « {title} ». L’historique des réunions est conservé.",
+      "warning": "Cette action est irréversible. Les réunions et enregistrements passés restent dans l’historique.",
       "submit": "Supprimer définitivement"
     },
     "startMeeting": "Démarrer la réunion",

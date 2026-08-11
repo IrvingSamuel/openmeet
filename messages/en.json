@@ -412,9 +412,9 @@
       "networkFailed": "Network error updating the room."
     },
     "deleteModal": {
-      "title": "Delete room",
-      "description": "Permanently delete “{title}” and all related meetings, transcripts, and recordings.",
-      "warning": "This cannot be undone. Active participants will be disconnected.",
+      "title": "Delete brand template",
+      "description": "Permanently delete the brand template “{title}”. Meeting history is kept.",
+      "warning": "This cannot be undone. Past meetings and recordings stay in your history.",
       "submit": "Delete permanently"
     },
     "mcpModal": {
