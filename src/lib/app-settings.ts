@@ -66,7 +66,7 @@ export async function getAppSettings(): Promise<AppSettingsRow | null> {
     cache = { at: now, row: row ?? null };
     return row ?? null;
   } catch (err) {
-    console.error("[chronos-meet] getAppSettings failed; using env fallbacks", err);
+    console.error("[openmeet] getAppSettings failed; using env fallbacks", err);
     return null;
   }
 }
@@ -211,7 +211,7 @@ export async function resolveRecordingConfig(): Promise<ResolvedRecordingConfig>
     controlMode: asControlMode(row?.recordingControlMode),
     storage: asStorage(row?.recordingStorage),
     localDir:
-      process.env.RECORDINGS_DIR?.trim() || "/var/chronos-meet/recordings",
+      process.env.RECORDINGS_DIR?.trim() || "/var/openmeet/recordings",
     s3: {
       endpoint: endpointDb || endpointEnv || undefined,
       bucket: bucketDb || bucketEnv || undefined,

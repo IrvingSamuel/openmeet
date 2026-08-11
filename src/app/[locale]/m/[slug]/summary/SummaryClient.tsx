@@ -11,14 +11,14 @@ import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
 import { IconCopy, IconDownload, IconFileText, IconLink } from "@/components/ui/icons";
 import { cn, formatBytes } from "@/lib/utils";
-import { isPersonalBoard } from "@/lib/chronos-boards";
+import { isPersonalBoard } from "@/lib/boards";
 import type { SuggestedAction } from "@/lib/meeting-summary";
 
 type ActionItemRow = {
   id: string;
   title: string;
   assigneeHint: string | null;
-  chronosBoardId: string | null;
+  externalBoardId: string | null;
   status: string;
   raw: SuggestedAction | null;
 };
@@ -280,7 +280,7 @@ export default function MeetingSummaryPage() {
               included: item.status !== "created",
               title: item.title,
               description: raw.description || "",
-              boardId: item.chronosBoardId || roomBoard || "",
+              boardId: item.externalBoardId || roomBoard || "",
               dueDate: raw.dueDateHint || "",
               priority: raw.priority || "medium",
               assigneeId: "" as const,
@@ -519,7 +519,7 @@ export default function MeetingSummaryPage() {
             type="button"
             className="underline"
             onClick={() => {
-              window.location.href = "/api/auth/login";
+              window.location.href = "/login";
             }}
           >
             {t("mcpLink")}

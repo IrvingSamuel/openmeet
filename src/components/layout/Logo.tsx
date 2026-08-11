@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /**
- * Chronos Meet mark — product logo (C + clock + camera nodes).
+ * OpenMeet mark — product logo.
  */
 export function LogoMark({
   className,
@@ -42,7 +42,7 @@ export function LogoMark({
 
 export function Wordmark({
   className,
-  label = "Chronos",
+  label = "Open",
   accent = "Meet",
 }: {
   className?: string;
@@ -56,7 +56,8 @@ export function Wordmark({
         className,
       )}
     >
-      {label} <span className="text-brand-gradient">{accent}</span>
+      {label}
+      <span className="text-brand-gradient">{accent}</span>
     </span>
   );
 }

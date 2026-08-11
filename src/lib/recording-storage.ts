@@ -166,7 +166,7 @@ export async function deleteRecordingObject(opts: {
         new DeleteObjectCommand({ Bucket: bucket, Key: opts.objectKey }),
       );
     } catch (err) {
-      console.warn("[chronos-meet] failed to delete s3 recording", err);
+      console.warn("[openmeet] failed to delete s3 recording", err);
     }
   }
 }

@@ -28,6 +28,8 @@ const webhookEventsSchema = z.object({
 
 const putSchema = z.object({
   locale: z.enum(["pt-BR", "en", "es", "fr", "de"]).optional(),
+  deploymentMode: z.enum(["server", "platform"]).optional(),
+  allowSignup: z.boolean().optional(),
   geminiApiKey: z.string().nullable().optional(),
   geminiModel: z.string().max(120).nullable().optional(),
   geminiSummaryModel: z.string().max(120).nullable().optional(),
@@ -45,6 +47,15 @@ const putSchema = z.object({
   recordingS3Region: z.string().max(80).nullable().optional(),
   recordingS3AccessKey: z.string().nullable().optional(),
   recordingS3SecretKey: z.string().nullable().optional(),
+  uiPrimary: z.string().max(40).nullable().optional(),
+  uiSecondary: z.string().max(40).nullable().optional(),
+  uiTertiary: z.string().max(40).nullable().optional(),
+  uiBackground: z.string().max(40).nullable().optional(),
+  uiInk: z.string().max(40).nullable().optional(),
+  uiWordmark: z.string().max(120).nullable().optional(),
+  uiLogoUrl: z.string().max(500).nullable().optional(),
+  uiFaviconUrl: z.string().max(500).nullable().optional(),
+  uiFontFamily: z.string().max(200).nullable().optional(),
 });
 
 async function requireAdmin() {
@@ -104,6 +115,17 @@ function publicSettingsPayload(
 
   return {
     locale: row.locale || "pt-BR",
+    deploymentMode: row.deploymentMode || "platform",
+    allowSignup: row.allowSignup !== false,
+    uiPrimary: row.uiPrimary || "#0ea5e9",
+    uiSecondary: row.uiSecondary || "#38bdf8",
+    uiTertiary: row.uiTertiary || "#818cf8",
+    uiBackground: row.uiBackground || "#0b1020",
+    uiInk: row.uiInk || "#f8fafc",
+    uiWordmark: row.uiWordmark || "OpenMeet",
+    uiLogoUrl: row.uiLogoUrl || "",
+    uiFaviconUrl: row.uiFaviconUrl || "",
+    uiFontFamily: row.uiFontFamily || "Inter, system-ui, sans-serif",
     geminiApiKey: geminiKeyMask,
     geminiModel: row.geminiModel || ai.geminiModel,
     geminiSummaryModel: row.geminiSummaryModel || ai.geminiSummaryModel,
@@ -165,6 +187,18 @@ export async function PUT(req: NextRequest) {
   };
 
   if (body.locale !== undefined) patch.locale = body.locale;
+  if (body.deploymentMode !== undefined) patch.deploymentMode = body.deploymentMode;
+  if (body.allowSignup !== undefined) patch.allowSignup = body.allowSignup;
+
+  if (body.uiPrimary !== undefined) patch.uiPrimary = body.uiPrimary?.trim() || null;
+  if (body.uiSecondary !== undefined) patch.uiSecondary = body.uiSecondary?.trim() || null;
+  if (body.uiTertiary !== undefined) patch.uiTertiary = body.uiTertiary?.trim() || null;
+  if (body.uiBackground !== undefined) patch.uiBackground = body.uiBackground?.trim() || null;
+  if (body.uiInk !== undefined) patch.uiInk = body.uiInk?.trim() || null;
+  if (body.uiWordmark !== undefined) patch.uiWordmark = body.uiWordmark?.trim() || null;
+  if (body.uiLogoUrl !== undefined) patch.uiLogoUrl = body.uiLogoUrl?.trim() || null;
+  if (body.uiFaviconUrl !== undefined) patch.uiFaviconUrl = body.uiFaviconUrl?.trim() || null;
+  if (body.uiFontFamily !== undefined) patch.uiFontFamily = body.uiFontFamily?.trim() || null;
 
   if (!shouldSkipSecretUpdate(body.geminiApiKey)) {
     patch.geminiApiKey = body.geminiApiKey!.trim() || null;

@@ -1,4 +1,4 @@
-"""Chronos Meet copiloto — LiveKit Agents worker (STT + voice wake Copiloto).
+"""OpenMeet copiloto — LiveKit Agents worker (STT + voice wake Copiloto).
 
 Requires:
   pip install -r requirements.txt
@@ -37,14 +37,14 @@ from wake_word import WakeDebouncer, extract_wake_command, parse_wake_phrases
 ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
-logger = logging.getLogger("chronos-meet-agent")
+logger = logging.getLogger("openmeet-agent")
 logging.basicConfig(level=logging.INFO)
 
-MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3331")
+MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3332")
 AGENT_SECRET = os.getenv("AGENT_SHARED_SECRET", "")
 
-AGENT_DISPLAY_NAME = "Agente Chronos"
-AGENT_IDENTITY = "agent-chronos"
+AGENT_DISPLAY_NAME = "OpenMeet Agent"
+AGENT_IDENTITY = "agent-openmeet"
 
 # Voice wake Copiloto
 WAKE_DEBOUNCE_SEC = 5.0
@@ -54,7 +54,7 @@ def reload_env() -> None:
     """Job subprocesses may start before PM2 env is visible — reload .env."""
     load_dotenv(dotenv_path=ENV_PATH, override=True)
     global MEET_API_URL, AGENT_SECRET
-    MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3331")
+    MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3332")
     AGENT_SECRET = os.getenv("AGENT_SHARED_SECRET", "")
 
 
@@ -127,7 +127,7 @@ async def persist_segment(
 
 
 async def request_fnc(req: JobRequest) -> None:
-    """Stable display name + identity so UI shows 'Agente Chronos'."""
+    """Stable display name + identity so UI shows 'OpenMeet Agent'."""
     await req.accept(name=AGENT_DISPLAY_NAME, identity=AGENT_IDENTITY)
 
 
@@ -166,7 +166,7 @@ async def entrypoint(ctx: JobContext) -> None:
     stt = deepgram.STT(
         model="nova-3",
         language="multi",
-        keyterm=["Copiloto", "Chronos"],
+        keyterm=["Copiloto", "OpenMeet"],
     )
     room = ctx.room
     tasks: set[asyncio.Task] = set()
@@ -324,12 +324,12 @@ async def entrypoint(ctx: JobContext) -> None:
 if __name__ == "__main__":
     reload_env()
     logger.info(
-        "starting chronos-meet-agent deepgram=%s meet_api=%s",
+        "starting openmeet-agent deepgram=%s meet_api=%s",
         deepgram_status(),
         MEET_API_URL,
     )
     ws_url = os.getenv("LIVEKIT_AGENT_URL") or os.getenv("LIVEKIT_URL") or "ws://127.0.0.1:7880"
-    if ws_url.startswith("wss://meet.chronos.com.pt"):
+    if ws_url.startswith("wss://openmeet.chronos.com.pt"):
         ws_url = "ws://127.0.0.1:7880"
     cli.run_app(
         WorkerOptions(

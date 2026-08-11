@@ -83,7 +83,7 @@ export function Lobby({
   const level = useAudioLevel(stream, audioEnabled);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("chronos-meet:display-name");
+    const stored = window.localStorage.getItem("openmeet:display-name");
     if (stored) setName(stored);
   }, []);
 
@@ -146,7 +146,7 @@ export function Lobby({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!canJoin) return;
-    window.localStorage.setItem("chronos-meet:display-name", name.trim());
+    window.localStorage.setItem("openmeet:display-name", name.trim());
     // Do NOT stop tracks here — LiveKit re-acquires on mount. Stopping early
     // (before the token round-trip) causes NotReadableError / blank camera.
     onJoin({
@@ -375,7 +375,7 @@ export function Lobby({
                     <p className="mt-1 text-[12px] text-ink-faint">
                       {t("hostLoginHintBody")}
                     </p>
-                    <a href="/api/auth/login" className="mt-2 inline-block">
+                    <a href="/login" className="mt-2 inline-block">
                       <Button type="button" size="sm" variant="outline">
                         {t("loginChronos")}
                       </Button>
@@ -386,7 +386,7 @@ export function Lobby({
 
               <div className="mt-auto pt-2">
                 {requireLogin && !isLoggedIn ? (
-                  <a href="/api/auth/login">
+                  <a href="/login">
                     <Button full size="lg" iconRight={<IconArrowRight />}>
                       {t("loginChronos")}
                     </Button>

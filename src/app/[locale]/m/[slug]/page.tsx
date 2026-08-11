@@ -35,13 +35,13 @@ type Session = {
 };
 
 function tabInstanceId() {
-  const existing = window.sessionStorage.getItem("chronos-meet:tab-id");
+  const existing = window.sessionStorage.getItem("openmeet:tab-id");
   if (existing) return existing;
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID().slice(0, 8)
       : Math.random().toString(36).slice(2, 10);
-  window.sessionStorage.setItem("chronos-meet:tab-id", id);
+  window.sessionStorage.setItem("openmeet:tab-id", id);
   return id;
 }
 

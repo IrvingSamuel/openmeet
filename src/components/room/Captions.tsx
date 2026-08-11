@@ -201,7 +201,7 @@ export function useCopilotInsights(
   };
 }
 
-const POS_KEY = "chronos-meet:captions-pos";
+const POS_KEY = "openmeet:captions-pos";
 
 type Pos = { x: number; y: number };
 

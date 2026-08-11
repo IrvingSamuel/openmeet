@@ -112,7 +112,7 @@ export function FinalCta() {
                     </Button>
                   </Link>
                 </Magnetic>
-                <a href="/api/auth/login">
+                <a href="/login">
                   <Button size="lg" variant="secondary">
                     {t("loginChronos")}
                   </Button>

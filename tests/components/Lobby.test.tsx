@@ -135,11 +135,11 @@ describe("Lobby", () => {
     );
   });
 
-  it("offers the Chronos login instead of joining when the room requires it", () => {
+  it("offers the login instead of joining when the room requires it", () => {
     render(<Lobby title="Sala" requireLogin isLoggedIn={false} onJoin={vi.fn()} />);
     expect(
-      screen.getByRole("link", { name: /entrar com chronos/i }),
-    ).toHaveAttribute("href", "/api/auth/login");
+      screen.getByRole("link", { name: /entrar/i }),
+    ).toHaveAttribute("href", "/login");
     expect(
       screen.queryByRole("button", { name: /entrar na reunião/i }),
     ).not.toBeInTheDocument();

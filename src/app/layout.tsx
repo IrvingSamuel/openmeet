@@ -16,14 +16,16 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://meet.chronos.com.pt"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://openmeet.chronos.com.pt",
+  ),
   title: {
-    default: "Chronos Meet — Smart white-label videoconferencing",
-    template: "%s · Chronos Meet",
+    default: "OpenMeet — Smart white-label videoconferencing",
+    template: "%s · OpenMeet",
   },
   description:
-    "Open-source videoconferencing with your own visual identity, live captions and a copilot that turns meetings into Chronos tasks.",
-  applicationName: "Chronos Meet",
+    "Open-source videoconferencing with your own visual identity, live captions and a copilot that turns meetings into summaries and webhooks.",
+  applicationName: "OpenMeet",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -35,16 +37,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Chronos Meet",
-    title: "Chronos Meet — Smart white-label videoconferencing",
+    siteName: "OpenMeet",
+    title: "OpenMeet — Smart white-label videoconferencing",
     description:
-      "Rooms branded for your company, live captions and automatic minutes integrated with Chronos boards.",
+      "Rooms branded for your company, live captions and automatic minutes for external tools via webhooks.",
     images: [
       {
         url: "/Chronos_Meet_Logo.png",
         width: 1000,
         height: 1000,
-        alt: "Chronos Meet",
+        alt: "OpenMeet",
       },
     ],
   },

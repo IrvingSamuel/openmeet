@@ -35,10 +35,11 @@ export type CreatedMeetingResult = {
 };
 
 function publicOrigin(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    "https://meet.chronos.com.pt"
-  );
+  const url = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_APP_URL is required");
+  }
+  return url;
 }
 
 export function meetingJoinUrl(slug: string): {
@@ -51,7 +52,7 @@ export function meetingJoinUrl(slug: string): {
 
 function defaultBrandValues(title: string, themePreset?: string) {
   const preset =
-    themePreset && BOARD_THEMES[themePreset] ? themePreset : "violet";
+    themePreset && BOARD_THEMES[themePreset] ? themePreset : "sky";
   const colors = BOARD_THEMES[preset];
   return {
     themePreset: preset,
@@ -60,7 +61,7 @@ function defaultBrandValues(title: string, themePreset?: string) {
     tertiaryColor: colors.tertiary,
     wordmark: title,
     lobbyTitle: title,
-    lobbySubtitle: "Powered by Chronos Meet",
+    lobbySubtitle: "Powered by OpenMeet",
   };
 }
 
@@ -71,7 +72,7 @@ function brandRowToValues(
   return {
     logoUrl: row.logoUrl ?? null,
     wordmark: (row.wordmark as string) || title,
-    themePreset: (row.themePreset as string) || "violet",
+    themePreset: (row.themePreset as string) || "sky",
     primaryColor: row.primaryColor,
     secondaryColor: row.secondaryColor,
     tertiaryColor: row.tertiaryColor,
@@ -79,7 +80,7 @@ function brandRowToValues(
     background: row.background,
     lobbyTitle: (row.lobbyTitle as string) || title,
     lobbySubtitle:
-      (row.lobbySubtitle as string) || "Powered by Chronos Meet",
+      (row.lobbySubtitle as string) || "Powered by OpenMeet",
     faviconUrl: row.faviconUrl ?? null,
     customCss: row.customCss ?? null,
     primaryPaint: row.primaryPaint ?? null,

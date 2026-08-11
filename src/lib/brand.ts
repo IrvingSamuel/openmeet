@@ -3,7 +3,7 @@ export const BOARD_THEMES: Record<
   { label: string; primary: string; secondary: string; tertiary: string }
 > = {
   violet: {
-    label: "Violet (padrão)",
+    label: "Violet",
     primary: "#8b5cf6",
     secondary: "#a78bfa",
     tertiary: "#d946ef",
@@ -33,7 +33,7 @@ export const BOARD_THEMES: Record<
     tertiary: "#eab308",
   },
   sky: {
-    label: "Sky",
+    label: "Sky (padrão)",
     primary: "#0ea5e9",
     secondary: "#38bdf8",
     tertiary: "#818cf8",
@@ -179,7 +179,7 @@ function patternSizeCss(brand: BrandTokens): string {
 }
 
 export function brandToCssVars(brand: BrandTokens): Record<string, string> {
-  const preset = BOARD_THEMES[brand.themePreset || "violet"] || BOARD_THEMES.violet;
+  const preset = BOARD_THEMES[brand.themePreset || "sky"] || BOARD_THEMES.sky;
   const primarySolid = brand.primaryColor || preset.primary;
   const secondarySolid = brand.secondaryColor || preset.secondary;
   const tertiarySolid = brand.tertiaryColor || preset.tertiary;

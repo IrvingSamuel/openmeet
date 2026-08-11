@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { createMeetingWithBrand } from "@/lib/meetings";
+import { assertCanCreateMeeting } from "@/lib/deployment-mode";
 
 const schema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -12,8 +13,9 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session.isLoggedIn || !session.identityId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await assertCanCreateMeeting(session);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
   }
 
   let body: z.infer<typeof schema> = {};
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const { meeting, url, joinPath } = await createMeetingWithBrand({
     title,
-    ownerIdentityId: session.identityId,
+    ownerIdentityId: session.identityId!,
     boardId: body.boardId,
     accessPolicy: body.accessPolicy || "public",
     roomId: body.roomId ?? null,

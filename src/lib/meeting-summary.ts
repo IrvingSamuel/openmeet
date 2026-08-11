@@ -138,7 +138,7 @@ export async function generateMeetingSummary(meetingId: string) {
       .where(eq(meetings.id, meeting.id));
 
     void dispatchSummaryReadyWebhooks(meeting.id).catch((err) => {
-      console.error("[chronos-meet] summary webhooks failed", err);
+      console.error("[openmeet] summary webhooks failed", err);
     });
 
     return {
@@ -158,7 +158,7 @@ export async function generateMeetingSummary(meetingId: string) {
     ? `\nInsights gerados ao vivo durante a reunião (usar na secção Insights; sintetize sem descartar):\n${liveInsights}\n`
     : "";
 
-  const prompt = `Você é o copiloto Chronos Meet. Analise a reunião em ${lang} com profundidade máxima.
+  const prompt = `Você é o copiloto OpenMeet. Analise a reunião em ${lang} com profundidade máxima.
 
 Produza markdown com exatamente estas secções (use estes títulos ##):
 ## Resumo Executivo
@@ -247,7 +247,7 @@ Escreva o markdown e os títulos das tarefas em ${lang}.`;
         meetingId: meeting.id,
         title: a.title.trim(),
         assigneeHint: a.assigneeHint,
-        chronosBoardId: meeting.boardId,
+        externalBoardId: meeting.boardId,
         status: "pending",
         raw: a,
       })
@@ -261,7 +261,7 @@ Escreva o markdown e os títulos das tarefas em ${lang}.`;
     .where(eq(meetings.id, meeting.id));
 
   void dispatchSummaryReadyWebhooks(meeting.id).catch((err) => {
-    console.error("[chronos-meet] summary webhooks failed", err);
+    console.error("[openmeet] summary webhooks failed", err);
   });
 
   return {

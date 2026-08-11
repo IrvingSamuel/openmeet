@@ -114,7 +114,7 @@ async function dispatchRecordingReady(recordingId: string) {
     secret: settings.webhookSecret,
     envelope,
   }).catch((err) => {
-    console.error("[chronos-meet] recording.ready webhook failed", err);
+    console.error("[openmeet] recording.ready webhook failed", err);
   });
 }
 
@@ -180,7 +180,7 @@ export async function startMeetingRecording(opts: {
       return { ok: true, recording: updated ?? row, engine: "egress" };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("[chronos-meet] egress start failed", message);
+      console.error("[openmeet] egress start failed", message);
       await db
         .update(recordings)
         .set({ status: "failed", error: message, endedAt: new Date() })
@@ -314,7 +314,7 @@ export async function stopMeetingRecording(opts: {
       return { ok: true, recording: updated ?? row };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error("[chronos-meet] egress stop failed", message);
+      console.error("[openmeet] egress stop failed", message);
       await db
         .update(recordings)
         .set({ status: "failed", error: message, endedAt: new Date() })

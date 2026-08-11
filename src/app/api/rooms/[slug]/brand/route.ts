@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 import { db } from "@/db";
 import { rooms, roomBrands } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { BOARD_THEMES } from "@/lib/brand";
-import { getBoard } from "@/lib/chronos-mcp";
-import { getValidAccessToken } from "@/lib/chronos-oauth";
 import {
   brandFieldsSchema,
   brandFieldsToPatch,
 } from "@/lib/brand-schema";
 
-const updateSchema = brandFieldsSchema.extend({
-  importFromBoard: z.boolean().optional(),
-});
+const updateSchema = brandFieldsSchema;
 
 export async function GET(
   _req: NextRequest,
@@ -49,36 +44,6 @@ export async function PATCH(
     ...brandFieldsToPatch(body),
     updatedAt: new Date(),
   };
-
-  if (body.importFromBoard && room.boardId) {
-    try {
-      const accessToken = await getValidAccessToken(session.identityId);
-      const boardRes = await getBoard(accessToken, room.boardId);
-      if (boardRes.ok && boardRes.result && typeof boardRes.result === "object") {
-        const b = boardRes.result as {
-          logo_url?: string;
-          theme?: string;
-          name?: string;
-        };
-        if (b.logo_url) patch.logoUrl = b.logo_url;
-        if (b.theme && BOARD_THEMES[b.theme]) {
-          patch.themePreset = b.theme;
-          patch.primaryColor = BOARD_THEMES[b.theme].primary;
-          patch.secondaryColor = BOARD_THEMES[b.theme].secondary;
-          patch.tertiaryColor = BOARD_THEMES[b.theme].tertiary;
-          patch.primaryPaint = null;
-          patch.secondaryPaint = null;
-          patch.tertiaryPaint = null;
-        }
-        if (b.name) {
-          patch.wordmark = b.name;
-          patch.lobbyTitle = b.name;
-        }
-      }
-    } catch {
-      // Board import is best-effort; continue with manual brand fields.
-    }
-  }
 
   if (
     body.themePreset &&

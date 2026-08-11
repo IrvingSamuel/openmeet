@@ -4,7 +4,7 @@ import { rm } from "fs/promises";
 import path from "path";
 import { db } from "@/db";
 import {
-  chronosIdentities,
+  users,
   identityBrands,
   roomBrands,
   rooms,
@@ -42,10 +42,9 @@ export type CreatedRoomResult = {
 };
 
 function publicOrigin(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    "https://meet.chronos.com.pt"
-  );
+  const url = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (!url) throw new Error("NEXT_PUBLIC_APP_URL is required");
+  return url;
 }
 
 export function roomJoinUrl(slug: string): { url: string; joinPath: string } {
@@ -55,7 +54,7 @@ export function roomJoinUrl(slug: string): { url: string; joinPath: string } {
 
 function defaultBrandValues(title: string, themePreset?: string) {
   const preset =
-    themePreset && BOARD_THEMES[themePreset] ? themePreset : "violet";
+    themePreset && BOARD_THEMES[themePreset] ? themePreset : "sky";
   const colors = BOARD_THEMES[preset];
   return {
     themePreset: preset,
@@ -64,7 +63,7 @@ function defaultBrandValues(title: string, themePreset?: string) {
     tertiaryColor: colors.tertiary,
     wordmark: title,
     lobbyTitle: title,
-    lobbySubtitle: "Powered by Chronos Meet",
+    lobbySubtitle: "Powered by OpenMeet",
   };
 }
 
@@ -75,14 +74,14 @@ function identityBrandToRoomValues(
   return {
     logoUrl: row.logoUrl,
     wordmark: row.wordmark || title,
-    themePreset: row.themePreset || "violet",
+    themePreset: row.themePreset || "sky",
     primaryColor: row.primaryColor,
     secondaryColor: row.secondaryColor,
     tertiaryColor: row.tertiaryColor,
     fontFamily: row.fontFamily,
     background: row.background,
     lobbyTitle: row.lobbyTitle || title,
-    lobbySubtitle: row.lobbySubtitle || "Powered by Chronos Meet",
+    lobbySubtitle: row.lobbySubtitle || "Powered by OpenMeet",
     faviconUrl: row.faviconUrl,
     customCss: row.customCss,
     primaryPaint: row.primaryPaint,
@@ -173,32 +172,36 @@ export async function createRoomWithBrand(
 
 export async function resolveOwnerIdentityId(args: {
   owner_identity_id?: string;
-  chronos_user_id?: string;
+  owner_user_id?: string;
+  external_id?: string;
   title?: string;
 }): Promise<string> {
-  if (args.owner_identity_id) {
-    const existing = await db.query.chronosIdentities.findFirst({
-      where: eq(chronosIdentities.id, args.owner_identity_id),
+  const ownerId = args.owner_identity_id || args.owner_user_id;
+  if (ownerId) {
+    const existing = await db.query.users.findFirst({
+      where: eq(users.id, ownerId),
     });
     if (!existing) throw new Error("owner_identity_id not found");
     return existing.id;
   }
 
-  if (!args.chronos_user_id) {
-    throw new Error("owner_identity_id or chronos_user_id required");
+  if (!args.external_id) {
+    throw new Error("owner_identity_id or external_id required");
   }
 
-  const chronosUserId = String(args.chronos_user_id);
-  const existing = await db.query.chronosIdentities.findFirst({
-    where: eq(chronosIdentities.chronosUserId, chronosUserId),
+  const externalId = String(args.external_id);
+  const existing = await db.query.users.findFirst({
+    where: eq(users.externalId, externalId),
   });
   if (existing) return existing.id;
 
   const [row] = await db
-    .insert(chronosIdentities)
+    .insert(users)
     .values({
-      chronosUserId,
-      name: args.title ? "Chronos user" : undefined,
+      externalId,
+      name: args.title ? "API user" : "API user",
+      role: "user",
+      createdVia: "local",
     })
     .returning();
   return row.id;

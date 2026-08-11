@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
     const locale = await resolveLocale();
     const lang = localePromptLabel(locale);
     const prevAgenda = cache?.agenda?.trim();
-    const prompt = `Você é o copiloto Chronos Meet durante uma reunião ao vivo (${lang}).
+    const prompt = `Você é o copiloto OpenMeet durante uma reunião ao vivo (${lang}).
 Actualize a pauta com base no delta recente da transcrição.
 Produza no máximo 3 itens curtos por categoria. Seja concreto — evite generalidades.
 Escreva em ${lang}.
@@ -269,7 +269,7 @@ Responda APENAS com um bloco <insights>...</insights> contendo JSON:
       }),
     );
   } catch (err) {
-    console.error("[chronos-meet] insights generation failed", err);
+    console.error("[openmeet] insights generation failed", err);
     await releaseInsights(meeting.id);
     return NextResponse.json(
       jsonFromCache(cache, {

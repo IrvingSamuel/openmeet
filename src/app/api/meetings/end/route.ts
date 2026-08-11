@@ -20,7 +20,7 @@ async function evictEveryone(livekitRoomName: string) {
     return;
   } catch (err) {
     console.warn(
-      "[chronos-meet] deleteRoom failed, trying removeParticipant",
+      "[openmeet] deleteRoom failed, trying removeParticipant",
       err,
     );
   }
@@ -32,7 +32,7 @@ async function evictEveryone(livekitRoomName: string) {
     );
   } catch (err) {
     console.warn(
-      "[chronos-meet] list/remove participants after deleteRoom",
+      "[openmeet] list/remove participants after deleteRoom",
       err,
     );
   }
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   try {
     await stopMeetingRecording({ meetingId: body.meetingId, force: true });
   } catch (err) {
-    console.warn("[chronos-meet] stop recording on end meeting", err);
+    console.warn("[openmeet] stop recording on end meeting", err);
   }
 
   await endMeetingRow(body.meetingId);
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   try {
     await evictEveryone(room.livekitRoomName);
   } catch (err) {
-    console.error("[chronos-meet] failed to evict LiveKit room", err);
+    console.error("[openmeet] failed to evict LiveKit room", err);
     return NextResponse.json({ error: "evict_failed" }, { status: 502 });
   }
 

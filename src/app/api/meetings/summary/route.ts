@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       ...result,
     });
   } catch (err) {
-    console.error("[chronos-meet] summary failed", err);
+    console.error("[openmeet] summary failed", err);
     await db
       .update(meetings)
       .set({ summaryStatus: "failed" })

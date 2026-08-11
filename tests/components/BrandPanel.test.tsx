@@ -13,7 +13,7 @@ const INITIAL = {
   tertiaryColor: "#d946ef",
   background: "#0b1020",
   lobbyTitle: "Weekly de produto",
-  lobbySubtitle: "Powered by Chronos Meet",
+  lobbySubtitle: "Powered by OpenMeet",
   logoUrl: null,
   customCss: null,
 };

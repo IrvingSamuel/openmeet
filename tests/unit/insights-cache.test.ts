@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { isPersonalBoard } from "@/lib/chronos-boards";
+import { isPersonalBoard } from "@/lib/boards";
 import {
   appendInsightsHistory,
   formatInsightsHistoryForPrompt,

@@ -166,7 +166,7 @@ export async function POST(
       boardId: meeting.boardId,
     });
   } catch (err) {
-    console.error("[chronos-meet] syncRoomMetadata failed", err);
+    console.error("[openmeet] syncRoomMetadata failed", err);
   }
 
   await activateMeetingIfScheduled(meeting.id);
@@ -193,7 +193,7 @@ export async function POST(
     if (started.ok) {
       autoRecordingId = started.recording.id;
     } else {
-      console.warn("[chronos-meet] auto recording start failed", started.error);
+      console.warn("[openmeet] auto recording start failed", started.error);
     }
   }
 

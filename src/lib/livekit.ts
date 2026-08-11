@@ -5,7 +5,7 @@ import {
   WebhookReceiver,
 } from "livekit-server-sdk";
 
-export const AGENT_LIVEKIT_IDENTITY = "agent-chronos";
+export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
 
 export function getLiveKitCreds() {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -21,7 +21,10 @@ export function getLiveKitCreds() {
 export function getLiveKitHttpHost() {
   if (process.env.LIVEKIT_HTTP_URL) return process.env.LIVEKIT_HTTP_URL;
   const { url } = getLiveKitCreds();
-  if (url.includes("meet.chronos.com.pt") || url.includes("127.0.0.1")) {
+  if (
+    url.includes("openmeet.chronos.com.pt") ||
+    url.includes("127.0.0.1")
+  ) {
     return "http://127.0.0.1:7880";
   }
   return url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");

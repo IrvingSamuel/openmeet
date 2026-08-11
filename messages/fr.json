@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "Chronos Meet — Visioconférence intelligente white-label",
-    "titleTemplate": "%s · Chronos Meet",
-    "description": "Visioconférence open-source avec votre identité visuelle, sous-titres en direct et un copilote qui transforme les réunions en tâches Chronos.",
-    "ogTitle": "Chronos Meet — Visioconférence intelligente white-label",
-    "ogDescription": "Salles à l'image de votre entreprise, sous-titres en direct et compte rendu automatique intégré au tableau Chronos.",
+    "title": "OpenMeet — Visioconférence intelligente white-label",
+    "titleTemplate": "%s · OpenMeet",
+    "description": "Visioconférence open-source avec votre identité visuelle, sous-titres en direct et un copilote qui transforme les réunions en résumés et webhooks actionnables.",
+    "ogTitle": "OpenMeet — Visioconférence intelligente white-label",
+    "ogDescription": "Salles à l'image de votre entreprise, sous-titres en direct et compte rendu automatique envoyable vers des outils externes via webhooks.",
     "loadingSummary": "Chargement du résumé…",
     "verifyingSession": "Vérification de votre session…",
     "establishingConnection": "Établissement d'une connexion sécurisée…",
@@ -41,7 +41,7 @@
       "refresh": "Actualiser",
       "select": "Sélectionner…",
       "none": "Personne",
-      "createInChronos": "Créer {count} dans Chronos",
+      "createInChronos": "Envoyer {count} via webhook",
       "install": "Installer",
       "delete": "Supprimer"
     },
@@ -51,7 +51,7 @@
       "invite": "Privée (approuver l'entrée)",
       "hintInvite": "Les invités demandent l'entrée ; l'hôte approuve dans le panneau Personnes.",
       "hintPublic": "Toute personne avec le lien peut rejoindre.",
-      "hintMembers": "Une connexion Chronos est requise."
+      "hintMembers": "Une connexion est requise."
     },
     "badges": {
       "linkedBoard": "tableau lié",
@@ -173,15 +173,15 @@
   },
   "landing": {
     "hero": {
-      "badge": "LiveKit SFU + copilote Chronos",
+      "badge": "LiveKit SFU + copilote OpenMeet",
       "titleLine1": "Des réunions avec",
       "titleLine2": "votre marque,",
       "titleLine3": "pas la nôtre.",
-      "subtitle": "Visioconférence open-source hébergée sur votre domaine. Chaque salle hérite du logo, des couleurs et de la typographie du tableau Chronos — et vous quittez la réunion avec compte rendu, décisions et tâches déjà créées.",
+      "subtitle": "Visioconférence open-source hébergée sur votre domaine. Chaque salle hérite du logo, des couleurs et de la typographie — et vous quittez la réunion avec compte rendu, décisions et tâches prêts pour les webhooks ou outils externes.",
       "ctaCreate": "Créer une salle maintenant",
       "ctaHow": "Voir comment ça marche",
       "ctaOpenSource": "Télécharger l'open source",
-      "ctaOpenSourceAria": "Télécharger Chronos Meet sur GitHub — open source MIT",
+      "ctaOpenSourceAria": "Télécharger OpenMeet sur GitHub — open source MIT",
       "ctaOpenSourceHint": "MIT · forkez, remixez et hébergez en toute liberté créative — pensé pour la communauté dev.",
       "statLatencyLabel": "latence médiane du SFU",
       "statLatencySuffix": " ms",
@@ -200,7 +200,7 @@
       "item2Title": "Sous-titres en direct en pt-BR",
       "item2Body": "Transcription en temps réel via Deepgram Nova-3 multilingue, livrée par les data channels LiveKit.",
       "item3Title": "Compte rendu et tâches automatiques",
-      "item3Body": "À la fin, le copilote résume les décisions et ouvre des cartes sur le tableau Chronos via MCP.",
+      "item3Body": "À la fin, le copilote résume les décisions et émet des tâches pour les webhooks ou outils externes.",
       "item4Title": "Souveraineté des données",
       "item4Body": "SFU propre sur votre VPS, E2E optionnel et aucun média transitant par des tiers.",
       "item5Title": "Sans plugin, sans app",
@@ -212,7 +212,7 @@
       "eyebrow": "Moteur de marque",
       "titleBefore": "Toute la salle",
       "titleGradient": "devient votre client",
-      "description": "Chronos Meet lit l'identité visuelle du tableau et propage les tokens CSS au lobby, à la grille, aux contrôles et aux sous-titres. Changez un preset et voyez l'interface se transformer."
+      "description": "OpenMeet lit votre identité visuelle et propage les tokens CSS au lobby, à la grille, aux contrôles et aux sous-titres. Changez un preset et voyez l'interface se transformer."
     },
     "copilot": {
       "eyebrow": "Copilote",
@@ -226,7 +226,7 @@
       "stepReasonLabel": "Synthèse",
       "stepReasonCaption": "Gemini 2.5 Flash sépare décisions, risques et responsables.",
       "stepActLabel": "Action",
-      "stepActCaption": "Les cartes naissent sur le tableau Chronos via MCP, avec propriétaire et échéance.",
+      "stepActCaption": "Les tâches sont émises via webhooks vers des outils externes, avec propriétaire et échéance.",
       "connectedTitle": "Copilote connecté",
       "connectedBody": "Participant invisible, sans audio ni vidéo publiés.",
       "transcript1": "Ana : le pilote Vestra doit être clos vendredi.",
@@ -262,8 +262,8 @@
       "nameApp": "Next.js 15",
       "nameState": "PostgreSQL",
       "nameCopilot": "LiveKit Agents",
-      "nameIdentity": "Chronos OAuth",
-      "nameIntegration": "Chronos MCP",
+      "nameIdentity": "Auth locale / OIDC",
+      "nameIntegration": "Webhooks sortants",
       "detailMedia": "Go · self-hosted",
       "detailApp": "React 19 · App Router",
       "detailState": "Drizzle ORM",
@@ -276,18 +276,18 @@
       "titleGradient": "avec le tableau déjà à jour.",
       "body": "Créez une salle, importez l'identité du tableau et invitez par lien. Moins d'une minute.",
       "openDashboard": "Ouvrir le tableau de bord",
-      "loginChronos": "Se connecter avec Chronos",
+      "loginChronos": "Se connecter",
       "openSource": "Code libre sur GitHub",
-      "openSourceAria": "Ouvrir le dépôt open source de Chronos Meet"
+      "openSourceAria": "Ouvrir le dépôt open source d'OpenMeet"
     },
     "footer": {
-      "tagline": "Open-source · hébergé sur meet.chronos.com.pt",
+      "tagline": "Open-source · hébergé sur openmeet.chronos.com.pt",
       "panel": "Tableau de bord",
       "status": "Statut",
       "github": "GitHub"
     },
     "roomPreview": {
-      "ariaLabel": "Aperçu animé d'une salle Chronos Meet",
+      "ariaLabel": "Aperçu animé d'une salle OpenMeet",
       "demoUrl": "meet.votreentreprise.com",
       "recording": "REC 12:04",
       "script1Speaker": "Ana",
@@ -325,8 +325,8 @@
     "waitingApprovalTitle": "En attente de l'approbation de l'hôte…",
     "waitingApprovalBody": "La salle est privée. Vous entrerez dès que l'hôte approuvera.",
     "hostLoginHintTitle": "Hôte de cette salle ?",
-    "hostLoginHintBody": "Connectez-vous avec Chronos pour gérer la salle et approuver les demandes d'entrée.",
-    "loginChronos": "Se connecter avec Chronos",
+    "hostLoginHintBody": "Connectez-vous pour gérer la salle et approuver les demandes d'entrée.",
+    "loginChronos": "Se connecter",
     "cancelRequest": "Annuler la demande",
     "joining": "Connexion…",
     "joinMeeting": "Rejoindre la réunion",
@@ -346,7 +346,7 @@
   },
   "offline": {
     "title": "Pas de connexion réseau",
-    "body": "Chronos Meet a besoin d'Internet pour la visioconférence. Vérifiez la connexion et réessayez.",
+    "body": "OpenMeet a besoin d'Internet pour la visioconférence. Vérifiez la connexion et réessayez.",
     "backHome": "Retour à l'accueil"
   },
   "dashboard": {
@@ -356,16 +356,16 @@
     "newRoom": "Nouvelle salle",
     "statRooms": "Salles",
     "statMeetings": "Réunions",
-    "statCopilot": "Compte Chronos",
+    "statCopilot": "Compte",
     "yourRooms": "Vos salles",
     "filterPlaceholder": "Filtrer par nom ou slug",
     "filterAria": "Filtrer les salles",
     "meetingHistory": "Historique des réunions",
-    "meetingHistoryHint": "Résumés des réunions que vous avez créées ou auxquelles vous avez participé avec votre compte Chronos.",
+    "meetingHistoryHint": "Résumés des réunions que vous avez créées ou auxquelles vous avez participé avec votre compte.",
     "participatedBadge": "Participant",
     "roomCreated": "Salle /{slug} créée.",
     "roomUpdated": "Salle mise à jour : « {title} ».",
-    "mcpUpdated": "Jeton MCP mis à jour.",
+    "mcpUpdated": "Paramètres d'intégration mis à jour.",
     "loadFailed": "Impossible de charger le tableau de bord.",
     "renameRoom": "Renommer la salle",
     "brand": "Marque",
@@ -389,7 +389,7 @@
       "title": "Nouvelle salle",
       "description": "Le slug est généré à partir du titre. Lier un tableau importe l'identité visuelle automatiquement.",
       "titleLabel": "Titre de la réunion",
-      "boardIdLabel": "Board ID Chronos",
+      "boardIdLabel": "ID de tableau / projet externe",
       "boardIdHint": "Collez l'ID du tableau pour hériter du logo et de la palette.",
       "submit": "Créer la salle",
       "createFailed": "Impossible de créer la salle.",
@@ -404,15 +404,15 @@
       "networkFailed": "Erreur réseau lors de la mise à jour de la salle."
     },
     "mcpModal": {
-      "title": "Intégration Chronos MCP",
-      "description": "Votre compte Chronos connecté peut déjà créer des tâches sur le tableau après la réunion.",
-      "tokenLabel": "Jeton MCP",
-      "tokenHint": "Générez-le dans Chronos → Paramètres → Jetons API. Laissez vide et enregistrez pour supprimer."
+      "title": "Outils externes et webhooks",
+      "description": "Configurez les webhooks sortants pour que résumés et tâches atteignent vos outils externes.",
+      "tokenLabel": "Jeton API (facultatif)",
+      "tokenHint": "Jeton facultatif pour les intégrations externes. Laissez vide et enregistrez pour supprimer."
     },
     "signedOut": {
       "title": "Connectez-vous pour créer des salles",
-      "body": "Chronos Meet utilise votre compte Chronos pour authentifier et relier les réunions aux tableaux.",
-      "login": "Se connecter avec Chronos",
+      "body": "OpenMeet utilise des comptes locaux ou OIDC pour authentifier et relier les réunions à votre espace de travail.",
+      "login": "Se connecter",
       "backHome": "Retour à l'accueil"
     },
     "statConnected": "Connecté",
@@ -449,7 +449,7 @@
       "save": "Enregistrer la marque",
       "livePreview": "Aperçu en direct",
       "yourRoom": "Votre salle",
-      "defaultSubtitle": "Powered by Chronos Meet",
+      "defaultSubtitle": "Powered by OpenMeet",
       "loadFailed": "Impossible de charger la marque.",
       "saveFailed": "Impossible d'enregistrer.",
       "saveNetworkFailed": "Erreur réseau lors de l'enregistrement de la marque.",
@@ -505,8 +505,8 @@
       "emerald": "Emerald",
       "rose": "Rose",
       "amber": "Amber",
-      "sky": "Sky",
-      "violet": "Violet (par défaut)"
+      "sky": "Sky (par défaut)",
+      "violet": "Violet"
     },
     "paint": {
       "mode": "Mode de couleur",
@@ -552,7 +552,7 @@
       "hideCaptions": "Masquer les sous-titres",
       "showCaptions": "Afficher les sous-titres",
       "fullTranscript": "Transcription complète",
-      "copilot": "Copilote Chronos",
+      "copilot": "Copilote OpenMeet",
       "people": "Participants",
       "chat": "Chat",
       "leaveMeeting": "Quitter la réunion",
@@ -567,7 +567,7 @@
       "chat": "Chat",
       "people": "Participants",
       "captions": "Transcription",
-      "copilot": "Copilote Chronos",
+      "copilot": "Copilote OpenMeet",
       "chatEmpty": "Aucun message pour l'instant.",
       "chatPlaceholder": "Écrire un message",
       "chatAria": "Message",
@@ -590,7 +590,7 @@
       "copilotAria": "Question au Copilote",
       "sendQuestion": "Envoyer la question",
       "copilotReplied": "Le copilote a répondu à {name}",
-      "copilotName": "Copilote Chronos",
+      "copilotName": "Copilote OpenMeet",
       "voiceHint": "À l'écoute de « Ei Copiloto » — posez une question à voix ou écrivez dans l'onglet Discuter."
     },
     "forcedExit": {
@@ -619,13 +619,13 @@
   "summary": {
     "loading": "Chargement du résumé…",
     "noMeetingId": "Réunion sans identifiant",
-    "eyebrow": "Copilote Chronos",
+    "eyebrow": "Copilote OpenMeet",
     "title": "Résumé de la réunion",
-    "statusReady": "Relisez le résumé et choisissez les tâches à créer dans Chronos.",
+    "statusReady": "Relisez le résumé et choisissez les tâches à envoyer via webhooks ou outils externes.",
     "statusRunning": "Génération du résumé avec Gemini…",
     "statusFailed": "Échec de la génération — nouvelle tentative…",
     "statusPending": "Préparation du résumé…",
-    "mcpNeeded": "Reconnectez-vous avec votre compte Chronos pour créer des tâches.",
+    "mcpNeeded": "Reconnectez-vous pour envoyer des tâches vers des outils externes.",
     "mcpLink": "Se reconnecter",
     "billingWarning": "Crédits Gemini épuisés — le résumé LLM est passé en mode secours.",
     "billingReload": "Recharger dans AI Studio",
@@ -646,7 +646,7 @@
     "noAudioDetected": "Aucun audio n'a été détecté dans cette réunion.",
     "suggestedTasks": "Tâches suggérées",
     "noTasksReady": "Aucune tâche suggérée pour cette réunion.",
-    "createInChronos": "Créer {count} dans Chronos",
+    "createInChronos": "Envoyer {count} via webhook",
     "taskTitleAria": "Titre de la tâche",
     "descriptionPlaceholder": "Description",
     "board": "Tableau",
@@ -655,12 +655,12 @@
     "assigneeHint": "Suggestion : {hint}",
     "priority": "Priorité",
     "checklist": "Checklist (une ligne par élément)",
-    "chooseBoard": "Choisissez un tableau Chronos pour chaque tâche incluse.",
-    "mcpTokenRequired": "Reconnectez-vous avec votre compte Chronos pour créer des tâches (permission MCP).",
+    "chooseBoard": "Choisissez une destination pour chaque tâche incluse.",
+    "mcpTokenRequired": "Reconnectez-vous pour envoyer des tâches (permission webhook / intégration).",
     "pushFailed": "Échec de la création des tâches.",
     "pushNetworkFailed": "Erreur réseau lors de la création des tâches.",
     "pushPartial": "{ok} créées, {fail} échouées.",
-    "pushSuccess": "{count, plural, one {# tâche créée dans Chronos.} other {# tâches créées dans Chronos.}}",
+    "pushSuccess": "{count, plural, one {# tâche envoyée via webhook.} other {# tâches envoyées via webhook.}}",
     "exportTitle": "Résumé de la réunion — {slug}",
     "exportUnavailable": "_Résumé pas encore disponible._",
     "exportNoSegments": "_(aucun segment transcrit)_",
@@ -679,7 +679,8 @@
       "general": "Général",
       "ai": "IA",
       "webhooks": "Webhooks",
-      "recording": "Enregistrement"
+      "recording": "Enregistrement",
+      "ui": "UI"
     },
     "loadFailed": "Impossible de charger l’administration.",
     "saveFailed": "Impossible d’enregistrer.",
@@ -696,7 +697,7 @@
     "backToDashboard": "Retour au tableau de bord",
     "sessionRequired": {
       "title": "Connexion requise",
-      "body": "Connectez-vous avec votre compte Chronos pour accéder à l’administration.",
+      "body": "Connectez-vous avec votre compte pour accéder à l’administration.",
       "login": "Se connecter"
     },
     "forbidden": {
@@ -737,7 +738,7 @@
       "urlHint": "POST JSON pour chaque événement activé.",
       "secretLabel": "Secret HMAC",
       "secretConfiguredHint": "Configuré : {preview}. Laissez vide pour conserver.",
-      "secretHint": "Signature dans X-Chronos-Meet-Signature (sha256=…).",
+      "secretHint": "Signature dans X-OpenMeet-Signature (sha256=…).",
       "secretPlaceholder": "whsec_…",
       "eventsHeading": "Quoi envoyer",
       "events": {
@@ -795,6 +796,21 @@
       "clearS3Access": "Effacer access key",
       "clearS3Secret": "Effacer secret key",
       "egressNote": "Egress nécessite le service livekit/egress (voir infra/docker-compose.egress.yml). Ne pas exécuter sur un VPS 4 vCPU sans nœud dédié."
+    },
+    "ui": {
+      "title": "System appearance",
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "tertiary": "Tertiary",
+      "background": "Background",
+      "ink": "Text",
+      "wordmark": "Wordmark",
+      "logoUrl": "Logo URL",
+      "faviconUrl": "Favicon URL",
+      "fontFamily": "Font family",
+      "deploymentMode": "Deployment mode",
+      "allowSignup": "Allow public signup",
+      "preview": "Preview"
     }
   },
   "settings": {
@@ -803,8 +819,8 @@
     "description": "Cette identité visuelle s’applique aux nouvelles salles et réunions instantanées lorsque vous ne remplacez pas la marque.",
     "signedOut": {
       "title": "Connectez-vous pour modifier les paramètres",
-      "body": "Votre compte Chronos stocke l’UI white-label par défaut pour les réunions instantanées.",
-      "login": "Se connecter avec Chronos"
+      "body": "Votre compte stocke l’UI white-label par défaut pour les réunions instantanées.",
+      "login": "Se connecter"
     }
   },
   "roomTemplate": {
@@ -816,5 +832,36 @@
     "notFound": "Modèle introuvable",
     "startFailed": "Impossible de démarrer la réunion.",
     "startNetworkFailed": "Erreur réseau lors du démarrage de la réunion."
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "registerTitle": "Create account",
+    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "setupTitle": "Initial setup",
+    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signInOidc": "Sign in with SSO (OIDC)",
+    "needAccount": "Need an account? Sign up",
+    "haveAccount": "Already have an account? Sign in",
+    "working": "Please wait…",
+    "createAdmin": "Create admin",
+    "deploymentMode": "Deployment mode",
+    "modePlatform": "Platform — multiple users",
+    "modeServer": "Server — single admin",
+    "errors": {
+      "invalid_credentials": "Invalid email or password.",
+      "invalid_body": "Check the form fields.",
+      "email_taken": "This email is already registered.",
+      "signup_disabled": "Public signup is disabled.",
+      "setup_required": "Complete initial setup first.",
+      "setup_already_done": "Setup is already complete.",
+      "password_too_short": "Password must be at least 8 characters.",
+      "auth_failed": "Authentication failed.",
+      "setup_failed": "Setup failed."
+    }
   }
 }

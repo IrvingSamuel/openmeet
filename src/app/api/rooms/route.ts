@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { rooms } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { createRoomWithBrand } from "@/lib/rooms";
+import { assertCanCreateMeeting } from "@/lib/deployment-mode";
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -28,14 +29,15 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session.isLoggedIn || !session.identityId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await assertCanCreateMeeting(session);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
   }
 
   const body = createSchema.parse(await req.json());
   const { room } = await createRoomWithBrand({
     title: body.title,
-    ownerIdentityId: session.identityId,
+    ownerIdentityId: session.identityId!,
     slug: body.slug,
     boardId: body.boardId,
     accessPolicy: body.accessPolicy,

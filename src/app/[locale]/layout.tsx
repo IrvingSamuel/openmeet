@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { HtmlLang } from "@/components/layout/HtmlLang";
+import { SystemThemeProvider } from "@/components/layout/SystemThemeProvider";
 
 const OG_LOCALE: Record<AppLocale, string> = {
   en: "en_US",
@@ -39,14 +40,14 @@ export async function generateMetadata({
       title: t("ogTitle"),
       description: t("ogDescription"),
       locale: OG_LOCALE[locale],
-      siteName: "Chronos Meet",
+      siteName: "OpenMeet",
       type: "website",
       images: [
         {
           url: "/Chronos_Meet_Logo.png",
           width: 1000,
           height: 1000,
-          alt: "Chronos Meet",
+          alt: "OpenMeet",
         },
       ],
     },
@@ -75,7 +76,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider messages={messages}>
       <HtmlLang locale={locale} />
-      {children}
+      <SystemThemeProvider>{children}</SystemThemeProvider>
     </NextIntlClientProvider>
   );
 }

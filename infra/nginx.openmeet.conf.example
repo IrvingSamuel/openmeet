@@ -1,0 +1,92 @@
+server {
+  listen 80;
+  listen [::]:80;
+  listen 443 quic;
+  listen 443 ssl;
+  listen [::]:443 quic;
+  listen [::]:443 ssl;
+  http2 on;
+  http3 off;
+  ssl_certificate /etc/nginx/ssl-certificates/openmeet.chronos.com.pt.crt;
+  ssl_certificate_key /etc/nginx/ssl-certificates/openmeet.chronos.com.pt.key;
+  server_name openmeet.chronos.com.pt;
+  root /home/chronos-meet/htdocs/openmeet.chronos.com.pt;
+
+  access_log /home/chronos-meet/logs/nginx/openmeet-access.log main;
+  error_log /home/chronos-meet/logs/nginx/openmeet-error.log;
+
+  if ($scheme != "https") {
+    rewrite ^ https://$host$request_uri permanent;
+  }
+
+  location ^~ /.well-known/acme-challenge/ {
+    default_type "text/plain";
+    root /home/chronos-meet/htdocs/openmeet.chronos.com.pt;
+    allow all;
+  }
+
+  include /etc/nginx/global_settings;
+
+  index index.html;
+
+  # LiveKit signaling (shared SFU with meet.chronos.com.pt)
+  location /rtc {
+    proxy_pass http://127.0.0.1:7880/rtc;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 3600;
+    proxy_send_timeout 3600;
+    proxy_buffering off;
+  }
+
+  location /twirp {
+    proxy_pass http://127.0.0.1:7880/twirp;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /agent {
+    proxy_pass http://127.0.0.1:7880/agent;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 3600;
+    proxy_send_timeout 3600;
+    proxy_buffering off;
+  }
+
+  location / {
+    proxy_pass http://127.0.0.1:3332/;
+    proxy_http_version 1.1;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Server $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_pass_request_headers on;
+    proxy_max_temp_file_size 0;
+    proxy_connect_timeout 900;
+    proxy_send_timeout 900;
+    proxy_read_timeout 900;
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+    proxy_temp_file_write_size 256k;
+  }
+}

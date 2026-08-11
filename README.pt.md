@@ -1,16 +1,16 @@
 [English](README.md) · [Português](README.pt.md)
 
-# Chronos Meet
+# OpenMeet
 
-Videoconferência white-label open-source da Chronos em `https://meet.chronos.com.pt`.
+Videoconferência white-label open-source em `https://openmeet.chronos.com.pt`.
 
 > **Branch pública:** use **`release`** (padrão no GitHub). `main` e `dev` são protegidas.
 
 ## Stack
 
-- **Next.js 15** (App Router) na porta `3331`
-- **LiveKit SFU** (Docker, host network) — signaling `:7880`, mídia UDP `50000–50200`, TURN/TLS `:5361`
-- **Postgres** `chronos_meet` em `:5433`
+- **Next.js 15** (App Router) na porta `3332`
+- **LiveKit SFU** (Docker) — signaling, mídia, TURN
+- **Postgres** `openmeet`
 - **Copiloto** Python (LiveKit Agents + Deepgram)
 
 ## Quick start
@@ -30,49 +30,34 @@ Agent (opcional, precisa `DEEPGRAM_API_KEY`):
 cd agent
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
-# PM2 sobe chronos-meet-agent via ecosystem
+# PM2 sobe openmeet-agent via ecosystem
 ```
+
+## Auth e modos de deploy
+
+| Variável | Função |
+|----------|--------|
+| `DEPLOYMENT_MODE` | `server` (self-host) ou `platform` |
+| `ALLOW_SIGNUP` | Permite registo local email/password |
+| `OIDC_*` | OIDC opcional para SSO |
+
+Auth local funciona de imediato; OIDC é opcional.
 
 ## Gravação
 
-Activar em `/admin` → **Gravação**: motor `browser` (recomendado nesta VPS) ou `egress` (LiveKit); controlo manual/automático; storage local ou S3 (preferir MinIO para testes Egress).
-
-Egress nesta VPS: **só testes curtos**, depois `down`:
-
-```bash
-cd infra
-docker compose -f docker-compose.egress.yml up -d
-# … teste …
-docker compose -f docker-compose.egress.yml down
-```
+Activar em `/admin` → **Gravação**: motor `browser` ou `egress`; controlo manual/automático; storage local ou S3.
 
 ## Qualidade
 
 ```bash
 npm run verify        # typecheck + lint + testes
-npm run test:watch    # vitest em watch
-npm run test:coverage # cobertura v8
+npm run test:watch
+npm run test:coverage
 ```
-
-A suíte cobre os helpers de marca/layout/legendas, as primitivas de UI, o
-lobby, o dashboard, o painel de marca e as rotas de sala (guards de sessão e
-grants do token LiveKit). Testes de rota rodam em ambiente Node via
-`// @vitest-environment node`.
 
 ## UI
 
-O design system vive em `src/app/globals.css` (tokens, glass, aurora, grain) e
-`src/components/`:
-
-- `motion/primitives.tsx` — `Reveal`, `Magnetic`, `Spotlight`, `Tilt`,
-  `Aurora`, `AnimatedNumber`, `TextScramble` e as transições de morph
-  compartilhadas (`morphTransition`)
-- `ui/` — `Button`, `Field`, `Modal`, `Toast`, `Surface`, ícones
-- `room/` — grade que morfa entre grid e destaque (`Stage`), `ControlBar`,
-  `SidePanel` (chat, participantes, transcrição) e legendas
-
-Toda cor, fonte e fundo derivam das variáveis `--brand-*`, então o
-white-label por sala repinta inclusive os componentes do LiveKit.
+O design system vive em `src/app/globals.css` e `src/components/`. Cores, fontes e fundo derivam de `--brand-*` (white-label por sala).
 
 ## Docs
 
@@ -82,15 +67,12 @@ white-label por sala repinta inclusive os componentes do LiveKit.
 - [Roadmap](docs/03-roadmap.md)
 - ADRs em `docs/adr/`
 
-## Integração Chronos
+## Integrações
 
-1. Cliente OAuth já criado: `meet.chronos.com.pt` → callback `/api/auth/callback/chronos`
-2. Login OAuth com scope `chronos:mcp` — o Meet usa o access token da conta para criar tarefas (sem token MCP manual)
-3. Ferramentas Meet MCP em `POST /api/mcp` (`meet_create_room`, `meet_get_transcript`)
-4. API de reuniões instantâneas: `POST /api/v1/instant-meetings` — documentação Redoc em `/api-docs`
+1. Webhooks de saída em `/admin` (assinatura `X-OpenMeet-*`)
+2. API de reuniões instantâneas: `POST /api/v1/instant-meetings` — Redoc em `/api-docs`
 
 ## Ops
 
-- Cert reload: `scripts/reload-livekit-certs.sh` (hook pós-renovação CloudPanel)
 - Capacidade: `scripts/capacity-snapshot.sh`
-- Métricas: `http://127.0.0.1:6789/metrics`
+- Apps PM2: `openmeet` + `openmeet-agent` (porta `3332`)

@@ -42,7 +42,7 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("signedOut.title")}</h1>
           <p className="mt-3 text-sm text-ink-muted">{t("signedOut.body")}</p>
           <div className="mt-8 flex justify-center gap-3">
-            <a href="/api/auth/login">
+            <a href="/login">
               <Button>{t("signedOut.login")}</Button>
             </a>
             <Link href="/">

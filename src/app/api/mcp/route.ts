@@ -21,10 +21,16 @@ async function meetCreateRoom(args: {
   title: string;
   board_id?: string;
   owner_identity_id?: string;
+  owner_user_id?: string;
+  external_id?: string;
   chronos_user_id?: string;
   slug?: string;
 }) {
-  const ownerIdentityId = await resolveOwnerIdentityId(args);
+  const ownerIdentityId = await resolveOwnerIdentityId({
+    owner_identity_id: args.owner_identity_id || args.owner_user_id,
+    external_id: args.external_id || args.chronos_user_id,
+    title: args.title,
+  });
   const { room, url } = await createRoomWithBrand({
     title: args.title,
     ownerIdentityId,
@@ -109,7 +115,7 @@ export async function POST(req: NextRequest) {
           {
             name: "meet_create_room",
             description:
-              "Create a Chronos Meet room and return its join URL. Prefer chronos_user_id when calling from Chronos Organizador.",
+              "Create an OpenMeet room and return its join URL.",
             inputSchema: {
               type: "object",
               properties: {

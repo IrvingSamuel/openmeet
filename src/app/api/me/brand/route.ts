@@ -10,16 +10,16 @@ import {
 } from "@/lib/brand-schema";
 
 function defaultIdentityBrand(identityId: string) {
-  const colors = BOARD_THEMES.violet;
+  const colors = BOARD_THEMES.sky;
   return {
     identityId,
-    themePreset: "violet",
+    themePreset: "sky",
     primaryColor: colors.primary,
     secondaryColor: colors.secondary,
     tertiaryColor: colors.tertiary,
-    wordmark: "Chronos Meet",
-    lobbyTitle: "Chronos Meet",
-    lobbySubtitle: "Powered by Chronos Meet",
+    wordmark: "OpenMeet",
+    lobbyTitle: "OpenMeet",
+    lobbySubtitle: "Powered by OpenMeet",
   };
 }
 

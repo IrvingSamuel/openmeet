@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const session = { isLoggedIn: false, identityId: undefined as string | undefined };
 const identityBrandsFindFirst = vi.fn();
 const insertReturning = vi.fn();
-const chronosIdentitiesFindFirst = vi.fn();
+const usersFindFirst = vi.fn();
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
@@ -22,8 +22,8 @@ vi.mock("@/db", () => ({
       rooms: {
         findFirst: vi.fn(),
       },
-      chronosIdentities: {
-        findFirst: (...args: unknown[]) => chronosIdentitiesFindFirst(...args),
+      users: {
+        findFirst: (...args: unknown[]) => usersFindFirst(...args),
       },
     },
     insert: () => ({
@@ -49,7 +49,7 @@ beforeEach(() => {
   session.identityId = undefined;
   identityBrandsFindFirst.mockReset();
   insertReturning.mockReset();
-  chronosIdentitiesFindFirst.mockReset();
+  usersFindFirst.mockReset();
   identityBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
   delete process.env.AGENT_SHARED_SECRET;
@@ -97,7 +97,7 @@ describe("POST /api/v1/instant-meetings", () => {
 
   it("creates via bearer + chronos_user_id", async () => {
     process.env.MEET_MCP_TOKEN = "secret-token";
-    chronosIdentitiesFindFirst.mockResolvedValue({ id: "owner-1" });
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
     insertReturning
       .mockResolvedValueOnce([
         {

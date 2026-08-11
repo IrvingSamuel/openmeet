@@ -13,6 +13,8 @@ const schema = z.object({
   room_id: z.string().uuid().optional(),
   owner_identity_id: z.string().uuid().optional(),
   chronos_user_id: z.string().min(1).optional(),
+  owner_user_id: z.string().uuid().optional(),
+  external_id: z.string().min(1).optional(),
   ui: brandFieldsSchema.optional(),
 });
 
@@ -39,13 +41,17 @@ export async function POST(req: NextRequest) {
     if (
       session.isLoggedIn &&
       session.identityId &&
-      (!bearerOk || (!body.owner_identity_id && !body.chronos_user_id))
+      (!bearerOk ||
+        (!body.owner_identity_id &&
+          !body.owner_user_id &&
+          !body.external_id &&
+          !body.chronos_user_id))
     ) {
       ownerIdentityId = session.identityId;
     } else if (bearerOk) {
       ownerIdentityId = await resolveOwnerIdentityId({
-        owner_identity_id: body.owner_identity_id,
-        chronos_user_id: body.chronos_user_id,
+        owner_identity_id: body.owner_identity_id || body.owner_user_id,
+        external_id: body.external_id || body.chronos_user_id,
         title: body.title,
       });
     } else {

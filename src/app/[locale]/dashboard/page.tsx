@@ -1203,7 +1203,7 @@ function SignedOut() {
             {t("title")}
           </h1>
           <p className="mt-2 text-sm text-ink-muted">{t("body")}</p>
-          <a href="/api/auth/login" className="mt-7 block">
+          <a href="/login" className="mt-7 block">
             <Button full size="lg" iconRight={<IconArrowRight />}>
               {t("login")}
             </Button>

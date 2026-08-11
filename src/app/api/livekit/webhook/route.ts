@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           force: true,
         }).catch((err) => {
           console.error(
-            "[chronos-meet] stop recording on room_finished",
+            "[openmeet] stop recording on room_finished",
             err,
           );
         });
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         // Never-started (scheduled) meetings skip webhooks/summary.
         if (wasActive) {
           void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
-            console.error("[chronos-meet] meeting-ended webhooks failed", err);
+            console.error("[openmeet] meeting-ended webhooks failed", err);
           });
 
           if (meeting.summaryStatus === "pending") {
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
                 ),
               );
             void generateMeetingSummary(meeting.id).catch(async (err) => {
-              console.error("[chronos-meet] webhook summary failed", err);
+              console.error("[openmeet] webhook summary failed", err);
               await db
                 .update(meetings)
                 .set({ summaryStatus: "failed" })

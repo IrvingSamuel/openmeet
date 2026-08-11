@@ -17,7 +17,7 @@ const PRESETS = Object.entries(BOARD_THEMES);
  */
 export function BrandShowcase() {
   const t = useTranslations("landing.brandShowcase");
-  const [preset, setPreset] = useState("violet");
+  const [preset, setPreset] = useState("sky");
   const [autoplay, setAutoplay] = useState(true);
 
   useEffect(() => {

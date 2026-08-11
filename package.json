@@ -1,16 +1,16 @@
 {
-  "name": "chronos-meet",
+  "name": "openmeet",
   "version": "1.2.0",
-  "description": "Open-source white-label videoconferencing with LiveKit, live captions, and a Chronos AI copilot that turns meetings into tasks.",
+  "description": "Open-source white-label videoconferencing with LiveKit, live captions, and an AI copilot that turns meetings into summaries and webhooks.",
   "license": "MIT",
   "private": false,
-  "homepage": "https://meet.chronos.com.pt",
+  "homepage": "https://openmeet.chronos.com.pt",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/IrvingSamuel/chronos-meet.git"
+    "url": "git+https://github.com/IrvingSamuel/openmeet.git"
   },
   "bugs": {
-    "url": "https://github.com/IrvingSamuel/chronos-meet/issues"
+    "url": "https://github.com/IrvingSamuel/openmeet/issues"
   },
   "keywords": [
     "videoconferencing",
@@ -21,16 +21,15 @@
     "nextjs",
     "open-source",
     "ai-copilot",
-    "chronos",
     "meetings"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "next dev -H 127.0.0.1 -p 3331",
+    "dev": "next dev -H 127.0.0.1 -p 3332",
     "build": "next build",
-    "start": "next start -H 127.0.0.1 -p 3331",
+    "start": "next start -H 127.0.0.1 -p 3332",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -47,6 +46,7 @@
     "@livekit/components-react": "^2.9.23",
     "@livekit/components-styles": "^1.2.0",
     "@serwist/next": "^9.5.12",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "iron-session": "^8.0.4",
@@ -73,6 +73,7 @@
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

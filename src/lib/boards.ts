@@ -1,6 +1,6 @@
-/** Chronos board helpers shared by summary UI and tests. */
+/** Generic board-like helpers (legacy Chronos board shape, optional). */
 
-export type ChronosBoardLike = {
+export type BoardLike = {
   board_id?: string;
   id?: string;
   is_shared?: boolean;
@@ -8,9 +8,7 @@ export type ChronosBoardLike = {
 };
 
 /** Personal board: not shared (fallback: single member). */
-export function isPersonalBoard(
-  b: ChronosBoardLike | undefined | null,
-): boolean {
+export function isPersonalBoard(b: BoardLike | undefined | null): boolean {
   if (!b) return false;
   if (b.is_shared === false) return true;
   if (b.is_shared === true) return false;

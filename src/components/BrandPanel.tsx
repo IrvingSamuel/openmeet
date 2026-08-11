@@ -484,7 +484,7 @@ export function BrandPanel({
             {t("livePreview")}
           </p>
           <Badge tone="brand" pulse>
-            {themeLabel(brand.themePreset || "violet")}
+            {themeLabel(brand.themePreset || "sky")}
           </Badge>
         </div>
 

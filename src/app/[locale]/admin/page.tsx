@@ -50,6 +50,17 @@ type WebhookEvents = {
 
 type AdminSettings = {
   locale: string;
+  deploymentMode?: "server" | "platform";
+  allowSignup?: boolean;
+  uiPrimary?: string;
+  uiSecondary?: string;
+  uiTertiary?: string;
+  uiBackground?: string;
+  uiInk?: string;
+  uiWordmark?: string;
+  uiLogoUrl?: string;
+  uiFaviconUrl?: string;
+  uiFontFamily?: string;
   geminiApiKey: SecretMask;
   geminiModel: string;
   geminiSummaryModel: string;
@@ -80,6 +91,7 @@ type Me = {
 
 const TABS = [
   { key: "general", icon: IconSettings },
+  { key: "ui", icon: IconSparkles },
   { key: "ai", icon: IconSparkles },
   { key: "recording", icon: IconVideo },
   { key: "webhooks", icon: IconBolt },
@@ -182,7 +194,26 @@ export default function AdminPage() {
 
   async function saveGeneral() {
     if (!settings) return;
-    await save({ locale: settings.locale });
+    await save({
+      locale: settings.locale,
+      deploymentMode: settings.deploymentMode || "platform",
+      allowSignup: settings.allowSignup !== false,
+    });
+  }
+
+  async function saveUi() {
+    if (!settings) return;
+    await save({
+      uiPrimary: settings.uiPrimary,
+      uiSecondary: settings.uiSecondary,
+      uiTertiary: settings.uiTertiary,
+      uiBackground: settings.uiBackground,
+      uiInk: settings.uiInk,
+      uiWordmark: settings.uiWordmark,
+      uiLogoUrl: settings.uiLogoUrl || null,
+      uiFaviconUrl: settings.uiFaviconUrl || null,
+      uiFontFamily: settings.uiFontFamily,
+    });
   }
 
   async function saveAi() {
@@ -298,7 +329,7 @@ export default function AdminPage() {
           <p className="mt-2 text-sm text-ink-muted">
             {t("sessionRequired.body")}
           </p>
-          <a href="/api/auth/login" className="mt-6 inline-block">
+          <a href="/login" className="mt-6 inline-block">
             <Button iconRight={<IconArrowRight className="h-4 w-4" />}>
               {t("sessionRequired.login")}
             </Button>
@@ -410,7 +441,108 @@ export default function AdminPage() {
                     </option>
                   ))}
                 </Select>
+                <Select
+                  label={t("ui.deploymentMode")}
+                  value={settings.deploymentMode || "platform"}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      deploymentMode: e.target.value as "server" | "platform",
+                    })
+                  }
+                >
+                  <option value="platform">platform</option>
+                  <option value="server">server</option>
+                </Select>
+                <label className="flex items-center gap-2 text-sm text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={settings.allowSignup !== false}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        allowSignup: e.target.checked,
+                      })
+                    }
+                  />
+                  {t("ui.allowSignup")}
+                </label>
                 <Button onClick={saveGeneral} disabled={saving}>
+                  {saving ? t("saving") : t("general.save")}
+                </Button>
+              </div>
+            ) : null}
+
+            {tab === "ui" ? (
+              <div className="max-w-xl space-y-5">
+                <p className="text-sm text-ink-muted">{t("ui.title")}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  {(
+                    [
+                      ["uiPrimary", "primary"],
+                      ["uiSecondary", "secondary"],
+                      ["uiTertiary", "tertiary"],
+                      ["uiBackground", "background"],
+                      ["uiInk", "ink"],
+                    ] as const
+                  ).map(([field, labelKey]) => (
+                    <Input
+                      key={field}
+                      label={t(`ui.${labelKey}`)}
+                      type="color"
+                      value={settings[field] || "#0ea5e9"}
+                      onChange={(e) =>
+                        setSettings({ ...settings, [field]: e.target.value })
+                      }
+                    />
+                  ))}
+                </div>
+                <Input
+                  label={t("ui.wordmark")}
+                  value={settings.uiWordmark || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiWordmark: e.target.value })
+                  }
+                />
+                <Input
+                  label={t("ui.logoUrl")}
+                  value={settings.uiLogoUrl || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiLogoUrl: e.target.value })
+                  }
+                />
+                <Input
+                  label={t("ui.faviconUrl")}
+                  value={settings.uiFaviconUrl || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiFaviconUrl: e.target.value })
+                  }
+                />
+                <Input
+                  label={t("ui.fontFamily")}
+                  value={settings.uiFontFamily || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiFontFamily: e.target.value })
+                  }
+                />
+                <div
+                  className="rounded-2xl border border-line p-6"
+                  style={{
+                    background: settings.uiBackground || "#0b1020",
+                    color: settings.uiInk || "#f8fafc",
+                  }}
+                >
+                  <p className="text-xs uppercase tracking-widest opacity-70">
+                    {t("ui.preview")}
+                  </p>
+                  <p
+                    className="mt-2 text-2xl font-semibold"
+                    style={{ color: settings.uiPrimary || "#0ea5e9" }}
+                  >
+                    {settings.uiWordmark || "OpenMeet"}
+                  </p>
+                </div>
+                <Button onClick={saveUi} disabled={saving}>
                   {saving ? t("saving") : t("general.save")}
                 </Button>
               </div>

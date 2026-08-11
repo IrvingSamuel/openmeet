@@ -5,8 +5,8 @@ import { routing } from "./i18n/routing";
 const handleI18n = createMiddleware(routing);
 
 /**
- * next start -H 127.0.0.1 -p 3331 makes Next build request.url as
- * http://localhost:3331/… (or public host + :3331 via x-forwarded-port).
+ * next start -H 127.0.0.1 -p 3332 makes Next build request.url as
+ * http://localhost:3332/… (or public host + :3332 via x-forwarded-port).
  * next-intl then redirects to that absolute URL. Rewrite Location to the
  * public origin (NEXT_PUBLIC_APP_URL / x-forwarded-host).
  */
@@ -29,12 +29,12 @@ function publicOrigin(req: NextRequest): URL {
   const host = (
     req.headers.get("x-forwarded-host") ||
     req.headers.get("host") ||
-    "meet.chronos.com.pt"
+    "openmeet.chronos.com.pt"
   )
     .split(",")[0]!
     .trim()
-    // Drop accidental listen-port leakage (Next may set x-forwarded-port=3331).
-    .replace(/:3331$/, "");
+    // Drop accidental listen-port leakage (Next may set x-forwarded-port=3332).
+    .replace(/:3332$/, "");
   return new URL(`${proto}://${host}`);
 }
 
@@ -47,7 +47,7 @@ function needsPublicRewrite(loc: URL, pub: URL): boolean {
   ) {
     return true;
   }
-  if (loc.port === "3331") return true;
+  if (loc.port === "3332") return true;
   return loc.hostname === pub.hostname && loc.port !== pub.port;
 }
 

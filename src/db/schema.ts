@@ -10,22 +10,50 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-export const chronosIdentities = pgTable(
-  "chronos_identities",
+export type UserRole = "admin" | "user";
+export type UserCreatedVia = "local" | "oidc" | "setup";
+export type DeploymentMode = "server" | "platform";
+
+export const users = pgTable(
+  "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    chronosUserId: text("chronos_user_id").notNull(),
     email: text("email"),
     name: text("name"),
     avatarUrl: text("avatar_url"),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
-    mcpToken: text("mcp_token"),
+    passwordHash: text("password_hash"),
+    role: text("role").notNull().default("user"), // admin | user
+    externalId: text("external_id"),
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
+    createdVia: text("created_via").notNull().default("local"), // local | oidc | setup
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("chronos_identities_user_uidx").on(t.chronosUserId)],
+  (t) => [
+    uniqueIndex("users_email_uidx").on(t.email),
+    uniqueIndex("users_external_id_uidx").on(t.externalId),
+  ],
+);
+
+export const oauthAccounts = pgTable(
+  "oauth_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("oidc"),
+    subject: text("subject").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("oauth_accounts_provider_subject_uidx").on(t.provider, t.subject),
+    index("oauth_accounts_user_idx").on(t.userId),
+  ],
 );
 
 /** Rooms are brand templates only — not meeting containers. */
@@ -39,9 +67,9 @@ export const rooms = pgTable(
     title: text("title").notNull(),
     ownerIdentityId: uuid("owner_identity_id")
       .notNull()
-      .references(() => chronosIdentities.id),
+      .references(() => users.id),
     boardId: text("board_id"),
-    accessPolicy: text("access_policy").notNull().default("members"), // default for meetings started from this template
+    accessPolicy: text("access_policy").notNull().default("members"),
     kind: text("kind").notNull().default("persistent"),
     livekitRoomName: text("livekit_room_name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -62,10 +90,10 @@ export const roomBrands = pgTable("room_brands", {
     .unique(),
   logoUrl: text("logo_url"),
   wordmark: text("wordmark"),
-  themePreset: text("theme_preset").default("violet"),
-  primaryColor: text("primary_color").default("#8b5cf6"),
-  secondaryColor: text("secondary_color").default("#a78bfa"),
-  tertiaryColor: text("tertiary_color").default("#d946ef"),
+  themePreset: text("theme_preset").default("sky"),
+  primaryColor: text("primary_color").default("#0ea5e9"),
+  secondaryColor: text("secondary_color").default("#38bdf8"),
+  tertiaryColor: text("tertiary_color").default("#818cf8"),
   fontFamily: text("font_family").default("Inter, system-ui, sans-serif"),
   background: text("background").default("#0b1020"),
   lobbyTitle: text("lobby_title"),
@@ -92,14 +120,14 @@ export const identityBrands = pgTable("identity_brands", {
   id: uuid("id").defaultRandom().primaryKey(),
   identityId: uuid("identity_id")
     .notNull()
-    .references(() => chronosIdentities.id, { onDelete: "cascade" })
+    .references(() => users.id, { onDelete: "cascade" })
     .unique(),
   logoUrl: text("logo_url"),
   wordmark: text("wordmark"),
-  themePreset: text("theme_preset").default("violet"),
-  primaryColor: text("primary_color").default("#8b5cf6"),
-  secondaryColor: text("secondary_color").default("#a78bfa"),
-  tertiaryColor: text("tertiary_color").default("#d946ef"),
+  themePreset: text("theme_preset").default("sky"),
+  primaryColor: text("primary_color").default("#0ea5e9"),
+  secondaryColor: text("secondary_color").default("#38bdf8"),
+  tertiaryColor: text("tertiary_color").default("#818cf8"),
   fontFamily: text("font_family").default("Inter, system-ui, sans-serif"),
   background: text("background").default("#0b1020"),
   lobbyTitle: text("lobby_title"),
@@ -131,7 +159,7 @@ export const meetings = pgTable(
     title: text("title").notNull(),
     ownerIdentityId: uuid("owner_identity_id")
       .notNull()
-      .references(() => chronosIdentities.id),
+      .references(() => users.id),
     boardId: text("board_id"),
     accessPolicy: text("access_policy").notNull().default("public"),
     livekitRoomName: text("livekit_room_name").notNull(),
@@ -139,7 +167,7 @@ export const meetings = pgTable(
     endedAt: timestamp("ended_at", { withTimezone: true }),
     livekitRoomSid: text("livekit_room_sid"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */
-    status: text("status").notNull().default("scheduled"), // scheduled | active | ended
+    status: text("status").notNull().default("scheduled"),
     summaryStatus: text("summary_status").notNull().default("pending"),
     insightsCache: jsonb("insights_cache"),
     insightsCacheSegmentCount: integer("insights_cache_segment_count"),
@@ -164,10 +192,10 @@ export const meetingBrands = pgTable("meeting_brands", {
     .unique(),
   logoUrl: text("logo_url"),
   wordmark: text("wordmark"),
-  themePreset: text("theme_preset").default("violet"),
-  primaryColor: text("primary_color").default("#8b5cf6"),
-  secondaryColor: text("secondary_color").default("#a78bfa"),
-  tertiaryColor: text("tertiary_color").default("#d946ef"),
+  themePreset: text("theme_preset").default("sky"),
+  primaryColor: text("primary_color").default("#0ea5e9"),
+  secondaryColor: text("secondary_color").default("#38bdf8"),
+  tertiaryColor: text("tertiary_color").default("#818cf8"),
   fontFamily: text("font_family").default("Inter, system-ui, sans-serif"),
   background: text("background").default("#0b1020"),
   lobbyTitle: text("lobby_title"),
@@ -196,9 +224,9 @@ export const participants = pgTable(
     meetingId: uuid("meeting_id")
       .notNull()
       .references(() => meetings.id, { onDelete: "cascade" }),
-    identityId: uuid("identity_id").references(() => chronosIdentities.id),
+    identityId: uuid("identity_id").references(() => users.id),
     displayName: text("display_name").notNull(),
-    role: text("role").notNull().default("participant"), // host | participant | agent
+    role: text("role").notNull().default("participant"),
     livekitIdentity: text("livekit_identity").notNull(),
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
     leftAt: timestamp("left_at", { withTimezone: true }),
@@ -214,10 +242,9 @@ export const joinRequests = pgTable(
     meetingId: uuid("meeting_id")
       .notNull()
       .references(() => meetings.id, { onDelete: "cascade" }),
-    /** Legacy room ref — nullable after decoupling. */
     roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
     displayName: text("display_name").notNull(),
-    identityId: uuid("identity_id").references(() => chronosIdentities.id),
+    identityId: uuid("identity_id").references(() => users.id),
     clientInstanceId: text("client_instance_id").notNull(),
     status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -265,8 +292,8 @@ export const actionItems = pgTable("action_items", {
     .references(() => meetings.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   assigneeHint: text("assignee_hint"),
-  chronosTaskId: text("chronos_task_id"),
-  chronosBoardId: text("chronos_board_id"),
+  externalTaskId: text("external_task_id"),
+  externalBoardId: text("external_board_id"),
   status: text("status").notNull().default("pending"),
   raw: jsonb("raw"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -361,6 +388,8 @@ export const DEFAULT_WEBHOOK_EVENTS: WebhookEventsConfig = {
 export const appSettings = pgTable("app_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
   locale: text("locale").notNull().default("pt-BR"),
+  deploymentMode: text("deployment_mode").notNull().default("platform"),
+  allowSignup: boolean("allow_signup").notNull().default(true),
   geminiApiKey: text("gemini_api_key"),
   geminiModel: text("gemini_model"),
   geminiSummaryModel: text("gemini_summary_model"),
@@ -380,6 +409,15 @@ export const appSettings = pgTable("app_settings", {
   recordingS3Region: text("recording_s3_region"),
   recordingS3AccessKey: text("recording_s3_access_key"),
   recordingS3SecretKey: text("recording_s3_secret_key"),
+  uiPrimary: text("ui_primary").default("#0ea5e9"),
+  uiSecondary: text("ui_secondary").default("#38bdf8"),
+  uiTertiary: text("ui_tertiary").default("#818cf8"),
+  uiBackground: text("ui_background").default("#0b1020"),
+  uiInk: text("ui_ink").default("#f8fafc"),
+  uiWordmark: text("ui_wordmark").default("OpenMeet"),
+  uiLogoUrl: text("ui_logo_url"),
+  uiFaviconUrl: text("ui_favicon_url"),
+  uiFontFamily: text("ui_font_family").default("Inter, system-ui, sans-serif"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

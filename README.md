@@ -1,28 +1,29 @@
-# Chronos Meet
+# OpenMeet
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/IrvingSamuel/chronos-meet?display_name=tag)](https://github.com/IrvingSamuel/chronos-meet/releases)
-[![Stars](https://img.shields.io/github/stars/IrvingSamuel/chronos-meet?style=social)](https://github.com/IrvingSamuel/chronos-meet/stargazers)
+[![Release](https://img.shields.io/github/v/release/IrvingSamuel/openmeet?display_name=tag)](https://github.com/IrvingSamuel/openmeet/releases)
+[![Stars](https://img.shields.io/github/stars/IrvingSamuel/openmeet?style=social)](https://github.com/IrvingSamuel/openmeet/stargazers)
 [![UI](https://img.shields.io/badge/UI-EN%20%7C%20PT%20%7C%20ES%20%7C%20FR%20%7C%20DE-0B1020)](messages/)
 
-[English](README.md) · [Português](README.pt.md) · [Live demo](https://meet.chronos.com.pt) · [Contributing](CONTRIBUTING.md)
+[English](README.md) · [Português](README.pt.md) · [Live demo](https://openmeet.chronos.com.pt) · [Contributing](CONTRIBUTING.md)
 
-**Open-source white-label videoconferencing** — your brand on every room, self-hosted LiveKit SFU, live captions, and an AI copilot that turns meetings into Chronos tasks.
+**Open-source white-label videoconferencing** — your brand on every room, self-hosted LiveKit SFU, live captions, and an AI copilot that turns meetings into summaries and outbound webhooks.
 
 > **Public branch:** clone and follow **`release`** (default). `main` and `dev` are protected integration branches.
 
-## Why Chronos Meet
+## Why OpenMeet
 
 - **True white-label** — logo, palette, typography, and CSS tokens per room
 - **Self-hosted media** — LiveKit SFU on your infrastructure, no seat tax
-- **Meeting recording** — browser or LiveKit Egress; local disk or S3-compatible (MinIO / Hetzner)
-- **AI that closes the loop** — live STT + post-meeting summary + MCP tasks on Chronos boards
+- **Meeting recording** — browser or LiveKit Egress; local disk or S3-compatible
+- **AI that closes the loop** — live STT + post-meeting summary + tasks via webhooks / external tools
+- **Auth modes** — local accounts and optional OIDC; `DEPLOYMENT_MODE=server|platform`
 - **Multilingual UI** — English, Português, Español, Français, Deutsch (`messages/*.json`)
 - **Browser-only** — WebRTC, no plugins
 
 ## Stack
 
-- **Next.js 15** (App Router)
+- **Next.js 15** (App Router) on port `3332`
 - **LiveKit SFU** — signaling, media, TURN
 - **Postgres** + Drizzle ORM
 - **Python copilot** — LiveKit Agents + Deepgram
@@ -30,8 +31,8 @@
 ## Quick start
 
 ```bash
-git clone https://github.com/IrvingSamuel/chronos-meet.git
-cd chronos-meet
+git clone https://github.com/IrvingSamuel/openmeet.git
+cd openmeet
 cp .env.example .env   # fill in secrets
 cd infra && docker compose up -d && cd ..
 npm install
@@ -48,26 +49,25 @@ python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt
 ```
 
+## Auth & deployment modes
+
+| Variable | Purpose |
+|----------|---------|
+| `DEPLOYMENT_MODE` | `server` (self-host) or `platform` |
+| `ALLOW_SIGNUP` | Allow local email/password registration |
+| `OIDC_*` | Optional OIDC issuer / client for SSO |
+
+Local auth works out of the box; OIDC is optional for enterprise SSO.
+
 ## Meeting recording
 
 Enable in `/admin` → **Recording**:
 
 | Setting | Options |
 |---------|---------|
-| Engine | `browser` (MediaRecorder, light — preferred on shared VPS) or `egress` (LiveKit Room Composite) |
-| Control | `manual` (host start/stop) or `auto` (starts when host joins; no stop) |
-| Storage | `local` (`RECORDINGS_DIR`) or `s3` (MinIO / Hetzner / AWS) — prefer S3 for egress tests |
-
-**Egress on this VPS:** short isolated tests only (then tear down). Needs `SYS_ADMIN` and keys in `infra/egress.yaml` matching LiveKit.
-
-```bash
-cd infra
-docker compose -f docker-compose.egress.yml up -d   # start worker
-# run one short recording…
-docker compose -f docker-compose.egress.yml down  # stop when done
-```
-
-For frequent/production egress, use a dedicated media node (ADR-002).
+| Engine | `browser` (MediaRecorder) or `egress` (LiveKit Room Composite) |
+| Control | `manual` or `auto` |
+| Storage | `local` (`RECORDINGS_DIR`) or `s3` |
 
 ## Branch model
 
@@ -99,13 +99,11 @@ npm run test:coverage
 - [Roadmap](docs/03-roadmap.md) (PT)
 - ADRs in `docs/adr/`
 
-## Chronos integration
+## Integrations
 
-1. OAuth client callback: `/api/auth/callback/chronos`
-2. MCP token in the dashboard so the copilot can create tasks
-3. Meet MCP tools at `POST /api/mcp`
-4. Instant meetings API (Bearer or session): `POST /api/v1/instant-meetings` — Redoc at [`/api-docs`](https://meet.chronos.com.pt/api-docs), OpenAPI at `/api/openapi/instant-meetings`
+1. Outbound webhooks in `/admin` (signed with `X-OpenMeet-*` headers)
+2. Instant meetings API: `POST /api/v1/instant-meetings` — Redoc at [`/api-docs`](https://openmeet.chronos.com.pt/api-docs)
 
 ## License
 
-[MIT](LICENSE) — contributions welcome. If Chronos Meet helps you, a ⭐ on GitHub goes a long way.
+[MIT](LICENSE) — contributions welcome. If OpenMeet helps you, a ⭐ on GitHub goes a long way.

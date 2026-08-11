@@ -175,7 +175,7 @@ export default function RoomTemplatePage() {
                   {t("startMeeting")}
                 </Button>
               ) : (
-                <a href="/api/auth/login">
+                <a href="/login">
                   <Button size="lg">{t("loginToStart")}</Button>
                 </a>
               )}

@@ -166,9 +166,9 @@ export function exampleWebhookPayload(
 export function exampleWebhookHeaders(event: OutboundWebhookEvent): string {
   return [
     "Content-Type: application/json",
-    `X-Chronos-Meet-Event: ${event}`,
-    "X-Chronos-Meet-Timestamp: 1722771000",
-    "X-Chronos-Meet-Signature: sha256=<hmac_sha256(secret, timestamp + '.' + body)>",
-    "User-Agent: Chronos-Meet-Webhooks/1.0",
+    `X-OpenMeet-Event: ${event}`,
+    "X-OpenMeet-Timestamp: 1722771000",
+    "X-OpenMeet-Signature: sha256=<hmac_sha256(secret, timestamp + '.' + body)>",
+    "User-Agent: OpenMeet-Webhooks/1.0",
   ].join("\n");
 }

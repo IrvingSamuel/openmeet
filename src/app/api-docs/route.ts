@@ -10,7 +10,7 @@ export async function GET() {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chronos Meet API — Instant Meetings</title>
+  <title>OpenMeet API — Instant Meetings</title>
   <meta name="robots" content="noindex" />
   <style>body { margin: 0; background: #0b1020; }</style>
 </head>

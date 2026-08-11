@@ -10,12 +10,12 @@ import {
 } from "@/lib/brand";
 
 describe("brandToCssVars", () => {
-  it("falls back to the violet preset when nothing is set", () => {
+  it("falls back to the sky preset when nothing is set", () => {
     const vars = brandToCssVars({});
-    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.violet.primary);
-    expect(vars["--brand-secondary"]).toBe(BOARD_THEMES.violet.secondary);
+    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.sky.primary);
+    expect(vars["--brand-secondary"]).toBe(BOARD_THEMES.sky.secondary);
     expect(vars["--brand-logo-url"]).toBe("none");
-    expect(vars["--brand-primary-paint"]).toBe(BOARD_THEMES.violet.primary);
+    expect(vars["--brand-primary-paint"]).toBe(BOARD_THEMES.sky.primary);
     expect(vars["--brand-pattern-url"]).toBe("none");
     expect(vars["--brand-bg-animation"]).toBe("none");
   });
@@ -27,7 +27,7 @@ describe("brandToCssVars", () => {
 
   it("ignores an unknown preset instead of emitting undefined", () => {
     const vars = brandToCssVars({ themePreset: "does-not-exist" });
-    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.violet.primary);
+    expect(vars["--brand-primary"]).toBe(BOARD_THEMES.sky.primary);
   });
 
   it("lets explicit colors win over the preset", () => {

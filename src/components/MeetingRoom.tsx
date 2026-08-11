@@ -156,7 +156,7 @@ export function MeetingRoom({
         await releaseLocalMedia(room);
         await room.disconnect(true);
       } catch (err) {
-        console.error("[chronos-meet] leave disconnect failed", err);
+        console.error("[openmeet] leave disconnect failed", err);
       } finally {
         finishLeave();
       }
@@ -173,7 +173,7 @@ export function MeetingRoom({
         // other participants receive ROOM_DELETED instead of staying connected.
         await Promise.resolve(onEndForAll?.());
       } catch (err) {
-        console.error("[chronos-meet] end for all failed", err);
+        console.error("[openmeet] end for all failed", err);
         intentionalLeave.current = false;
         setConnect(true);
         toastRef.current.error(tRoom("endForAllFailed"));
@@ -183,7 +183,7 @@ export function MeetingRoom({
         await releaseLocalMedia(room);
         await room.disconnect(true);
       } catch (err) {
-        console.error("[chronos-meet] end disconnect failed", err);
+        console.error("[openmeet] end disconnect failed", err);
       }
     })();
   }, [room, onEndForAll, tRoom]);
@@ -221,7 +221,7 @@ export function MeetingRoom({
   }, [tRoom]);
 
   const handleError = useCallback((err: Error) => {
-    console.error("[chronos-meet] LiveKit error", err);
+    console.error("[openmeet] LiveKit error", err);
     toastRef.current.error(err.message || tErrors("connectionError"));
   }, [tErrors]);
 
@@ -230,7 +230,7 @@ export function MeetingRoom({
     setForcedExit(null);
     setConnect(true);
     room.connect(serverUrl, token, CONNECT_OPTIONS).catch((err) => {
-      console.error("[chronos-meet] reconnect failed", err);
+      console.error("[openmeet] reconnect failed", err);
       toastRef.current.error(tErrors("reconnectFailed"));
     });
   }, [room, serverUrl, token, tErrors]);
@@ -518,7 +518,7 @@ function RoomShell({
         }
         if (gen !== mediaEnsureGen.current) return;
       } catch (err) {
-        console.error("[chronos-meet] ensure media failed", err);
+        console.error("[openmeet] ensure media failed", err);
       }
     })();
   }, [state, room, wantAudio, wantVideo, videoDeviceId, audioDeviceId, leavingRef]);
