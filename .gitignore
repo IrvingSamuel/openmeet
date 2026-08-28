@@ -63,3 +63,7 @@ agent/.pytest_cache/
 # Local ops / secrets
 *.log
 .pm2/
+infra/livekit.yaml
+infra/egress.yaml
+!infra/livekit.yaml.example
+!infra/egress.yaml.example
