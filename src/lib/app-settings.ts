@@ -32,21 +32,71 @@ export type ResolvedOpenAiLlmConfig = {
   apiKey: string | undefined;
   model: string;
   summaryModel: string;
+  sources: {
+    enabled: "db" | "env" | "default";
+    apiKey: "db" | "env" | "none";
+    baseUrl: "db" | "env" | "default";
+    model: "db" | "env" | "default";
+    summaryModel: "db" | "env" | "default";
+  };
 };
 
-/** OpenAI-compatible LLM provider (Groq, Ollama, LiteLLM) via AI_FALLBACK_* env vars. */
-export function resolveOpenAiLlmConfig(): ResolvedOpenAiLlmConfig {
-  const enabled = process.env.AI_FALLBACK_ENABLED?.trim() === "true";
-  const baseUrl =
-    process.env.AI_FALLBACK_BASE_URL?.trim() ||
-    "https://api.groq.com/openai/v1";
-  const apiKey = process.env.AI_FALLBACK_API_KEY?.trim() || undefined;
-  const model =
-    process.env.AI_FALLBACK_MODEL?.trim() || "openai/gpt-oss-120b";
-  const summaryModel =
-    process.env.AI_FALLBACK_SUMMARY_MODEL?.trim() || model;
+function resolveOpenAiLlmConfigFrom(
+  row?: AppSettingsRow | null,
+): ResolvedOpenAiLlmConfig {
+  const enabledDb = row?.aiFallbackEnabled;
+  const baseUrlDb = row?.aiFallbackBaseUrl?.trim() || "";
+  const apiKeyDb = row?.aiFallbackApiKey?.trim() || "";
+  const modelDb = row?.aiFallbackModel?.trim() || "";
+  const summaryModelDb = row?.aiFallbackSummaryModel?.trim() || "";
 
-  return { enabled, baseUrl, apiKey, model, summaryModel };
+  const envEnabled = process.env.AI_FALLBACK_ENABLED?.trim() === "true";
+  const envBaseUrl = process.env.AI_FALLBACK_BASE_URL?.trim() || "";
+  const envApiKey = process.env.AI_FALLBACK_API_KEY?.trim() || "";
+  const envModel = process.env.AI_FALLBACK_MODEL?.trim() || "";
+  const envSummaryModel = process.env.AI_FALLBACK_SUMMARY_MODEL?.trim() || "";
+
+  const model = modelDb || envModel || "openai/gpt-oss-120b";
+  const summaryModel = summaryModelDb || envSummaryModel || model;
+  const enabled =
+    enabledDb !== null && enabledDb !== undefined ? enabledDb : envEnabled;
+
+  return {
+    enabled,
+    baseUrl:
+      baseUrlDb || envBaseUrl || "https://api.groq.com/openai/v1",
+    apiKey: apiKeyDb || envApiKey || undefined,
+    model,
+    summaryModel,
+    sources: {
+      enabled:
+        enabledDb !== null && enabledDb !== undefined
+          ? "db"
+          : envEnabled
+            ? "env"
+            : "default",
+      apiKey: apiKeyDb ? "db" : envApiKey ? "env" : "none",
+      baseUrl: baseUrlDb ? "db" : envBaseUrl ? "env" : "default",
+      model: modelDb ? "db" : envModel ? "env" : "default",
+      summaryModel: summaryModelDb
+        ? "db"
+        : envSummaryModel
+          ? "env"
+          : "default",
+    },
+  };
+}
+
+/** OpenAI-compatible LLM provider (Groq, Ollama, LiteLLM). Env-only sync fallback for tests. */
+export function resolveOpenAiLlmConfig(
+  row?: AppSettingsRow | null,
+): ResolvedOpenAiLlmConfig {
+  return resolveOpenAiLlmConfigFrom(row);
+}
+
+export async function resolveOpenAiLlmConfigAsync(): Promise<ResolvedOpenAiLlmConfig> {
+  const row = await getAppSettings();
+  return resolveOpenAiLlmConfigFrom(row);
 }
 
 export type ResolvedRecordingConfig = {

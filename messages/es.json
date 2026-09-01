@@ -720,6 +720,16 @@
       "save": "Guardar"
     },
     "ai": {
+      "groqEnabled": "Usar Groq / API compatible con OpenAI (reemplaza Gemini cuando está activo)",
+      "groqBaseUrlLabel": "URL base de la API",
+      "groqBaseUrlHint": "Ej.: https://api.groq.com/openai/v1",
+      "groqKeyLabel": "Groq API key",
+      "groqKeyHint": "Déjelo vacío para mantener la clave actual (DB o .env).",
+      "groqModelInsights": "Modelo Groq (insights / chat)",
+      "groqModelInsightsHint": "Ej.: openai/gpt-oss-120b o llama-3.3-70b-versatile.",
+      "groqModelSummary": "Modelo Groq (resumen)",
+      "groqModelSummaryHint": "Igual que arriba o un modelo más capaz para el informe.",
+      "clearGroq": "Borrar override de Groq",
       "geminiKeyLabel": "Gemini API key",
       "geminiKeyHint": "Déjelo vacío para mantener la clave actual (DB o .env).",
       "geminiKeyPlaceholder": "AIza…",

@@ -1,6 +1,10 @@
 /** Shared LLM helper used by summary + insights + chat (Gemini or OpenAI-compatible). */
 
-import { resolveAiConfig, resolveOpenAiLlmConfig } from "@/lib/app-settings";
+import {
+  resolveAiConfig,
+  resolveOpenAiLlmConfig,
+  resolveOpenAiLlmConfigAsync,
+} from "@/lib/app-settings";
 
 export class GeminiError extends Error {
   status: number;
@@ -51,13 +55,13 @@ export function summaryGeminiModel(): string {
 
 /** Async model resolution (DB override → env → default). */
 export async function resolveDefaultGeminiModel(): Promise<string> {
-  const openAi = resolveOpenAiLlmConfig();
+  const openAi = await resolveOpenAiLlmConfigAsync();
   if (openAi.enabled) return openAi.model;
   return (await resolveAiConfig()).geminiModel;
 }
 
 export async function resolveSummaryGeminiModel(): Promise<string> {
-  const openAi = resolveOpenAiLlmConfig();
+  const openAi = await resolveOpenAiLlmConfigAsync();
   if (openAi.enabled) return openAi.summaryModel;
   return (await resolveAiConfig()).geminiSummaryModel;
 }
@@ -80,7 +84,7 @@ async function callOpenAiCompatibleLlm(
   prompt: string,
   opts?: GeminiCallOpts,
 ): Promise<GeminiResult> {
-  const cfg = resolveOpenAiLlmConfig();
+  const cfg = await resolveOpenAiLlmConfigAsync();
   const model = opts?.model || cfg.model;
   const estInputTokens = estimateTokens(prompt);
 
@@ -170,7 +174,7 @@ export async function callGeminiSafe(
   prompt: string,
   opts?: GeminiCallOpts,
 ): Promise<GeminiResult> {
-  const openAi = resolveOpenAiLlmConfig();
+  const openAi = await resolveOpenAiLlmConfigAsync();
   if (openAi.enabled) {
     return callOpenAiCompatibleLlm(prompt, opts);
   }

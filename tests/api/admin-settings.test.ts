@@ -9,6 +9,7 @@ const session = {
 
 const ensureAppSettings = vi.fn();
 const resolveAiConfig = vi.fn();
+const resolveOpenAiLlmConfigAsync = vi.fn();
 const resolveRecordingConfig = vi.fn();
 const invalidateAppSettingsCache = vi.fn();
 const updateReturning = vi.fn();
@@ -26,6 +27,8 @@ vi.mock("@/lib/app-settings", async () => {
     ...actual,
     ensureAppSettings: (...args: unknown[]) => ensureAppSettings(...args),
     resolveAiConfig: (...args: unknown[]) => resolveAiConfig(...args),
+    resolveOpenAiLlmConfigAsync: (...args: unknown[]) =>
+      resolveOpenAiLlmConfigAsync(...args),
     resolveRecordingConfig: (...args: unknown[]) =>
       resolveRecordingConfig(...args),
     invalidateAppSettingsCache: (...args: unknown[]) =>
@@ -107,6 +110,21 @@ const baseAi = {
   },
 };
 
+const baseOpenAi = {
+  enabled: true,
+  baseUrl: "https://api.groq.com/openai/v1",
+  apiKey: "gsk-test",
+  model: "openai/gpt-oss-120b",
+  summaryModel: "openai/gpt-oss-120b",
+  sources: {
+    enabled: "env" as const,
+    apiKey: "env" as const,
+    baseUrl: "env" as const,
+    model: "env" as const,
+    summaryModel: "env" as const,
+  },
+};
+
 const baseRecording = {
   enabled: false,
   engine: "browser" as const,
@@ -135,12 +153,14 @@ beforeEach(() => {
   process.env.ADMIN_EMAILS = "admin@chronos.com.pt";
   ensureAppSettings.mockReset();
   resolveAiConfig.mockReset();
+  resolveOpenAiLlmConfigAsync.mockReset();
   resolveRecordingConfig.mockReset();
   invalidateAppSettingsCache.mockReset();
   updateReturning.mockReset();
   sendTestWebhook.mockReset();
   ensureAppSettings.mockResolvedValue(baseRow);
   resolveAiConfig.mockResolvedValue(baseAi);
+  resolveOpenAiLlmConfigAsync.mockResolvedValue(baseOpenAi);
   resolveRecordingConfig.mockResolvedValue(baseRecording);
   updateReturning.mockResolvedValue([
     { ...baseRow, locale: "en", updatedAt: new Date() },

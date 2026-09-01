@@ -20,6 +20,15 @@ vi.mock("@/lib/app-settings", () => ({
       apiKey: process.env.AI_FALLBACK_API_KEY?.trim() || undefined,
       model,
       summaryModel,
+      sources: {
+        enabled: enabled ? "env" : "default",
+        apiKey: process.env.AI_FALLBACK_API_KEY?.trim() ? "env" : "none",
+        baseUrl: process.env.AI_FALLBACK_BASE_URL?.trim() ? "env" : "default",
+        model: process.env.AI_FALLBACK_MODEL?.trim() ? "env" : "default",
+        summaryModel: process.env.AI_FALLBACK_SUMMARY_MODEL?.trim()
+          ? "env"
+          : "default",
+      },
     };
   },
   resolveAiConfig: vi.fn(async () => ({

@@ -12,6 +12,7 @@ import {
   invalidateAppSettingsCache,
   maskSecret,
   resolveAiConfig,
+  resolveOpenAiLlmConfigAsync,
   resolveRecordingConfig,
   shouldSkipSecretUpdate,
   webhookEventsOrDefault,
@@ -33,6 +34,11 @@ const putSchema = z.object({
   geminiApiKey: z.string().nullable().optional(),
   geminiModel: z.string().max(120).nullable().optional(),
   geminiSummaryModel: z.string().max(120).nullable().optional(),
+  aiFallbackEnabled: z.boolean().nullable().optional(),
+  aiFallbackBaseUrl: z.string().max(500).nullable().optional(),
+  aiFallbackApiKey: z.string().nullable().optional(),
+  aiFallbackModel: z.string().max(120).nullable().optional(),
+  aiFallbackSummaryModel: z.string().max(120).nullable().optional(),
   deepgramApiKey: z.string().nullable().optional(),
   webhookUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
   webhookSecret: z.string().nullable().optional(),
@@ -72,6 +78,7 @@ async function requireAdmin() {
 function publicSettingsPayload(
   row: typeof appSettings.$inferSelect,
   ai: Awaited<ReturnType<typeof resolveAiConfig>>,
+  openAi: Awaited<ReturnType<typeof resolveOpenAiLlmConfigAsync>>,
   recording: Awaited<ReturnType<typeof resolveRecordingConfig>>,
 ) {
   const events = webhookEventsOrDefault(row.webhookEvents);
@@ -92,6 +99,14 @@ function publicSettingsPayload(
           ? `••••${ai.deepgramApiKey.slice(-4)}`
           : null,
         source: ai.sources.deepgramApiKey,
+      };
+
+  const aiFallbackKeyMask = row.aiFallbackApiKey?.trim()
+    ? maskSecret(row.aiFallbackApiKey)
+    : {
+        configured: Boolean(openAi.apiKey),
+        preview: openAi.apiKey ? `••••${openAi.apiKey.slice(-4)}` : null,
+        source: openAi.sources.apiKey,
       };
 
   const s3AccessMask = row.recordingS3AccessKey?.trim()
@@ -131,6 +146,17 @@ function publicSettingsPayload(
     geminiSummaryModel: row.geminiSummaryModel || ai.geminiSummaryModel,
     geminiModelSource: ai.sources.geminiModel,
     geminiSummaryModelSource: ai.sources.geminiSummaryModel,
+    aiFallbackEnabled: openAi.enabled,
+    aiFallbackEnabledSource: openAi.sources.enabled,
+    aiFallbackBaseUrl:
+      row.aiFallbackBaseUrl?.trim() || openAi.baseUrl,
+    aiFallbackBaseUrlSource: openAi.sources.baseUrl,
+    aiFallbackApiKey: aiFallbackKeyMask,
+    aiFallbackModel: row.aiFallbackModel?.trim() || openAi.model,
+    aiFallbackModelSource: openAi.sources.model,
+    aiFallbackSummaryModel:
+      row.aiFallbackSummaryModel?.trim() || openAi.summaryModel,
+    aiFallbackSummaryModelSource: openAi.sources.summaryModel,
     deepgramApiKey: deepgramMask,
     deepgramNote:
       "A chave Deepgram na UI fica guardada para referência; o worker Python do agente continua a ler DEEPGRAM_API_KEY do .env.",
@@ -162,8 +188,9 @@ export async function GET() {
 
   const row = await ensureAppSettings();
   const ai = await resolveAiConfig();
+  const openAi = await resolveOpenAiLlmConfigAsync();
   const recording = await resolveRecordingConfig();
-  return NextResponse.json(publicSettingsPayload(row, ai, recording));
+  return NextResponse.json(publicSettingsPayload(row, ai, openAi, recording));
 }
 
 export async function PUT(req: NextRequest) {
@@ -211,6 +238,24 @@ export async function PUT(req: NextRequest) {
   }
   if (body.geminiSummaryModel !== undefined) {
     patch.geminiSummaryModel = body.geminiSummaryModel?.trim() || null;
+  }
+
+  if (body.aiFallbackEnabled !== undefined) {
+    patch.aiFallbackEnabled = body.aiFallbackEnabled;
+  }
+  if (body.aiFallbackBaseUrl !== undefined) {
+    patch.aiFallbackBaseUrl = body.aiFallbackBaseUrl?.trim() || null;
+  }
+  if (!shouldSkipSecretUpdate(body.aiFallbackApiKey)) {
+    patch.aiFallbackApiKey = body.aiFallbackApiKey!.trim() || null;
+  } else if (body.aiFallbackApiKey === null) {
+    patch.aiFallbackApiKey = null;
+  }
+  if (body.aiFallbackModel !== undefined) {
+    patch.aiFallbackModel = body.aiFallbackModel?.trim() || null;
+  }
+  if (body.aiFallbackSummaryModel !== undefined) {
+    patch.aiFallbackSummaryModel = body.aiFallbackSummaryModel?.trim() || null;
   }
 
   if (!shouldSkipSecretUpdate(body.deepgramApiKey)) {
@@ -285,9 +330,10 @@ export async function PUT(req: NextRequest) {
 
   const row = updated ?? (await ensureAppSettings());
   const ai = await resolveAiConfig();
+  const openAi = await resolveOpenAiLlmConfigAsync();
   const recording = await resolveRecordingConfig();
   return NextResponse.json({
     ok: true,
-    ...publicSettingsPayload(row, ai, recording),
+    ...publicSettingsPayload(row, ai, openAi, recording),
   });
 }

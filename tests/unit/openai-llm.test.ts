@@ -18,6 +18,40 @@ vi.mock("@/lib/app-settings", () => ({
       apiKey: process.env.AI_FALLBACK_API_KEY?.trim() || undefined,
       model,
       summaryModel,
+      sources: {
+        enabled: enabled ? "env" : "default",
+        apiKey: process.env.AI_FALLBACK_API_KEY?.trim() ? "env" : "none",
+        baseUrl: process.env.AI_FALLBACK_BASE_URL?.trim() ? "env" : "default",
+        model: process.env.AI_FALLBACK_MODEL?.trim() ? "env" : "default",
+        summaryModel: process.env.AI_FALLBACK_SUMMARY_MODEL?.trim()
+          ? "env"
+          : "default",
+      },
+    };
+  },
+  resolveOpenAiLlmConfigAsync: async () => {
+    const enabled = process.env.AI_FALLBACK_ENABLED?.trim() === "true";
+    const model =
+      process.env.AI_FALLBACK_MODEL?.trim() || "openai/gpt-oss-120b";
+    const summaryModel =
+      process.env.AI_FALLBACK_SUMMARY_MODEL?.trim() || model;
+    return {
+      enabled,
+      baseUrl:
+        process.env.AI_FALLBACK_BASE_URL?.trim() ||
+        "https://api.groq.com/openai/v1",
+      apiKey: process.env.AI_FALLBACK_API_KEY?.trim() || undefined,
+      model,
+      summaryModel,
+      sources: {
+        enabled: enabled ? "env" : "default",
+        apiKey: process.env.AI_FALLBACK_API_KEY?.trim() ? "env" : "none",
+        baseUrl: process.env.AI_FALLBACK_BASE_URL?.trim() ? "env" : "default",
+        model: process.env.AI_FALLBACK_MODEL?.trim() ? "env" : "default",
+        summaryModel: process.env.AI_FALLBACK_SUMMARY_MODEL?.trim()
+          ? "env"
+          : "default",
+      },
     };
   },
   resolveAiConfig: (...args: unknown[]) => resolveAiConfig(...args),

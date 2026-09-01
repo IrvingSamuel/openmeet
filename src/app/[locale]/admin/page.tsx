@@ -64,6 +64,15 @@ type AdminSettings = {
   geminiApiKey: SecretMask;
   geminiModel: string;
   geminiSummaryModel: string;
+  aiFallbackEnabled: boolean;
+  aiFallbackEnabledSource?: string;
+  aiFallbackBaseUrl: string;
+  aiFallbackBaseUrlSource?: string;
+  aiFallbackApiKey: SecretMask;
+  aiFallbackModel: string;
+  aiFallbackModelSource?: string;
+  aiFallbackSummaryModel: string;
+  aiFallbackSummaryModelSource?: string;
   deepgramApiKey: SecretMask;
   deepgramNote?: string;
   webhookEnabled: boolean;
@@ -124,6 +133,7 @@ export default function AdminPage() {
 
   // Editable drafts for secrets (empty = keep existing)
   const [geminiKeyDraft, setGeminiKeyDraft] = useState("");
+  const [aiFallbackKeyDraft, setAiFallbackKeyDraft] = useState("");
   const [deepgramKeyDraft, setDeepgramKeyDraft] = useState("");
   const [webhookSecretDraft, setWebhookSecretDraft] = useState("");
   const [s3AccessDraft, setS3AccessDraft] = useState("");
@@ -180,6 +190,7 @@ export default function AdminPage() {
       }
       setSettings(data as AdminSettings);
       setGeminiKeyDraft("");
+      setAiFallbackKeyDraft("");
       setDeepgramKeyDraft("");
       setWebhookSecretDraft("");
       setS3AccessDraft("");
@@ -219,12 +230,23 @@ export default function AdminPage() {
   async function saveAi() {
     if (!settings) return;
     const patch: Record<string, unknown> = {
+      aiFallbackEnabled: settings.aiFallbackEnabled,
+      aiFallbackBaseUrl: settings.aiFallbackBaseUrl || null,
+      aiFallbackModel: settings.aiFallbackModel || null,
+      aiFallbackSummaryModel: settings.aiFallbackSummaryModel || null,
       geminiModel: settings.geminiModel || null,
       geminiSummaryModel: settings.geminiSummaryModel || null,
     };
+    if (aiFallbackKeyDraft.trim()) {
+      patch.aiFallbackApiKey = aiFallbackKeyDraft.trim();
+    }
     if (geminiKeyDraft.trim()) patch.geminiApiKey = geminiKeyDraft.trim();
     if (deepgramKeyDraft.trim()) patch.deepgramApiKey = deepgramKeyDraft.trim();
     await save(patch);
+  }
+
+  async function clearAiFallbackKey() {
+    await save({ aiFallbackApiKey: null });
   }
 
   async function clearGeminiKey() {
@@ -549,16 +571,97 @@ export default function AdminPage() {
             ) : null}
 
             {tab === "ai" ? (
-              <div className="max-w-xl space-y-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={settings.geminiApiKey.configured ? "success" : "warn"}>
-                    Gemini{" "}
-                    {settings.geminiApiKey.configured
-                      ? t("viaSource", {
-                          source: settings.geminiApiKey.source ?? "config",
+              <div className="max-w-xl space-y-8">
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={settings.aiFallbackEnabled ? "success" : "warn"}>
+                      Groq / OpenAI-compatible{" "}
+                      {settings.aiFallbackEnabled
+                        ? t("viaSource", {
+                            source:
+                              settings.aiFallbackEnabledSource ?? "config",
+                          })
+                        : t("notConfigured")}
+                    </Badge>
+                    {settings.aiFallbackApiKey.preview ? (
+                      <span className="font-mono text-xs text-ink-faint">
+                        {settings.aiFallbackApiKey.preview}
+                      </span>
+                    ) : null}
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={settings.aiFallbackEnabled}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          aiFallbackEnabled: e.target.checked,
                         })
-                      : t("notConfigured")}
-                  </Badge>
+                      }
+                      className="rounded border-line"
+                    />
+                    {t("ai.groqEnabled")}
+                  </label>
+                  <Input
+                    label={t("ai.groqBaseUrlLabel")}
+                    value={settings.aiFallbackBaseUrl}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        aiFallbackBaseUrl: e.target.value,
+                      })
+                    }
+                    placeholder="https://api.groq.com/openai/v1"
+                    hint={t("ai.groqBaseUrlHint")}
+                  />
+                  <Input
+                    label={t("ai.groqKeyLabel")}
+                    type="password"
+                    autoComplete="off"
+                    value={aiFallbackKeyDraft}
+                    onChange={(e) => setAiFallbackKeyDraft(e.target.value)}
+                    hint={t("ai.groqKeyHint")}
+                    placeholder="gsk_…"
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      label={t("ai.groqModelInsights")}
+                      value={settings.aiFallbackModel}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          aiFallbackModel: e.target.value,
+                        })
+                      }
+                      placeholder="openai/gpt-oss-120b"
+                      hint={t("ai.groqModelInsightsHint")}
+                    />
+                    <Input
+                      label={t("ai.groqModelSummary")}
+                      value={settings.aiFallbackSummaryModel}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          aiFallbackSummaryModel: e.target.value,
+                        })
+                      }
+                      placeholder="openai/gpt-oss-120b"
+                      hint={t("ai.groqModelSummaryHint")}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-5 border-t border-line pt-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={settings.geminiApiKey.configured ? "success" : "warn"}>
+                      Gemini{" "}
+                      {settings.geminiApiKey.configured
+                        ? t("viaSource", {
+                            source: settings.geminiApiKey.source ?? "config",
+                          })
+                        : t("notConfigured")}
+                    </Badge>
                   {settings.geminiApiKey.preview ? (
                     <span className="font-mono text-xs text-ink-faint">
                       {settings.geminiApiKey.preview}
@@ -597,7 +700,10 @@ export default function AdminPage() {
                     hint={t("ai.modelSummaryHint")}
                   />
                 </div>
-                <div className="flex flex-wrap items-center gap-2 pt-2">
+                </div>
+
+                <div className="space-y-5 border-t border-line pt-6">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     tone={settings.deepgramApiKey.configured ? "success" : "warn"}
                   >
@@ -619,10 +725,21 @@ export default function AdminPage() {
                     settings.deepgramNote || t("ai.deepgramKeyHint")
                   }
                 />
-                <div className="flex flex-wrap gap-2">
+                </div>
+
+                <div className="flex flex-wrap gap-2 border-t border-line pt-6">
                   <Button onClick={saveAi} disabled={saving}>
                     {saving ? t("saving") : t("ai.save")}
                   </Button>
+                  {settings.aiFallbackApiKey.source === "db" ? (
+                    <Button
+                      variant="ghost"
+                      onClick={clearAiFallbackKey}
+                      disabled={saving}
+                    >
+                      {t("ai.clearGroq")}
+                    </Button>
+                  ) : null}
                   {settings.geminiApiKey.source === "db" ? (
                     <Button
                       variant="ghost"
