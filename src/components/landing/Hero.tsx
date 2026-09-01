@@ -151,7 +151,11 @@ export function Hero() {
             {stats.map((stat) => (
               <div key={stat.label}>
                 <dt className="text-2xl font-semibold tracking-tight text-ink">
-                  <AnimatedNumber value={stat.value} suffix={stat.suffix} />
+                  <AnimatedNumber
+                    value={stat.value}
+                    suffix={stat.suffix}
+                    startOnMount
+                  />
                 </dt>
                 <dd className="mt-1 text-xs leading-snug text-ink-faint">
                   {stat.label}
