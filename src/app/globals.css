@@ -357,6 +357,19 @@
     transform-style: preserve-3d;
   }
 
+  .waveform-bar {
+    display: block;
+    width: 3px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: var(--brand-secondary);
+    opacity: 0.85;
+    transform-origin: bottom center;
+    animation-name: waveform-pulse;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
   /* Safe-area insets for notched devices / PWA standalone */
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
@@ -394,7 +407,22 @@
   }
 }
 
+@keyframes waveform-pulse {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .waveform-bar {
+    animation: none;
+    transform: scaleY(0.65);
+  }
+
   *,
   *::before,
   *::after {
