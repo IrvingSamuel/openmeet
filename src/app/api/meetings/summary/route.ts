@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
     offline: summary?.model === "offline-fallback",
     billingDepleted:
       typeof summary?.summaryMarkdown === "string" &&
-      summary.summaryMarkdown.includes("créditos Gemini esgotados"),
+      (summary.summaryMarkdown.includes("limite de API atingido") ||
+        summary.summaryMarkdown.includes("créditos Gemini esgotados")),
   });
 }

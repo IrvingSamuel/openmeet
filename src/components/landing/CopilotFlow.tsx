@@ -281,19 +281,23 @@ function PanelTitle({ children }: { children: React.ReactNode }) {
 function Waveform() {
   return (
     <div className="flex h-14 items-end justify-center gap-[3px] rounded-2xl border border-line bg-black/30 px-4 py-3">
-      {Array.from({ length: 40 }).map((_, i) => (
-        <motion.span
-          key={i}
-          className="w-[3px] rounded-full bg-brand-secondary/70"
-          animate={{ height: ["18%", `${25 + Math.random() * 70}%`, "18%"] }}
-          transition={{
-            duration: 0.9 + Math.random() * 0.7,
-            repeat: Infinity,
-            delay: i * 0.03,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
+      {Array.from({ length: 40 }).map((_, i) => {
+        const peak = 12 + ((i * 11 + 5) % 34);
+        return (
+          <motion.span
+            key={i}
+            className="block w-[3px] shrink-0 rounded-full bg-brand-secondary/70"
+            initial={{ height: 8 }}
+            animate={{ height: [8, peak, 8] }}
+            transition={{
+              duration: 0.85 + (i % 6) * 0.12,
+              repeat: Infinity,
+              delay: i * 0.03,
+              ease: "easeInOut",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

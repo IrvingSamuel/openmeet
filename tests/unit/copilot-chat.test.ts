@@ -41,7 +41,7 @@ describe("formatAssistantFallback", () => {
   it("returns billing message when credits depleted", () => {
     expect(
       formatAssistantFallback({ billingDepleted: true, offline: true }),
-    ).toContain("créditos Gemini");
+    ).toContain("limite de API");
   });
 
   it("returns generic offline message", () => {

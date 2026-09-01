@@ -205,7 +205,7 @@ Escreva o markdown e os títulos das tarefas em ${lang}.`;
 
   if (gemini.offline || !gemini.text.trim()) {
     const reason = gemini.billingDepleted
-      ? "créditos Gemini esgotados (429)"
+      ? "limite de API atingido (429)"
       : gemini.error || "LLM indisponível";
     summaryMarkdown = offlineSummaryMarkdown(transcript, reason, {
       billingDepleted: Boolean(gemini.billingDepleted),

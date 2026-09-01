@@ -244,7 +244,9 @@ export default function MeetingSummaryPage() {
       if (md) setMarkdown(md);
       if (
         json.billingDepleted ||
-        (typeof md === "string" && md.includes("créditos Gemini esgotados"))
+        (typeof md === "string" &&
+          (md.includes("limite de API atingido") ||
+            md.includes("créditos Gemini esgotados")))
       ) {
         setBillingWarning(true);
       }

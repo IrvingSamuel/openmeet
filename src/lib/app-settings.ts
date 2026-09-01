@@ -26,6 +26,29 @@ export type ResolvedAiConfig = {
   };
 };
 
+export type ResolvedOpenAiLlmConfig = {
+  enabled: boolean;
+  baseUrl: string;
+  apiKey: string | undefined;
+  model: string;
+  summaryModel: string;
+};
+
+/** OpenAI-compatible LLM provider (Groq, Ollama, LiteLLM) via AI_FALLBACK_* env vars. */
+export function resolveOpenAiLlmConfig(): ResolvedOpenAiLlmConfig {
+  const enabled = process.env.AI_FALLBACK_ENABLED?.trim() === "true";
+  const baseUrl =
+    process.env.AI_FALLBACK_BASE_URL?.trim() ||
+    "https://api.groq.com/openai/v1";
+  const apiKey = process.env.AI_FALLBACK_API_KEY?.trim() || undefined;
+  const model =
+    process.env.AI_FALLBACK_MODEL?.trim() || "openai/gpt-oss-120b";
+  const summaryModel =
+    process.env.AI_FALLBACK_SUMMARY_MODEL?.trim() || model;
+
+  return { enabled, baseUrl, apiKey, model, summaryModel };
+}
+
 export type ResolvedRecordingConfig = {
   enabled: boolean;
   engine: RecordingEngine;

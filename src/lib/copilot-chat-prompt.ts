@@ -63,7 +63,7 @@ export function formatAssistantFallback(opts: {
   error?: string;
 }): string {
   if (opts.billingDepleted) {
-    return "O Copiloto está temporariamente indisponível — créditos Gemini esgotados. Tente novamente mais tarde.";
+    return "O Copiloto está temporariamente indisponível — limite de API atingido. Tente novamente mais tarde.";
   }
   if (opts.offline) {
     return "O Copiloto está temporariamente indisponível. Verifique a configuração do servidor ou tente novamente.";
