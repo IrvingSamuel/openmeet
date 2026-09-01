@@ -28,7 +28,7 @@ export function LogoMark({
       }
     >
       <Image
-        src="/Chronos_Meet_Logo.png"
+        src="/OpenMeet_Logo.png"
         alt=""
         width={80}
         height={80}

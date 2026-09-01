@@ -44,7 +44,7 @@ export async function generateMetadata({
       type: "website",
       images: [
         {
-          url: "/Chronos_Meet_Logo.png",
+          url: "/OpenMeet_Logo.png",
           width: 1000,
           height: 1000,
           alt: "OpenMeet",
@@ -53,7 +53,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary",
-      images: ["/Chronos_Meet_Logo.png"],
+      images: ["/OpenMeet_Logo.png"],
     },
   };
 }

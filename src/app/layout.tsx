@@ -43,7 +43,7 @@ export const metadata: Metadata = {
       "Rooms branded for your company, live captions and automatic minutes for external tools via webhooks.",
     images: [
       {
-        url: "/Chronos_Meet_Logo.png",
+        url: "/OpenMeet_Logo.png",
         width: 1000,
         height: 1000,
         alt: "OpenMeet",
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    images: ["/Chronos_Meet_Logo.png"],
+    images: ["/OpenMeet_Logo.png"],
   },
   robots: { index: true, follow: true },
 };
