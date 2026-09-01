@@ -197,6 +197,18 @@ export const IconPin = (p: IconProps) => (
   </Base>
 );
 
+export const IconMaximize = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+  </Base>
+);
+
+export const IconMinimize = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4" />
+  </Base>
+);
+
 export const IconFileText = (p: IconProps) => (
   <Base {...p}>
     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-5-6Z" />

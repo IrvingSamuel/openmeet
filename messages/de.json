@@ -613,7 +613,9 @@
     "participantTile": {
       "pin": "Teilnehmer anheften",
       "unpin": "Anheften lösen",
-      "screenShare": "Bildschirm"
+      "screenShare": "Bildschirm",
+      "fullscreen": "Vollbild",
+      "exitFullscreen": "Vollbild beenden"
     }
   },
   "summary": {

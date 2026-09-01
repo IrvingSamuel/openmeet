@@ -623,7 +623,9 @@
     "participantTile": {
       "pin": "Pin participant",
       "unpin": "Unpin",
-      "screenShare": "Screen"
+      "screenShare": "Screen",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen"
     }
   },
   "summary": {

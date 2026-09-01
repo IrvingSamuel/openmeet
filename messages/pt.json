@@ -613,7 +613,9 @@
     "participantTile": {
       "pin": "Destacar participante",
       "unpin": "Remover destaque",
-      "screenShare": "Tela"
+      "screenShare": "Tela",
+      "fullscreen": "Tela cheia",
+      "exitFullscreen": "Sair da tela cheia"
     }
   },
   "summary": {

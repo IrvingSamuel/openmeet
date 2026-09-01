@@ -613,7 +613,9 @@
     "participantTile": {
       "pin": "Épingler le participant",
       "unpin": "Désépingler",
-      "screenShare": "Écran"
+      "screenShare": "Écran",
+      "fullscreen": "Plein écran",
+      "exitFullscreen": "Quitter le plein écran"
     }
   },
   "summary": {

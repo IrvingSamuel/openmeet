@@ -7,7 +7,7 @@ import {
   meetings,
   participants,
 } from "@/db/schema";
-import { expireStaleMeetings } from "@/lib/meeting-lifecycle";
+import { scheduleMeetingReconcile } from "@/lib/meeting-lifecycle";
 import { getSession } from "@/lib/session";
 
 const DEFAULT_LIMIT = 40;
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     Math.max(1, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : DEFAULT_LIMIT),
   );
 
-  await expireStaleMeetings();
+  scheduleMeetingReconcile();
 
   const participated = await db
     .selectDistinct({ meetingId: participants.meetingId })

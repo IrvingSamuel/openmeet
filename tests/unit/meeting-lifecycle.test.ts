@@ -5,7 +5,17 @@ const updateWhere = vi.fn();
 const updateReturning = vi.fn();
 const meetingsFindFirst = vi.fn();
 const meetingsFindMany = vi.fn();
-const participantsFindFirst = vi.fn();
+const selectDistinctWhere = vi.fn();
+const selectDistinctResult = vi.fn<() => Promise<{ meetingId: string }[]>>();
+const listRooms = vi.fn();
+const deleteRoom = vi.fn();
+
+vi.mock("@/lib/livekit", () => ({
+  getRoomServiceClient: () => ({
+    listRooms,
+    deleteRoom,
+  }),
+}));
 
 vi.mock("@/db", () => ({
   db: {
@@ -14,10 +24,15 @@ vi.mock("@/db", () => ({
         findFirst: (...args: unknown[]) => meetingsFindFirst(...args),
         findMany: (...args: unknown[]) => meetingsFindMany(...args),
       },
-      participants: {
-        findFirst: (...args: unknown[]) => participantsFindFirst(...args),
-      },
     },
+    selectDistinct: () => ({
+      from: () => ({
+        where: (...args: unknown[]) => {
+          selectDistinctWhere(...args);
+          return selectDistinctResult();
+        },
+      }),
+    }),
     update: () => ({
       set: () => ({
         where: (...args: unknown[]) => {
@@ -36,6 +51,8 @@ import {
   expireStaleMeetings,
   loadMeetingBySlugAfterExpiry,
   MEETING_EMPTY_TIMEOUT_SEC,
+  reconcileActiveMeetingsWithLiveKit,
+  reconcileAndExpireMeetings,
 } from "@/lib/meeting-lifecycle";
 
 beforeEach(() => {
@@ -43,10 +60,15 @@ beforeEach(() => {
   updateReturning.mockReset();
   meetingsFindFirst.mockReset();
   meetingsFindMany.mockReset();
-  participantsFindFirst.mockReset();
+  selectDistinctWhere.mockReset();
+  selectDistinctResult.mockReset();
+  listRooms.mockReset();
+  deleteRoom.mockReset();
   updateReturning.mockResolvedValue([]);
   meetingsFindMany.mockResolvedValue([]);
-  participantsFindFirst.mockResolvedValue(undefined);
+  selectDistinctResult.mockResolvedValue([]);
+  listRooms.mockResolvedValue([]);
+  deleteRoom.mockResolvedValue(undefined);
 });
 
 describe("activateMeetingIfScheduled", () => {
@@ -79,7 +101,6 @@ describe("expireStaleMeetings", () => {
       .mockResolvedValueOnce([]) // scheduled batch
       .mockResolvedValueOnce([{ id: "orphan-1" }]); // orphan batch
     meetingsFindMany.mockResolvedValue([{ id: "orphan-1" }]);
-    participantsFindFirst.mockResolvedValue(undefined);
 
     const result = await expireStaleMeetings();
     expect(result.expiredOrphans).toEqual(["orphan-1"]);
@@ -88,11 +109,10 @@ describe("expireStaleMeetings", () => {
   it("does not expire active orphans that still have an open participant", async () => {
     updateReturning.mockResolvedValueOnce([]);
     meetingsFindMany.mockResolvedValue([{ id: "active-1" }]);
-    participantsFindFirst.mockResolvedValue({ id: "p1" });
+    selectDistinctResult.mockResolvedValueOnce([{ meetingId: "active-1" }]);
 
     const result = await expireStaleMeetings();
     expect(result.expiredOrphans).toEqual([]);
-    // only the scheduled update ran
     expect(updateWhere).toHaveBeenCalledTimes(1);
   });
 
@@ -102,6 +122,62 @@ describe("expireStaleMeetings", () => {
 
     const result = await expireStaleMeetings({ meetingId: "m-scoped" });
     expect(result.expiredScheduled).toEqual(["m-scoped"]);
+  });
+});
+
+describe("reconcileActiveMeetingsWithLiveKit", () => {
+  it("ends active meetings whose LiveKit room is gone", async () => {
+    meetingsFindMany.mockResolvedValue([
+      { id: "m1", livekitRoomName: "meet_abc" },
+    ]);
+    listRooms.mockResolvedValue([]);
+    updateReturning.mockResolvedValueOnce([{ id: "m1" }]);
+
+    const result = await reconcileActiveMeetingsWithLiveKit();
+    expect(result.expiredAbandoned).toEqual(["m1"]);
+  });
+
+  it("deletes empty LiveKit rooms and ends the meeting", async () => {
+    meetingsFindMany.mockResolvedValue([
+      { id: "m2", livekitRoomName: "meet_xyz" },
+    ]);
+    listRooms.mockResolvedValue([{ name: "meet_xyz", numParticipants: 0 }]);
+    updateReturning.mockResolvedValueOnce([{ id: "m2" }]);
+
+    const result = await reconcileActiveMeetingsWithLiveKit();
+    expect(result.expiredAbandoned).toEqual(["m2"]);
+    expect(deleteRoom).toHaveBeenCalledWith("meet_xyz");
+  });
+
+  it("skips meetings that still have LiveKit participants", async () => {
+    meetingsFindMany.mockResolvedValue([
+      { id: "m3", livekitRoomName: "meet_live" },
+    ]);
+    listRooms.mockResolvedValue([{ name: "meet_live", numParticipants: 2 }]);
+
+    const result = await reconcileActiveMeetingsWithLiveKit();
+    expect(result.expiredAbandoned).toEqual([]);
+    expect(updateWhere).not.toHaveBeenCalled();
+  });
+});
+
+describe("reconcileAndExpireMeetings", () => {
+  it("combines stale expiry and LiveKit reconciliation", async () => {
+    updateReturning
+      .mockResolvedValueOnce([{ id: "scheduled-1" }])
+      .mockResolvedValueOnce([{ id: "orphan-1" }])
+      .mockResolvedValueOnce([{ id: "abandoned-1" }]);
+    meetingsFindMany
+      .mockResolvedValueOnce([{ id: "orphan-1" }])
+      .mockResolvedValueOnce([
+        { id: "abandoned-1", livekitRoomName: "meet_a" },
+      ]);
+    listRooms.mockResolvedValue([]);
+
+    const result = await reconcileAndExpireMeetings();
+    expect(result.expiredScheduled).toEqual(["scheduled-1"]);
+    expect(result.expiredOrphans).toEqual(["orphan-1"]);
+    expect(result.expiredAbandoned).toEqual(["abandoned-1"]);
   });
 });
 

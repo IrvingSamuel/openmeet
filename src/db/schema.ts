@@ -180,6 +180,7 @@ export const meetings = pgTable(
     index("meetings_room_idx").on(t.roomId),
     index("meetings_owner_idx").on(t.ownerIdentityId),
     index("meetings_livekit_idx").on(t.livekitRoomName),
+    index("meetings_status_idx").on(t.status),
   ],
 );
 
