@@ -121,6 +121,9 @@
       "participantRemoved": "Participant retiré.",
       "entryApproved": "Entrée approuvée.",
       "requestDenied": "Demande refusée.",
+      "joinRequest": "{name} demande à entrer.",
+      "joinRequestMany": "{count} personnes demandent à entrer.",
+      "participantLeft": "{name} a quitté la réunion.",
       "chatMessage": "{name} : {message}"
     },
     "errors": {
@@ -341,7 +344,8 @@
       "denied": "L'hôte a refusé votre entrée.",
       "loginRequired": "Vous devez vous connecter pour rejoindre cette salle.",
       "joinFailed": "Impossible de rejoindre la salle.",
-      "networkFailed": "Erreur réseau lors de la demande d'accès."
+      "networkFailed": "Erreur réseau lors de la demande d'accès.",
+      "cancelFailed": "Impossible d'annuler la demande. Réessayez."
     }
   },
   "offline": {
@@ -530,6 +534,8 @@
     "copyMeetingLink": "Copier le lien de la réunion",
     "enableAudio": "Cliquez pour activer l'audio",
     "reconnectBanner": "Reconnexion… les contrôles restent actifs",
+    "disconnectNotice": "Connexion interrompue — reconnexion en cours.",
+    "backToMeeting": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
     "mediaDeviceError": "Impossible d'accéder à la caméra/au micro ({label}). Vérifiez les permissions et si une autre app utilise l'appareil.",
     "mediaUnavailable": "périphérique média indisponible",
     "endForAllFailed": "Impossible de terminer la réunion pour tout le monde. Réessayez.",
@@ -560,7 +566,16 @@
       "endForAll": "Terminer pour tous",
       "endForAllHint": "Retire tout le monde et génère le résumé",
       "startRecording": "Démarrer l'enregistrement",
-      "stopRecording": "Arrêter l'enregistrement"
+      "stopRecording": "Arrêter l'enregistrement",
+      "raiseHand": "Lever la main",
+      "lowerHand": "Baisser la main",
+      "reactions": "Réactions"
+    },
+    "reactions": {
+      "pickReaction": "Envoyer une réaction",
+      "customEmoji": "Emoji personnalisé",
+      "customEmojiPlaceholder": "Appuyez pour ajouter…",
+      "send": "Envoyer"
     },
     "sidePanel": {
       "close": "Fermer le panneau",
@@ -574,6 +589,7 @@
       "sendMessage": "Envoyer le message",
       "waitingQueue": "En attente ({count})",
       "removeConfirm": "Retirer cette personne de la réunion ?",
+      "handRaised": "Main levée",
       "moderateFailed": "Impossible d'appliquer l'action.",
       "muteAction": "Couper le micro",
       "cameraOffAction": "Éteindre la caméra",
@@ -604,6 +620,12 @@
       "title": "Connexion perdue",
       "body": "La réunion est toujours là. Vous pouvez tenter de vous reconnecter avec le même jeton ou quitter vers le tableau de bord."
     },
+    "clientError": {
+      "title": "Un problème s'est produit dans la réunion",
+      "body": "L'application a rencontré une erreur en chargeant la salle. Réessayez ou quittez vers le tableau de bord.",
+      "retry": "Réessayer",
+      "leave": "Quitter"
+    },
     "captions": {
       "dragHint": "Glisser pour repositionner · double-clic pour réinitialiser"
     },
@@ -615,7 +637,8 @@
       "unpin": "Désépingler",
       "screenShare": "Écran",
       "fullscreen": "Plein écran",
-      "exitFullscreen": "Quitter le plein écran"
+      "exitFullscreen": "Quitter le plein écran",
+      "handRaised": "Main levée"
     }
   },
   "summary": {

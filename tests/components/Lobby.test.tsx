@@ -69,8 +69,8 @@ describe("Lobby", () => {
     expect(onJoin).toHaveBeenCalledWith(
       expect.objectContaining({
         displayName: "Ana",
-        videoEnabled: true,
-        audioEnabled: true,
+        videoEnabled: false,
+        audioEnabled: false,
       }),
     );
     // Tracks must stay alive until LiveKit mounts — stopping here caused blank cameras.
@@ -122,16 +122,16 @@ describe("Lobby", () => {
     render(<Lobby title="Sala" onJoin={onJoin} />);
     await userEvent.type(screen.getByLabelText("Seu nome"), "Ana");
     await userEvent.click(
-      screen.getByRole("button", { name: "Desligar câmera" }),
+      screen.getByRole("button", { name: "Ligar câmera" }),
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Desligar microfone" }),
+      screen.getByRole("button", { name: "Ligar microfone" }),
     );
     await userEvent.click(
       screen.getByRole("button", { name: /entrar na reunião/i }),
     );
     expect(onJoin).toHaveBeenCalledWith(
-      expect.objectContaining({ videoEnabled: false, audioEnabled: false }),
+      expect.objectContaining({ videoEnabled: true, audioEnabled: true }),
     );
   });
 

@@ -121,6 +121,9 @@
       "participantRemoved": "Participant removed.",
       "entryApproved": "Entry approved.",
       "requestDenied": "Request denied.",
+      "joinRequest": "{name} is requesting to join.",
+      "joinRequestMany": "{count} people are requesting to join.",
+      "participantLeft": "{name} left the meeting.",
       "chatMessage": "{name}: {message}"
     },
     "errors": {
@@ -341,7 +344,8 @@
       "denied": "The host denied your entry.",
       "loginRequired": "You must sign in to join this room.",
       "joinFailed": "Could not join the room.",
-      "networkFailed": "Network error requesting access."
+      "networkFailed": "Network error requesting access.",
+      "cancelFailed": "Could not cancel the request. Try again."
     }
   },
   "offline": {
@@ -540,6 +544,8 @@
     "copyMeetingLink": "Copy meeting link",
     "enableAudio": "Click to enable audio",
     "reconnectBanner": "Reconnecting… controls stay active",
+    "disconnectNotice": "Connection interrupted — trying to reconnect.",
+    "backToMeeting": "You're back in the meeting. Microphone and camera were turned off for privacy.",
     "mediaDeviceError": "Could not access camera/microphone ({label}). Check permissions and whether another app is using the device.",
     "mediaUnavailable": "media device unavailable",
     "endForAllFailed": "Could not end the meeting for everyone. Please try again.",
@@ -570,7 +576,16 @@
       "endForAll": "End for everyone",
       "endForAllHint": "Removes everyone and generates the summary",
       "startRecording": "Start recording",
-      "stopRecording": "Stop recording"
+      "stopRecording": "Stop recording",
+      "raiseHand": "Raise hand",
+      "lowerHand": "Lower hand",
+      "reactions": "Reactions"
+    },
+    "reactions": {
+      "pickReaction": "Send a reaction",
+      "customEmoji": "Custom emoji",
+      "customEmojiPlaceholder": "Tap to add…",
+      "send": "Send"
     },
     "sidePanel": {
       "close": "Close panel",
@@ -584,6 +599,7 @@
       "sendMessage": "Send message",
       "waitingQueue": "Waiting ({count})",
       "removeConfirm": "Remove this person from the meeting?",
+      "handRaised": "Hand raised",
       "moderateFailed": "Could not apply the action.",
       "muteAction": "Mute",
       "cameraOffAction": "Turn camera off",
@@ -614,6 +630,12 @@
       "title": "Connection lost",
       "body": "The meeting is still here. You can try reconnecting with the same token or leave to the dashboard."
     },
+    "clientError": {
+      "title": "Something went wrong in the meeting",
+      "body": "The app hit an error while loading the room. You can try again or leave to the dashboard.",
+      "retry": "Try again",
+      "leave": "Leave"
+    },
     "captions": {
       "dragHint": "Drag to reposition · double-click to reset"
     },
@@ -625,7 +647,8 @@
       "unpin": "Unpin",
       "screenShare": "Screen",
       "fullscreen": "Fullscreen",
-      "exitFullscreen": "Exit fullscreen"
+      "exitFullscreen": "Exit fullscreen",
+      "handRaised": "Hand raised"
     }
   },
   "summary": {

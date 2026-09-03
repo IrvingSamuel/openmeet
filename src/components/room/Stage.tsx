@@ -26,10 +26,12 @@ export function Stage({
   layout,
   pinnedKey,
   onPin,
+  raisedIdentities = new Set<string>(),
 }: {
   layout: StageLayout;
   pinnedKey: string | null;
   onPin: (key: string | null) => void;
+  raisedIdentities?: ReadonlySet<string>;
 }) {
   const t = useTranslations("room");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -130,6 +132,7 @@ export function Stage({
           trackRef={featured}
           micRef={micByIdentity.get(featured.participant.identity)}
           pinned={pinnedKey === trackKey(featured)}
+          handRaised={raisedIdentities.has(featured.participant.identity)}
           onPin={() =>
             onPin(pinnedKey === trackKey(featured) ? null : trackKey(featured))
           }
@@ -148,6 +151,7 @@ export function Stage({
                 micRef={micByIdentity.get(ref.participant.identity)}
                 compact
                 pinned={pinnedKey === trackKey(ref)}
+                handRaised={raisedIdentities.has(ref.participant.identity)}
                 onPin={() => onPin(trackKey(ref))}
                 className="aspect-video h-24 shrink-0 lg:h-auto lg:w-full"
               />
@@ -174,6 +178,7 @@ export function Stage({
           trackRef={ref}
           micRef={micByIdentity.get(ref.participant.identity)}
           pinned={pinnedKey === trackKey(ref)}
+          handRaised={raisedIdentities.has(ref.participant.identity)}
           onPin={() => onPin(trackKey(ref))}
         />
       ))}

@@ -15,6 +15,7 @@ import { cn, hueFromString, initials } from "@/lib/utils";
 import { shouldRenderVideoTrack } from "@/lib/videoTrack";
 import { useElementFullscreen } from "@/hooks/useElementFullscreen";
 import {
+  IconHand,
   IconMaximize,
   IconMicOff,
   IconMinimize,
@@ -30,6 +31,7 @@ export function ParticipantTile({
   compact,
   pinned,
   onPin,
+  handRaised,
   className,
 }: {
   trackRef: TrackReferenceOrPlaceholder;
@@ -37,6 +39,7 @@ export function ParticipantTile({
   compact?: boolean;
   pinned?: boolean;
   onPin?: () => void;
+  handRaised?: boolean;
   className?: string;
 }) {
   const t = useTranslations("room.participantTile");
@@ -81,9 +84,11 @@ export function ParticipantTile({
       className={cn(
         "group relative z-0 min-h-0 min-w-0 overflow-hidden rounded-2xl border bg-black",
         "[&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:bg-black",
-        speaking && !isScreenShare
-          ? "border-brand-secondary/80 shadow-[0_0_0_1px_var(--brand-secondary),0_0_50px_-14px_var(--brand-secondary)]"
-          : "border-line",
+        handRaised && !isScreenShare
+          ? "border-amber-400/85 shadow-[0_0_0_1px_rgb(251_191_36/0.7),0_0_48px_-12px_rgb(251_191_36/0.55)]"
+          : speaking && !isScreenShare
+            ? "border-brand-secondary/80 shadow-[0_0_0_1px_var(--brand-secondary),0_0_50px_-14px_var(--brand-secondary)]"
+            : "border-line",
         className,
       )}
       style={
@@ -142,6 +147,15 @@ export function ParticipantTile({
           </span>
         </span>
       </div>
+
+      {handRaised && !isScreenShare ? (
+        <span
+          className="pointer-events-none absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-amber-400/50 bg-amber-500/25 text-amber-200 backdrop-blur"
+          title={t("handRaised")}
+        >
+          <IconHand className="h-4 w-4" />
+        </span>
+      ) : null}
 
       {onPin && !isScreenShare ? (
         <button

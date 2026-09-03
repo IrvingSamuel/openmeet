@@ -256,6 +256,22 @@ export const IconRecord = (p: IconProps) => (
   </Base>
 );
 
+export const IconHand = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M8 11V6.5a1.5 1.5 0 0 1 3 0V11" />
+    <path d="M11 11V5a1.5 1.5 0 0 1 3 0v6" />
+    <path d="M14 11V7a1.5 1.5 0 0 1 3 0v8.2a4 4 0 0 1-4 4H9.5a4 4 0 0 1-4-4V11a1.5 1.5 0 0 1 3 0" />
+  </Base>
+);
+
+export const IconReaction = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M8.5 10.2h.01M15.5 10.2h.01" strokeWidth={2.2} />
+    <path d="M8.8 14.8c.9 1.1 2.2 1.7 3.2 1.7s2.3-.6 3.2-1.7" />
+  </Base>
+);
+
 export const IconGithub = (p: IconProps) => (
   <svg
     viewBox="0 0 24 24"

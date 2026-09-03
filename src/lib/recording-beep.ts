@@ -1,4 +1,9 @@
-/** Soft recording start/stop cues — short chime + optional spoken line (no external assets). */
+/** Soft recording start/stop cues — MP3s where available; Web Audio fallback otherwise. */
+
+import {
+  playMeetingSound,
+  unlockMeetingSounds,
+} from "@/lib/meeting-sounds";
 
 let sharedCtx: AudioContext | null = null;
 
@@ -13,6 +18,58 @@ function getCtx(): AudioContext | null {
     sharedCtx = new AC();
   }
   return sharedCtx;
+}
+
+/** Near-silent tick so iOS keeps the AudioContext alive after resume. */
+function primeCtx(ctx: AudioContext) {
+  try {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    g.gain.value = 0.00001;
+    osc.connect(g);
+    g.connect(ctx.destination);
+    const t = ctx.currentTime;
+    osc.start(t);
+    osc.stop(t + 0.02);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Create/resume shared Web Audio so chimes can play after a user gesture (esp. mobile).
+ * Call resume() immediately (sync start) so it counts as part of the gesture.
+ */
+async function ensureAudioRunning(): Promise<AudioContext | null> {
+  const ctx = getCtx();
+  if (!ctx) return null;
+  if (ctx.state !== "running") {
+    try {
+      await ctx.resume();
+    } catch {
+      // resume may fail (autoplay policy); state stays suspended
+    }
+  }
+  if (ctx.state !== "running") return null;
+  return ctx;
+}
+
+/**
+ * Unlock meeting chimes from a user gesture so remote events can play later.
+ * Must be invoked synchronously from pointerdown/click (not after await).
+ */
+export function unlockMeetingChimes(): void {
+  unlockMeetingSounds();
+  const ctx = getCtx();
+  if (!ctx) return;
+  // Start resume inside the gesture stack; prime when running.
+  const kickoff =
+    ctx.state === "running" ? Promise.resolve() : ctx.resume();
+  void kickoff
+    .then(() => {
+      if (ctx.state === "running") primeCtx(ctx);
+    })
+    .catch(() => undefined);
 }
 
 function tone(
@@ -38,47 +95,53 @@ function tone(
   osc.stop(opts.start + opts.dur + 0.03);
 }
 
+async function withRunningCtx(
+  play: (ctx: AudioContext, now: number) => void,
+): Promise<void> {
+  const ctx = await ensureAudioRunning();
+  if (!ctx) return;
+  play(ctx, ctx.currentTime);
+}
+
 /** Distinct two-tone cues: ascending = start, descending = stop. */
 export function playRecordingBeep(
   kind: "start" | "stop",
   volume: "normal" | "quiet" = "normal",
 ) {
-  const ctx = getCtx();
-  if (!ctx) return;
-  void ctx.resume().catch(() => undefined);
-  const now = ctx.currentTime;
-  const base = volume === "quiet" ? 0.035 : 0.1;
-  if (kind === "start") {
-    // Soft ascending chime ~1.2s
-    tone(ctx, { freq: 523.25, start: now, dur: 0.28, gain: base * 0.85 });
-    tone(ctx, {
-      freq: 659.25,
-      start: now + 0.22,
-      dur: 0.32,
-      gain: base,
-    });
-    tone(ctx, {
-      freq: 783.99,
-      start: now + 0.48,
-      dur: 0.55,
-      gain: base * 0.75,
-    });
-  } else {
-    // Soft descending chime ~1.2s
-    tone(ctx, { freq: 783.99, start: now, dur: 0.28, gain: base * 0.85 });
-    tone(ctx, {
-      freq: 659.25,
-      start: now + 0.22,
-      dur: 0.32,
-      gain: base,
-    });
-    tone(ctx, {
-      freq: 523.25,
-      start: now + 0.48,
-      dur: 0.55,
-      gain: base * 0.7,
-    });
-  }
+  void withRunningCtx((ctx, now) => {
+    const base = volume === "quiet" ? 0.035 : 0.1;
+    if (kind === "start") {
+      // Soft ascending chime ~1.2s
+      tone(ctx, { freq: 523.25, start: now, dur: 0.28, gain: base * 0.85 });
+      tone(ctx, {
+        freq: 659.25,
+        start: now + 0.22,
+        dur: 0.32,
+        gain: base,
+      });
+      tone(ctx, {
+        freq: 783.99,
+        start: now + 0.48,
+        dur: 0.55,
+        gain: base * 0.75,
+      });
+    } else {
+      // Soft descending chime ~1.2s
+      tone(ctx, { freq: 783.99, start: now, dur: 0.28, gain: base * 0.85 });
+      tone(ctx, {
+        freq: 659.25,
+        start: now + 0.22,
+        dur: 0.32,
+        gain: base,
+      });
+      tone(ctx, {
+        freq: 523.25,
+        start: now + 0.48,
+        dur: 0.55,
+        gain: base * 0.7,
+      });
+    }
+  });
 }
 
 function speakLine(text: string) {
@@ -99,15 +162,37 @@ function speakLine(text: string) {
 }
 
 /**
- * Chime (~1s) plus a short spoken line matching the toast.
- * Call from the UI on recording start/stop so locale matches the toast.
+ * Recording cue: MP3 on start (no TTS — overlaps long clip); Web Audio + TTS on stop.
  */
 export function announceRecordingChange(
   kind: "start" | "stop",
   spokenText: string,
   volume: "normal" | "quiet" = "normal",
 ) {
-  playRecordingBeep(kind, volume);
-  // Slight delay so the chime leads, then speech (~1–2s total with chime).
+  if (kind === "start") {
+    playMeetingSound("inicioGravacao");
+    return;
+  }
+  playRecordingBeep("stop", volume);
   window.setTimeout(() => speakLine(spokenText), 350);
+}
+
+/** Join-request knock — host-only call sites. */
+export function playJoinRequestChime() {
+  playMeetingSound("solicitacaoEntrada");
+}
+
+/** Participant left cue. */
+export function playParticipantLeftChime() {
+  playMeetingSound("saidaMembro");
+}
+
+/** Hand-raise cue (local gesture or remote attribute change). */
+export function playHandRaiseChime() {
+  playMeetingSound("maoLevantada");
+}
+
+/** Screen-share start (abertura livestream). */
+export function playScreenShareChime() {
+  playMeetingSound("abertura");
 }

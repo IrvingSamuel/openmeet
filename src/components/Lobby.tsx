@@ -72,8 +72,9 @@ export function Lobby({
   const [devices, setDevices] = useState<Devices>({ cameras: [], mics: [] });
   const [videoDeviceId, setVideoDeviceId] = useState("");
   const [audioDeviceId, setAudioDeviceId] = useState("");
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
+  // Privacy-first: join muted / camera off unless the user opts in.
+  const [videoEnabled, setVideoEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const [permission, setPermission] = useState<
     "pending" | "granted" | "denied"
   >("pending");
@@ -117,20 +118,20 @@ export function Lobby({
   }, [attach]);
 
   useEffect(() => {
-    streamRef.current
+    stream
       ?.getVideoTracks()
       .forEach((track) => {
         track.enabled = videoEnabled;
       });
-  }, [videoEnabled]);
+  }, [stream, videoEnabled]);
 
   useEffect(() => {
-    streamRef.current
+    stream
       ?.getAudioTracks()
       .forEach((track) => {
         track.enabled = audioEnabled;
       });
-  }, [audioEnabled]);
+  }, [stream, audioEnabled]);
 
   // Restore preview after a failed join attempt (tracks were never stopped on
   // submit, but device enumeration / attach may still need a nudge).

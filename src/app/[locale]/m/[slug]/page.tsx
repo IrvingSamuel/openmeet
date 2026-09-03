@@ -5,7 +5,11 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter, Link } from "@/i18n/navigation";
 import { Lobby, type JoinOptions } from "@/components/Lobby";
-import { MeetingRoom } from "@/components/MeetingRoom";
+import {
+  MeetingRoom,
+  type RefreshSessionResult,
+} from "@/components/MeetingRoom";
+import { MeetingRoomErrorBoundary } from "@/components/MeetingRoomErrorBoundary";
 import { brandStyleString, type BrandTokens } from "@/lib/brand";
 import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
@@ -22,6 +26,7 @@ type Session = {
   serverUrl: string;
   meetingId?: string;
   role: "host" | "participant" | "agent";
+  displayName: string;
   video: boolean;
   audio: boolean;
   videoDeviceId?: string;
@@ -34,21 +39,26 @@ type Session = {
   } | null;
 };
 
-function tabInstanceId() {
-  const existing = window.sessionStorage.getItem("openmeet:tab-id");
-  if (existing) return existing;
-  const id =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  window.sessionStorage.setItem("openmeet:tab-id", id);
-  return id;
+function tabInstanceId(): string {
+  try {
+    const existing = window.sessionStorage.getItem("openmeet:tab-id");
+    if (existing) return existing;
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID().slice(0, 8)
+        : Math.random().toString(36).slice(2, 10);
+    window.sessionStorage.setItem("openmeet:tab-id", id);
+    return id;
+  } catch {
+    return Math.random().toString(36).slice(2, 10);
+  }
 }
 
 export default function MeetingJoinPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const tErrors = useTranslations("lobby.errors");
+  const tRoom = useTranslations("room.clientError");
   const slug = params.slug;
 
   const [data, setData] = useState<MeetingPayload | null>(null);
@@ -63,6 +73,8 @@ export default function MeetingJoinPage() {
   const meetingIdRef = useRef<string | undefined>(undefined);
   const pendingJoinOpts = useRef<JoinOptions | null>(null);
   const consumingApprovalRef = useRef(false);
+  const sessionRef = useRef<Session | null>(null);
+  sessionRef.current = session;
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +127,7 @@ export default function MeetingJoinPage() {
         serverUrl: json.serverUrl,
         meetingId: json.meetingId,
         role: json.role === "host" ? "host" : "participant",
+        displayName: opts.displayName,
         video: opts.videoEnabled,
         audio: opts.audioEnabled,
         videoDeviceId: opts.videoDeviceId,
@@ -141,6 +154,39 @@ export default function MeetingJoinPage() {
     },
     [slug],
   );
+
+  const refreshSession = useCallback(async (): Promise<RefreshSessionResult | null> => {
+    const current = sessionRef.current;
+    if (!current?.displayName) return null;
+    try {
+      const res = await fetch(`/api/meetings/by-slug/${slug}/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: current.displayName,
+          clientInstanceId: tabInstanceId(),
+        }),
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json.token) return null;
+      setSession((s) =>
+        s
+          ? {
+              ...s,
+              token: json.token,
+              serverUrl: json.serverUrl ?? s.serverUrl,
+            }
+          : s,
+      );
+      return {
+        token: json.token,
+        serverUrl: json.serverUrl ?? current.serverUrl,
+      };
+    } catch {
+      return null;
+    }
+  }, [slug]);
 
   const join = useCallback(
     async (opts: JoinOptions) => {
@@ -228,21 +274,28 @@ export default function MeetingJoinPage() {
 
   const cancelWait = useCallback(async () => {
     const requestId = waitingRequestId;
-    setWaitingRequestId(null);
-    pendingJoinOpts.current = null;
-    consumingApprovalRef.current = false;
-    setError(null);
     if (!requestId) return;
+    setError(null);
     try {
-      await fetch(`/api/meetings/by-slug/${slug}/join-requests/${requestId}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientInstanceId: tabInstanceId() }),
-      });
+      const res = await fetch(
+        `/api/meetings/by-slug/${slug}/join-requests/${requestId}/cancel`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientInstanceId: tabInstanceId() }),
+        },
+      );
+      if (!res.ok && res.status !== 404) {
+        setError(tErrors("cancelFailed"));
+        return;
+      }
+      setWaitingRequestId(null);
+      pendingJoinOpts.current = null;
+      consumingApprovalRef.current = false;
     } catch {
-      /* local state already cleared */
+      setError(tErrors("cancelFailed"));
     }
-  }, [waitingRequestId, slug]);
+  }, [waitingRequestId, slug, tErrors]);
 
   const leave = useCallback(
     async (mode: "leave" | "end" = "leave") => {
@@ -286,29 +339,38 @@ export default function MeetingJoinPage() {
     <>
       {data.brand?.customCss ? <style>{data.brand.customCss}</style> : null}
       {session ? (
-        <MeetingRoom
-          token={session.token}
-          serverUrl={session.serverUrl}
-          roomTitle={data.meeting.title}
-          roomSlug={data.meeting.slug}
-          logoUrl={data.brand?.logoUrl}
-          bgAnimation={data.brand?.bgAnimation}
-          patternUrl={data.brand?.patternUrl}
-          patternTintActive={
-            Boolean(
-              data.brand?.patternTint && data.brand.patternTint !== "none",
-            )
-          }
-          meetingId={session.meetingId}
-          role={session.role}
-          recordingConfig={session.recording ?? null}
-          initialVideo={session.video}
-          initialAudio={session.audio}
-          videoDeviceId={session.videoDeviceId}
-          audioDeviceId={session.audioDeviceId}
+        <MeetingRoomErrorBoundary
+          title={tRoom("title")}
+          body={tRoom("body")}
+          retryLabel={tRoom("retry")}
+          leaveLabel={tRoom("leave")}
           onLeave={() => leave("leave")}
-          onEndForAll={() => leave("end")}
-        />
+        >
+          <MeetingRoom
+            token={session.token}
+            serverUrl={session.serverUrl}
+            roomTitle={data.meeting.title}
+            roomSlug={data.meeting.slug}
+            logoUrl={data.brand?.logoUrl}
+            bgAnimation={data.brand?.bgAnimation}
+            patternUrl={data.brand?.patternUrl}
+            patternTintActive={
+              Boolean(
+                data.brand?.patternTint && data.brand.patternTint !== "none",
+              )
+            }
+            meetingId={session.meetingId}
+            role={session.role}
+            recordingConfig={session.recording ?? null}
+            initialVideo={session.video}
+            initialAudio={session.audio}
+            videoDeviceId={session.videoDeviceId}
+            audioDeviceId={session.audioDeviceId}
+            onRefreshSession={refreshSession}
+            onLeave={() => leave("leave")}
+            onEndForAll={() => leave("end")}
+          />
+        </MeetingRoomErrorBoundary>
       ) : (
         <Lobby
           title={data.brand?.lobbyTitle || data.meeting.title}

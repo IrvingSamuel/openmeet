@@ -4,18 +4,21 @@ import { useTrackToggle } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, forwardRef, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
+import { unlockMeetingChimes } from "@/lib/recording-beep";
 import { useIsSmUp } from "@/hooks/useMediaQuery";
 import { springSoft } from "@/components/motion/primitives";
 import {
   IconCaptions,
   IconChat,
   IconGrid,
+  IconHand,
   IconMic,
   IconMicOff,
   IconMore,
   IconPhoneOff,
+  IconReaction,
   IconScreen,
   IconSparkles,
   IconSpotlight,
@@ -26,6 +29,7 @@ import {
 } from "@/components/ui/icons";
 import type { StageLayout } from "@/components/room/Stage";
 import { FloatingMenu } from "@/components/room/FloatingMenu";
+import { ReactionPicker } from "@/components/room/ReactionPicker";
 
 export type SidePanel = "none" | "chat" | "people" | "captions" | "copilot";
 
@@ -38,6 +42,7 @@ export function ControlBar({
   onCaptionsToggle,
   unreadChat,
   peopleCount,
+  pendingJoinRequests = 0,
   insightCount,
   isHost,
   recordingActive,
@@ -46,6 +51,9 @@ export function ControlBar({
   onToggleRecording,
   onLeave,
   onEndForAll,
+  handRaised = false,
+  onToggleHand,
+  onSendReaction,
 }: {
   layout: StageLayout;
   onLayoutChange: (layout: StageLayout) => void;
@@ -55,6 +63,7 @@ export function ControlBar({
   onCaptionsToggle: () => void;
   unreadChat: number;
   peopleCount: number;
+  pendingJoinRequests?: number;
   insightCount?: number;
   isHost?: boolean;
   recordingActive?: boolean;
@@ -63,6 +72,9 @@ export function ControlBar({
   onToggleRecording?: () => void;
   onLeave: () => void;
   onEndForAll?: () => void | Promise<void>;
+  handRaised?: boolean;
+  onToggleHand?: () => void | Promise<void>;
+  onSendReaction?: (emoji: string) => void | Promise<boolean>;
 }) {
   const t = useTranslations("room.controlBar");
   const mic = useTrackToggle({ source: Track.Source.Microphone });
@@ -70,8 +82,22 @@ export function ControlBar({
   const screen = useTrackToggle({ source: Track.Source.ScreenShare });
   const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [reactionsOpen, setReactionsOpen] = useState(false);
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
+  const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
+  const chimesUnlockedRef = useRef(false);
+
+  function unlockChimesOnce() {
+    if (chimesUnlockedRef.current) return;
+    chimesUnlockedRef.current = true;
+    unlockMeetingChimes();
+  }
+
+  function pickReaction(emoji: string) {
+    void onSendReaction?.(emoji);
+    setReactionsOpen(false);
+  }
 
   function selectPanel(next: SidePanel) {
     onPanelChange(panel === next ? "none" : next);
@@ -81,10 +107,23 @@ export function ControlBar({
   const moreBadge =
     (unreadChat > 0 ? 1 : 0) +
     (insightCount && insightCount > 0 ? 1 : 0) +
+    (pendingJoinRequests > 0 ? 1 : 0) +
     (peopleCount > 1 ? 1 : 0);
 
+  const peopleBadge =
+    pendingJoinRequests > 0
+      ? String(pendingJoinRequests)
+      : peopleCount > 1
+        ? String(peopleCount)
+        : undefined;
+  const peopleBadgeTone =
+    pendingJoinRequests > 0 ? "danger" : "brand";
+
   return (
-    <div className="relative flex max-w-[calc(100vw-1.5rem)] items-end gap-1.5">
+    <div
+      className="relative flex max-w-[calc(100vw-1.5rem)] items-end gap-1.5"
+      onPointerDown={unlockChimesOnce}
+    >
       <motion.div
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -114,6 +153,27 @@ export function ControlBar({
         >
           {cam.enabled ? <IconVideo /> : <IconVideoOff />}
         </ControlButton>
+
+        <ControlButton
+          active={handRaised}
+          onClick={() => {
+            void onToggleHand?.();
+          }}
+          label={handRaised ? t("lowerHand") : t("raiseHand")}
+        >
+          <IconHand />
+        </ControlButton>
+
+        {!compact ? (
+          <ControlButton
+            ref={reactionsAnchorRef}
+            active={reactionsOpen}
+            onClick={() => setReactionsOpen((v) => !v)}
+            label={t("reactions")}
+          >
+            <IconReaction />
+          </ControlButton>
+        ) : null}
 
         {!compact ? (
           <ControlButton
@@ -181,6 +241,16 @@ export function ControlBar({
               align="center"
             >
               <MoreItem
+                label={t("reactions")}
+                active={reactionsOpen}
+                onClick={() => {
+                  setReactionsOpen(true);
+                  setMoreOpen(false);
+                }}
+              >
+                <IconReaction />
+              </MoreItem>
+              <MoreItem
                 label={screen.enabled ? t("stopShare") : t("startShare")}
                 active={screen.enabled}
                 onClick={() => {
@@ -189,6 +259,16 @@ export function ControlBar({
                 }}
               >
                 <IconScreen />
+              </MoreItem>
+              <MoreItem
+                label={handRaised ? t("lowerHand") : t("raiseHand")}
+                active={handRaised}
+                onClick={() => {
+                  void onToggleHand?.();
+                  setMoreOpen(false);
+                }}
+              >
+                <IconHand />
               </MoreItem>
               <MoreItem
                 label={captionsOn ? t("hideCaptions") : t("showCaptions")}
@@ -222,7 +302,8 @@ export function ControlBar({
               <MoreItem
                 label={t("people")}
                 active={panel === "people"}
-                badge={peopleCount > 1 ? String(peopleCount) : undefined}
+                badge={peopleBadge}
+                badgeTone={peopleBadgeTone}
                 onClick={() => selectPanel("people")}
               >
                 <IconUsers />
@@ -281,7 +362,8 @@ export function ControlBar({
                 onPanelChange(panel === "people" ? "none" : "people")
               }
               label={t("people")}
-              badge={peopleCount > 1 ? String(peopleCount) : undefined}
+              badge={peopleBadge}
+              badgeTone={peopleBadgeTone}
             >
               <IconUsers />
             </ControlButton>
@@ -298,6 +380,15 @@ export function ControlBar({
           </>
         )}
       </motion.div>
+
+      <FloatingMenu
+        open={reactionsOpen}
+        onClose={() => setReactionsOpen(false)}
+        anchorRef={compact ? moreAnchorRef : reactionsAnchorRef}
+        align="center"
+      >
+        <ReactionPicker onPick={pickReaction} />
+      </FloatingMenu>
 
       {/* Leave sits outside overflow-x-auto so its menu isn't clipped under video */}
       <motion.div
@@ -459,29 +550,30 @@ function Separator() {
   return <span aria-hidden className="mx-0.5 h-7 w-px shrink-0 bg-line" />;
 }
 
-function ControlButton({
-  ref,
-  children,
-  onClick,
-  label,
-  active,
-  danger,
-  pending,
-  badge,
-  badgeTone = "brand",
-  className,
-}: {
-  ref?: React.Ref<HTMLButtonElement>;
-  children: ReactNode;
-  onClick: () => void;
-  label: string;
-  active?: boolean;
-  danger?: boolean;
-  pending?: boolean;
-  badge?: string;
-  badgeTone?: "brand" | "danger";
-  className?: string;
-}) {
+const ControlButton = forwardRef(function ControlButton(
+  {
+    children,
+    onClick,
+    label,
+    active,
+    danger,
+    pending,
+    badge,
+    badgeTone = "brand",
+    className,
+  }: {
+    children: ReactNode;
+    onClick: () => void;
+    label: string;
+    active?: boolean;
+    danger?: boolean;
+    pending?: boolean;
+    badge?: string;
+    badgeTone?: "brand" | "danger";
+    className?: string;
+  },
+  ref: Ref<HTMLButtonElement>,
+) {
   return (
     <motion.button
       ref={ref}
@@ -519,4 +611,5 @@ function ControlButton({
       ) : null}
     </motion.button>
   );
-}
+});
+ControlButton.displayName = "ControlButton";

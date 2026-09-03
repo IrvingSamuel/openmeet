@@ -121,6 +121,9 @@
       "participantRemoved": "Teilnehmer entfernt.",
       "entryApproved": "Eintritt genehmigt.",
       "requestDenied": "Anfrage abgelehnt.",
+      "joinRequest": "{name} möchte beitreten.",
+      "joinRequestMany": "{count} Personen möchten beitreten.",
+      "participantLeft": "{name} hat die Besprechung verlassen.",
       "chatMessage": "{name}: {message}"
     },
     "errors": {
@@ -341,7 +344,8 @@
       "denied": "Der Host hat Ihren Eintritt abgelehnt.",
       "loginRequired": "Sie müssen sich anmelden, um diesem Raum beizutreten.",
       "joinFailed": "Beitritt zum Raum fehlgeschlagen.",
-      "networkFailed": "Netzwerkfehler bei der Zugriffsanfrage."
+      "networkFailed": "Netzwerkfehler bei der Zugriffsanfrage.",
+      "cancelFailed": "Anfrage konnte nicht storniert werden. Bitte erneut versuchen."
     }
   },
   "offline": {
@@ -530,6 +534,8 @@
     "copyMeetingLink": "Meeting-Link kopieren",
     "enableAudio": "Klicken, um Audio zu aktivieren",
     "reconnectBanner": "Wiederverbinden… Steuerelemente bleiben aktiv",
+    "disconnectNotice": "Verbindung unterbrochen — Wiederverbindung wird versucht.",
+    "backToMeeting": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aus Datenschutzgründen deaktiviert.",
     "mediaDeviceError": "Kamera/Mikrofon ({label}) nicht zugänglich. Prüfen Sie Berechtigungen und ob eine andere App das Gerät nutzt.",
     "mediaUnavailable": "Mediengerät nicht verfügbar",
     "endForAllFailed": "Meeting konnte nicht für alle beendet werden. Bitte erneut versuchen.",
@@ -560,7 +566,16 @@
       "endForAll": "Für alle beenden",
       "endForAllHint": "Entfernt alle und erzeugt die Zusammenfassung",
       "startRecording": "Aufnahme starten",
-      "stopRecording": "Aufnahme stoppen"
+      "stopRecording": "Aufnahme stoppen",
+      "raiseHand": "Hand heben",
+      "lowerHand": "Hand senken",
+      "reactions": "Reaktionen"
+    },
+    "reactions": {
+      "pickReaction": "Reaktion senden",
+      "customEmoji": "Eigenes Emoji",
+      "customEmojiPlaceholder": "Tippen zum Hinzufügen…",
+      "send": "Senden"
     },
     "sidePanel": {
       "close": "Panel schließen",
@@ -574,6 +589,7 @@
       "sendMessage": "Nachricht senden",
       "waitingQueue": "Wartend ({count})",
       "removeConfirm": "Diese Person aus dem Meeting entfernen?",
+      "handRaised": "Hand erhoben",
       "moderateFailed": "Aktion konnte nicht angewendet werden.",
       "muteAction": "Stummschalten",
       "cameraOffAction": "Kamera ausschalten",
@@ -604,6 +620,12 @@
       "title": "Verbindung verloren",
       "body": "Das Meeting ist noch da. Sie können sich mit demselben Token erneut verbinden oder zum Dashboard gehen."
     },
+    "clientError": {
+      "title": "In der Besprechung ist etwas schiefgelaufen",
+      "body": "Beim Laden des Raums ist ein Fehler aufgetreten. Versuchen Sie es erneut oder gehen Sie zum Dashboard.",
+      "retry": "Erneut versuchen",
+      "leave": "Verlassen"
+    },
     "captions": {
       "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen"
     },
@@ -615,7 +637,8 @@
       "unpin": "Anheften lösen",
       "screenShare": "Bildschirm",
       "fullscreen": "Vollbild",
-      "exitFullscreen": "Vollbild beenden"
+      "exitFullscreen": "Vollbild beenden",
+      "handRaised": "Hand erhoben"
     }
   },
   "summary": {

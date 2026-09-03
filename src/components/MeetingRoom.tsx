@@ -13,6 +13,7 @@ import {
 import {
   ConnectionState,
   DisconnectReason,
+  ParticipantEvent,
   Room,
   RoomEvent,
   Track,
@@ -20,16 +21,19 @@ import {
   type RoomConnectOptions,
   type RoomOptions,
   type VideoCaptureOptions,
+  type RemoteParticipant,
 } from "livekit-client";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useTranslations } from "next-intl";
 import { cn, formatDuration } from "@/lib/utils";
 import { disconnectOutcome, releaseLocalMedia, shouldExitMeeting } from "@/lib/leavePolicy";
+import { diffJoinRequestAlerts } from "@/lib/joinRequestAlerts";
 import { EASE_OUT_EXPO } from "@/components/motion/primitives";
 import { Stage, type StageLayout } from "@/components/room/Stage";
 import { ControlBar, type SidePanel as PanelKind } from "@/components/room/ControlBar";
 import { SidePanel } from "@/components/room/SidePanel";
+import { ReactionBurstOverlay } from "@/components/room/ReactionBurstOverlay";
 import { CaptionsOverlay, useCaptions, useCopilotInsights } from "@/components/room/Captions";
 import { Badge } from "@/components/ui/Surface";
 import { Button } from "@/components/ui/Button";
@@ -39,27 +43,40 @@ import { IconCopy, IconCheck } from "@/components/ui/icons";
 import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 import { isAgentParticipant } from "@/lib/participants";
 import { useIsLgUp } from "@/hooks/useMediaQuery";
-import { announceRecordingChange } from "@/lib/recording-beep";
+import { announceRecordingChange, playJoinRequestChime, playParticipantLeftChime, playScreenShareChime } from "@/lib/recording-beep";
+import { setMeetingSoundContext } from "@/lib/meeting-sounds";
 import {
   DISPLAY_CAPTURE_DENIED,
   useMeetingRecorder,
   type RecordingClientConfig,
 } from "@/hooks/useMeetingRecorder";
+import { useJoinRequests } from "@/hooks/useJoinRequests";
+import { useHandRaise } from "@/hooks/useHandRaise";
+import { useRoomReactions } from "@/hooks/useRoomReactions";
+import { useRoomVisibility } from "@/hooks/useRoomVisibility";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
 type RoomRole = "host" | "participant" | "agent";
 
 const ROOM_OPTIONS: RoomOptions = {
-  adaptiveStream: { pauseVideoInBackground: false },
+  adaptiveStream: { pauseVideoInBackground: true },
   dynacast: false,
-  disconnectOnPageLeave: true,
+  disconnectOnPageLeave: false,
 };
 
 const CONNECT_OPTIONS: RoomConnectOptions = {
   autoSubscribe: true,
   peerConnectionTimeout: 45_000,
   websocketTimeout: 45_000,
+};
+
+const MAX_AUTO_RECONNECT = 2;
+const AUTO_RECONNECT_DELAY_MS = 2000;
+
+export type RefreshSessionResult = {
+  token: string;
+  serverUrl: string;
 };
 
 export function MeetingRoom({
@@ -76,10 +93,11 @@ export function MeetingRoom({
   recordingConfig = null,
   onLeave,
   onEndForAll,
-  initialVideo = true,
-  initialAudio = true,
+  initialVideo = false,
+  initialAudio = false,
   videoDeviceId,
   audioDeviceId,
+  onRefreshSession,
 }: {
   token: string;
   serverUrl: string;
@@ -98,6 +116,7 @@ export function MeetingRoom({
   initialAudio?: boolean;
   videoDeviceId?: string;
   audioDeviceId?: string;
+  onRefreshSession?: () => Promise<RefreshSessionResult | null>;
 }) {
   const toast = useToast();
   const intentionalLeave = useRef(false);
@@ -106,11 +125,22 @@ export function MeetingRoom({
   onLeaveRef.current = onLeave;
   toastRef.current = toast;
 
+  useEffect(() => {
+    setMeetingSoundContext(true);
+    return () => setMeetingSoundContext(false);
+  }, []);
+
   // One Room for the lifetime of this mount — prevents the ~15s
   // CLIENT_REQUEST_LEAVE loop caused by recreating Room / re-calling connect
   // when unstable callback identities re-trigger useLiveKitRoom effects.
   const [room] = useState(() => new Room(ROOM_OPTIONS));
   const [connect, setConnect] = useState(true);
+  const [activeToken, setActiveToken] = useState(token);
+  const [activeServerUrl, setActiveServerUrl] = useState(serverUrl);
+  const [autoReconnectBusy, setAutoReconnectBusy] = useState(false);
+  const autoReconnectAttempts = useRef(0);
+  const onRefreshSessionRef = useRef(onRefreshSession);
+  onRefreshSessionRef.current = onRefreshSession;
   const [forcedExit, setForcedExit] = useState<"ended" | "removed" | null>(
     null,
   );
@@ -146,6 +176,82 @@ export function MeetingRoom({
 
   const tRoom = useTranslations("room");
   const tErrors = useTranslations("common.errors");
+
+  useEffect(() => {
+    setActiveToken(token);
+    setActiveServerUrl(serverUrl);
+  }, [token, serverUrl]);
+
+  const performReconnect = useCallback(async () => {
+    intentionalLeave.current = false;
+    setForcedExit(null);
+
+    let nextToken = activeToken;
+    let nextServerUrl = activeServerUrl;
+
+    const refreshed = await onRefreshSessionRef.current?.();
+    if (refreshed?.token) {
+      nextToken = refreshed.token;
+      nextServerUrl = refreshed.serverUrl || serverUrl;
+      setActiveToken(nextToken);
+      setActiveServerUrl(nextServerUrl);
+    }
+
+    try {
+      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
+      setConnect(true);
+      return true;
+    } catch (err) {
+      console.error("[openmeet] reconnect failed", err);
+      toastRef.current.error(tErrors("reconnectFailed"));
+      return false;
+    }
+  }, [room, activeToken, activeServerUrl, serverUrl, tErrors]);
+
+  const scheduleAutoReconnect = useCallback(() => {
+    if (intentionalLeave.current) return;
+
+    const run = async (attempt: number) => {
+      const roomState = () => room.state;
+      if (attempt > MAX_AUTO_RECONNECT) {
+        setAutoReconnectBusy(false);
+        return;
+      }
+      if (roomState() === ConnectionState.Connected) {
+        setAutoReconnectBusy(false);
+        return;
+      }
+      setAutoReconnectBusy(true);
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, AUTO_RECONNECT_DELAY_MS),
+      );
+      if (intentionalLeave.current || roomState() === ConnectionState.Connected) {
+        setAutoReconnectBusy(false);
+        return;
+      }
+      const ok = await performReconnect();
+      if (ok || roomState() === ConnectionState.Connected) {
+        autoReconnectAttempts.current = 0;
+        setAutoReconnectBusy(false);
+        return;
+      }
+      await run(attempt + 1);
+    };
+
+    autoReconnectAttempts.current = 0;
+    void run(1);
+  }, [performReconnect, room]);
+
+  useEffect(() => {
+    const onConnected = () => {
+      autoReconnectAttempts.current = 0;
+      setAutoReconnectBusy(false);
+    };
+    room.on(RoomEvent.Connected, onConnected);
+    return () => {
+      room.off(RoomEvent.Connected, onConnected);
+    };
+  }, [room]);
 
   const requestLeave = useCallback(() => {
     if (intentionalLeave.current) return;
@@ -201,13 +307,18 @@ export function MeetingRoom({
       }
       if (intentionalLeave.current) {
         finishLeave();
+        return;
       }
+      if (reason != null && reason !== DisconnectReason.CLIENT_INITIATED) {
+        toastRef.current.push(tRoom("disconnectNotice"));
+      }
+      scheduleAutoReconnect();
     };
     room.on(RoomEvent.Disconnected, onDisconnected);
     return () => {
       room.off(RoomEvent.Disconnected, onDisconnected);
     };
-  }, [room, finishLeave]);
+  }, [room, finishLeave, scheduleAutoReconnect, tRoom]);
 
   // Stable forever — must not appear as a changing dep inside useLiveKitRoom.
   const handleDisconnected = useCallback(() => {
@@ -226,14 +337,10 @@ export function MeetingRoom({
   }, [tErrors]);
 
   const handleReconnect = useCallback(() => {
-    intentionalLeave.current = false;
-    setForcedExit(null);
-    setConnect(true);
-    room.connect(serverUrl, token, CONNECT_OPTIONS).catch((err) => {
-      console.error("[openmeet] reconnect failed", err);
-      toastRef.current.error(tErrors("reconnectFailed"));
-    });
-  }, [room, serverUrl, token, tErrors]);
+    autoReconnectAttempts.current = 0;
+    setAutoReconnectBusy(true);
+    void performReconnect().finally(() => setAutoReconnectBusy(false));
+  }, [performReconnect]);
 
   return (
     <div
@@ -248,8 +355,8 @@ export function MeetingRoom({
       />
       <LiveKitRoom
         room={room}
-        token={token}
-        serverUrl={serverUrl}
+        token={activeToken}
+        serverUrl={activeServerUrl}
         connect={connect}
         video={video}
         audio={audio}
@@ -271,6 +378,7 @@ export function MeetingRoom({
           onEndForAll={requestEndForAll}
           onReconnect={handleReconnect}
           onConfirmLeave={requestLeave}
+          autoReconnectBusy={autoReconnectBusy}
           wantVideo={!!initialVideo}
           wantAudio={!!initialAudio}
           videoDeviceId={videoDeviceId}
@@ -302,6 +410,7 @@ function RoomShell({
   onEndForAll,
   onReconnect,
   onConfirmLeave,
+  autoReconnectBusy = false,
   wantVideo,
   wantAudio,
   videoDeviceId,
@@ -319,6 +428,7 @@ function RoomShell({
   onEndForAll: () => void | Promise<void>;
   onReconnect: () => void;
   onConfirmLeave: () => void;
+  autoReconnectBusy?: boolean;
   wantVideo: boolean;
   wantAudio: boolean;
   videoDeviceId?: string;
@@ -333,12 +443,30 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  // Cleared on tab-return so reconnect backup does not re-open mic/cam.
+  const [mediaWanted, setMediaWanted] = useState({
+    video: wantVideo,
+    audio: wantAudio,
+  });
   const recorder = useMeetingRecorder({
     room,
     meetingId,
     isHost,
     config: recordingConfig,
   });
+
+  const {
+    requests: joinRequests,
+    busyId: joinBusyId,
+    decide: decideJoin,
+  } = useJoinRequests(roomSlug, isHost);
+
+  const { raisedIdentities, localHandRaised, toggleHand } = useHandRaise(room);
+
+  const { bursts: reactionBursts, sendReaction } = useRoomReactions();
+
+  const knownJoinIds = useRef<Set<string>>(new Set());
+  const joinAlertsReady = useRef(false);
 
   useEffect(() => {
     if (recorder.error) {
@@ -399,6 +527,7 @@ function RoomShell({
   useEffect(() => {
     if (hasScreenShare && !prevHasScreenShare.current) {
       setLayout("spotlight");
+      playScreenShareChime();
     } else if (!hasScreenShare && prevHasScreenShare.current) {
       setLayout("grid");
     }
@@ -455,10 +584,89 @@ function RoomShell({
   }, [historyMessages, chatMessages]);
 
   const unread = Math.max(0, allChatMessages.length - readChat);
+
+  const handleChatRead = useCallback(() => {
+    setReadChat(allChatMessages.length);
+  }, [allChatMessages.length]);
   const showRecovery =
     state === ConnectionState.Disconnected &&
     !forcedExit &&
-    !leavingRef.current;
+    !leavingRef.current &&
+    !autoReconnectBusy;
+
+  // Join request chime always; toast when People panel is closed
+  useEffect(() => {
+    if (!isHost) return;
+    const isInitial = !joinAlertsReady.current;
+    joinAlertsReady.current = true;
+
+    const { nextKnownIds, toNotify } = diffJoinRequestAlerts({
+      prevKnownIds: knownJoinIds.current,
+      currentRequests: joinRequests,
+      isInitial,
+    });
+    knownJoinIds.current = nextKnownIds;
+    if (toNotify.length === 0) return;
+
+    playJoinRequestChime();
+    if (panel === "people") return;
+
+    if (toNotify.length === 1) {
+      toast.push(tToast("joinRequest", { name: toNotify[0].displayName }));
+    } else {
+      toast.push(tToast("joinRequestMany", { count: toNotify.length }));
+    }
+  }, [joinRequests, panel, isHost, toast, tToast]);
+
+  const pendingLeaveAlerts = useRef<Map<string, number>>(new Map());
+
+  // Participant left toast + chime (debounced to ignore brief reconnects)
+  useEffect(() => {
+    if (state !== ConnectionState.Connected) return;
+
+    const scheduleLeaveAlert = (participant: RemoteParticipant) => {
+      if (leavingRef.current) return;
+      if (isAgentParticipant(participant)) return;
+      const identity = participant.identity;
+      const name =
+        participant.name || participant.identity || tLabels("someone");
+
+      const existing = pendingLeaveAlerts.current.get(identity);
+      if (existing) window.clearTimeout(existing);
+
+      const timer = window.setTimeout(() => {
+        pendingLeaveAlerts.current.delete(identity);
+        if (leavingRef.current) return;
+        playParticipantLeftChime();
+        toast.push(tToast("participantLeft", { name }));
+      }, 3000);
+
+      pendingLeaveAlerts.current.set(identity, timer);
+    };
+
+    const onConnected = (participant: RemoteParticipant) => {
+      const timer = pendingLeaveAlerts.current.get(participant.identity);
+      if (timer) {
+        window.clearTimeout(timer);
+        pendingLeaveAlerts.current.delete(participant.identity);
+      }
+    };
+
+    const onLeft = (participant: RemoteParticipant) => {
+      scheduleLeaveAlert(participant);
+    };
+
+    room.on(RoomEvent.ParticipantDisconnected, onLeft);
+    room.on(RoomEvent.ParticipantConnected, onConnected);
+    return () => {
+      room.off(RoomEvent.ParticipantDisconnected, onLeft);
+      room.off(RoomEvent.ParticipantConnected, onConnected);
+      for (const timer of pendingLeaveAlerts.current.values()) {
+        window.clearTimeout(timer);
+      }
+      pendingLeaveAlerts.current.clear();
+    };
+  }, [room, state, toast, tToast, tLabels, leavingRef]);
 
   // Chat toast when panel closed
   useEffect(() => {
@@ -497,7 +705,8 @@ function RoomShell({
 
   // Backup publisher: useLiveKitRoom only enables devices on SignalConnected.
   // After reconnect / DUPLICATE_IDENTITY races, that event can be missed and
-  // the room stays Connected with cam/mic off.
+  // the room stays Connected with cam/mic off. Respects mediaWanted so a
+  // privacy mute on tab-return is not undone by reconnect.
   useEffect(() => {
     if (state !== ConnectionState.Connected) return;
     if (leavingRef.current) return;
@@ -508,20 +717,77 @@ function RoomShell({
 
     void (async () => {
       try {
-        if (leavingRef.current) return;
-        if (wantAudio && !lp.isMicrophoneEnabled) {
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        if (mediaWanted.audio && !lp.isMicrophoneEnabled) {
           await lp.setMicrophoneEnabled(true, audioOpts);
+          if (gen !== mediaEnsureGen.current) {
+            await lp.setMicrophoneEnabled(false);
+            return;
+          }
         }
-        if (leavingRef.current) return;
-        if (wantVideo && !lp.isCameraEnabled) {
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        if (mediaWanted.video && !lp.isCameraEnabled) {
           await lp.setCameraEnabled(true, videoOpts);
+          if (gen !== mediaEnsureGen.current) {
+            await lp.setCameraEnabled(false);
+          }
         }
-        if (gen !== mediaEnsureGen.current) return;
       } catch (err) {
         console.error("[openmeet] ensure media failed", err);
       }
     })();
-  }, [state, room, wantAudio, wantVideo, videoDeviceId, audioDeviceId, leavingRef]);
+  }, [
+    state,
+    room,
+    mediaWanted.audio,
+    mediaWanted.video,
+    videoDeviceId,
+    audioDeviceId,
+    leavingRef,
+  ]);
+
+  const muteLocalMediaForPrivacy = useCallback(() => {
+    if (leavingRef.current) return;
+    setMediaWanted({ video: false, audio: false });
+    mediaEnsureGen.current += 1;
+    const lp = room.localParticipant;
+    void (async () => {
+      try {
+        await Promise.allSettled([
+          lp.setMicrophoneEnabled(false),
+          lp.setCameraEnabled(false),
+        ]);
+      } catch (err) {
+        console.error("[openmeet] privacy mute failed", err);
+      }
+    })();
+  }, [room, leavingRef]);
+
+  // Keep reconnect backup in sync with in-call toggles after a privacy mute.
+  useEffect(() => {
+    const lp = room.localParticipant;
+    const sync = () => {
+      setMediaWanted({
+        video: lp.isCameraEnabled,
+        audio: lp.isMicrophoneEnabled,
+      });
+    };
+    lp.on(ParticipantEvent.TrackMuted, sync);
+    lp.on(ParticipantEvent.TrackUnmuted, sync);
+    lp.on(ParticipantEvent.LocalTrackPublished, sync);
+    lp.on(ParticipantEvent.LocalTrackUnpublished, sync);
+    return () => {
+      lp.off(ParticipantEvent.TrackMuted, sync);
+      lp.off(ParticipantEvent.TrackUnmuted, sync);
+      lp.off(ParticipantEvent.LocalTrackPublished, sync);
+      lp.off(ParticipantEvent.LocalTrackUnpublished, sync);
+    };
+  }, [room]);
+
+  useRoomVisibility(room, () => {
+    muteLocalMediaForPrivacy();
+    toast.push(t("backToMeeting"));
+  });
 
   useEffect(() => {
     if (state === ConnectionState.Connected) hasConnectedOnce.current = true;
@@ -655,7 +921,13 @@ function RoomShell({
 
       <main className="relative z-10 isolate flex min-h-0 flex-1 gap-3 p-2 sm:p-4">
         <div className="relative min-w-0 flex-1">
-          <Stage layout={layout} pinnedKey={pinnedKey} onPin={handlePin} />
+          <Stage
+            layout={layout}
+            pinnedKey={pinnedKey}
+            onPin={handlePin}
+            raisedIdentities={raisedIdentities}
+          />
+          <ReactionBurstOverlay bursts={reactionBursts} />
           <CaptionsOverlay captions={captions} visible={captionsOn} />
           {!isLgUp ? (
             <SidePanel
@@ -674,11 +946,15 @@ function RoomShell({
               sendChat={sendChat}
               chatSending={isSending}
               onClose={() => setPanel("none")}
-              onChatRead={() => setReadChat(allChatMessages.length)}
+              onChatRead={handleChatRead}
               copilotDisplayName={
                 room.localParticipant.name || room.localParticipant.identity
               }
               copilotIdentity={room.localParticipant.identity}
+              joinRequests={joinRequests}
+              joinBusyId={joinBusyId}
+              onJoinDecide={decideJoin}
+              raisedIdentities={raisedIdentities}
             />
           ) : null}
         </div>
@@ -699,11 +975,15 @@ function RoomShell({
             sendChat={sendChat}
             chatSending={isSending}
             onClose={() => setPanel("none")}
-            onChatRead={() => setReadChat(allChatMessages.length)}
+            onChatRead={handleChatRead}
             copilotDisplayName={
               room.localParticipant.name || room.localParticipant.identity
             }
             copilotIdentity={room.localParticipant.identity}
+            joinRequests={joinRequests}
+            joinBusyId={joinBusyId}
+            onJoinDecide={decideJoin}
+            raisedIdentities={raisedIdentities}
           />
         ) : null}
       </main>
@@ -720,6 +1000,7 @@ function RoomShell({
             onCaptionsToggle={() => setCaptionsOn((v) => !v)}
             unreadChat={unread}
             peopleCount={humans.length}
+            pendingJoinRequests={joinRequests.length}
             insightCount={insights.length}
             isHost={isHost}
             recordingActive={recorder.active}
@@ -731,6 +1012,9 @@ function RoomShell({
             }}
             onLeave={onLeave}
             onEndForAll={onEndForAll}
+            handRaised={localHandRaised}
+            onToggleHand={toggleHand}
+            onSendReaction={sendReaction}
           />
         </div>
       </div>

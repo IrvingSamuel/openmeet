@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import {
+  captionsSimilar,
   parseCaption,
   parseInsights,
   type Caption,
@@ -229,10 +230,19 @@ export function CaptionsOverlay({
     const out: Caption[] = [];
     for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
       const c = captions[i];
-      if (out.length && captionKey(out[out.length - 1]) === captionKey(c))
+      if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
         continue;
+      }
+      if (
+        out.length &&
+        out[out.length - 1].speaker !== c.speaker &&
+        captionsSimilar(out[out.length - 1].text, c.text)
+      ) {
+        continue;
+      }
       out.unshift(c);
     }
+    if (out.length > 1) return out.slice(-1);
     return out;
   })();
 
