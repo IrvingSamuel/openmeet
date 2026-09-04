@@ -166,6 +166,11 @@ export const meetings = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
     livekitRoomSid: text("livekit_room_sid"),
+    /**
+     * Per-meeting LiveKit/app empty timeout (seconds). Null = use env
+     * LIVEKIT_EMPTY_TIMEOUT_SEC / MEETING_EMPTY_TIMEOUT_SEC.
+     */
+    emptyTimeoutSec: integer("empty_timeout_sec"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */
     status: text("status").notNull().default("scheduled"),
     summaryStatus: text("summary_status").notNull().default("pending"),

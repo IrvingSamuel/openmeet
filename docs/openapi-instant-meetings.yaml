@@ -68,6 +68,7 @@ paths:
                 access_policy: public
                 title: Quick sync
                 brand_room_id: null
+                empty_timeout_sec: 300
         "400":
           description: Invalid body or owner resolve failed
         "401":
@@ -104,6 +105,15 @@ components:
           format: uuid
         chronos_user_id:
           type: string
+        empty_timeout_sec:
+          type: integer
+          minimum: 60
+          maximum: 86400
+          description: |
+            Seconds after the last participant leaves before the LiveKit room
+            auto-ends. Omit to use server default (LIVEKIT_EMPTY_TIMEOUT_SEC,
+            typically 300). Scheduled meetings that never get a join remain
+            joinable until MEETING_SCHEDULED_MAX_AGE_SEC (default 7 days).
         ui:
           $ref: "#/components/schemas/BrandUi"
     CreateInstantMeetingResponse:
@@ -129,3 +139,6 @@ components:
           type: string
           format: uuid
           nullable: true
+        empty_timeout_sec:
+          type: integer
+          description: Effective empty-room timeout in seconds for this meeting

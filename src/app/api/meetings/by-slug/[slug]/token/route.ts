@@ -9,6 +9,7 @@ import {
   activateMeetingIfScheduled,
   loadMeetingBySlugAfterExpiry,
 } from "@/lib/meeting-lifecycle";
+import { resolveEmptyTimeoutSec } from "@/lib/meeting-timeouts";
 import { startMeetingRecording } from "@/lib/recording";
 
 export async function POST(
@@ -159,12 +160,16 @@ export async function POST(
   });
 
   try {
-    await syncRoomMetadata(meeting.livekitRoomName, {
-      meetingId: meeting.id,
-      roomId: meeting.roomId ?? meeting.id,
-      slug: meeting.slug,
-      boardId: meeting.boardId,
-    });
+    await syncRoomMetadata(
+      meeting.livekitRoomName,
+      {
+        meetingId: meeting.id,
+        roomId: meeting.roomId ?? meeting.id,
+        slug: meeting.slug,
+        boardId: meeting.boardId,
+      },
+      { emptyTimeout: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec) },
+    );
   } catch (err) {
     console.error("[openmeet] syncRoomMetadata failed", err);
   }
