@@ -89,6 +89,12 @@ describe("POST /api/meetings/end", () => {
       id: meetingId,
       roomId: "room-1",
       status: "active",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_weekly",
+      slug: "weekly",
+      title: "Weekly",
+      boardId: null,
+      accessPolicy: "public",
     });
     roomsFindFirst.mockResolvedValue({
       id: "room-1",
@@ -109,6 +115,12 @@ describe("POST /api/meetings/end", () => {
       id: meetingId,
       roomId: "room-1",
       status: "active",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_weekly",
+      slug: "weekly",
+      title: "Weekly",
+      boardId: null,
+      accessPolicy: "public",
     });
     roomsFindFirst.mockResolvedValue({
       id: "room-1",
@@ -123,6 +135,27 @@ describe("POST /api/meetings/end", () => {
     expect(updateWhere).toHaveBeenCalledTimes(2);
   });
 
+  it("allows ending a scheduled meeting that never started", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-owner";
+    meetingsFindFirst.mockResolvedValue({
+      id: meetingId,
+      roomId: null,
+      status: "scheduled",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_weekly",
+      slug: "weekly",
+      title: "Weekly",
+      boardId: null,
+      accessPolicy: "public",
+    });
+
+    const res = await endMeeting(jsonRequest({ meetingId }));
+    expect(res.status).toBe(200);
+    expect(deleteRoom).toHaveBeenCalledWith("meet_weekly");
+    expect(updateWhere).toHaveBeenCalledTimes(2);
+  });
+
   it("falls back to removing participants when deleteRoom fails", async () => {
     session.isLoggedIn = true;
     session.identityId = "identity-owner";
@@ -130,6 +163,12 @@ describe("POST /api/meetings/end", () => {
       id: meetingId,
       roomId: "room-1",
       status: "active",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_weekly",
+      slug: "weekly",
+      title: "Weekly",
+      boardId: null,
+      accessPolicy: "public",
     });
     roomsFindFirst.mockResolvedValue({
       id: "room-1",

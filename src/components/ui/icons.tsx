@@ -179,6 +179,12 @@ export const IconSettings = (p: IconProps) => (
   </Base>
 );
 
+export const IconTrash = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M8 7l1 12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6" />
+  </Base>
+);
+
 export const IconLogout = (p: IconProps) => (
   <Base {...p}>
     <path d="M15 17l5-5-5-5M20 12H9M11 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" />
@@ -188,6 +194,18 @@ export const IconLogout = (p: IconProps) => (
 export const IconPin = (p: IconProps) => (
   <Base {...p}>
     <path d="M9 3h6l-.7 5.2 3 3.1-4.3.9V21l-1 .5-1-.5v-8.8l-4.3-.9 3-3.1L9 3Z" />
+  </Base>
+);
+
+export const IconMaximize = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+  </Base>
+);
+
+export const IconMinimize = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4" />
   </Base>
 );
 
@@ -229,4 +247,40 @@ export const IconDownload = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 4v11M8 11l4 4 4-4M5 19h14" />
   </Base>
+);
+
+export const IconRecord = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="7" />
+    <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+  </Base>
+);
+
+export const IconHand = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M8 11V6.5a1.5 1.5 0 0 1 3 0V11" />
+    <path d="M11 11V5a1.5 1.5 0 0 1 3 0v6" />
+    <path d="M14 11V7a1.5 1.5 0 0 1 3 0v8.2a4 4 0 0 1-4 4H9.5a4 4 0 0 1-4-4V11a1.5 1.5 0 0 1 3 0" />
+  </Base>
+);
+
+export const IconReaction = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M8.5 10.2h.01M15.5 10.2h.01" strokeWidth={2.2} />
+    <path d="M8.8 14.8c.9 1.1 2.2 1.7 3.2 1.7s2.3-.6 3.2-1.7" />
+  </Base>
+);
+
+export const IconGithub = (p: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    width={18}
+    height={18}
+    aria-hidden
+    {...p}
+  >
+    <path d="M12 2C6.477 2 2 6.584 2 12.233c0 4.515 2.865 8.345 6.839 9.7.5.094.682-.222.682-.482 0-.237-.009-.866-.013-1.7-2.782.617-3.369-1.368-3.369-1.368-.454-1.178-1.11-1.492-1.11-1.492-.908-.636.069-.623.069-.623 1.004.072 1.532 1.055 1.532 1.055.892 1.563 2.341 1.112 2.91.85.091-.658.35-1.112.636-1.368-2.22-.258-4.555-1.137-4.555-5.063 0-1.118.39-2.033 1.029-2.75-.103-.259-.446-1.302.098-2.714 0 0 .84-.275 2.75 1.05A9.35 9.35 0 0 1 12 6.844c.85.004 1.705.117 2.504.344 1.909-1.325 2.747-1.05 2.747-1.05.546 1.412.202 2.455.1 2.714.64.717 1.028 1.632 1.028 2.75 0 3.936-2.339 4.802-4.566 5.055.359.316.679.94.679 1.896 0 1.368-.012 2.47-.012 2.806 0 .263.18.58.688.481A10.02 10.02 0 0 0 22 12.233C22 6.584 17.523 2 12 2Z" />
+  </svg>
 );

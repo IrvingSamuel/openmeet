@@ -10,7 +10,7 @@ describe("sanitizeReturnTo", () => {
   it("rejects absolute and protocol-relative URLs", () => {
     expect(sanitizeReturnTo("https://evil.example/")).toBeNull();
     expect(sanitizeReturnTo("//evil.example/")).toBeNull();
-    expect(sanitizeReturnTo("http://meet.chronos.com.pt/r/x")).toBeNull();
+    expect(sanitizeReturnTo("http://openmeet.chronos.com.pt/r/x")).toBeNull();
   });
 
   it("rejects empty and non-path values", () => {

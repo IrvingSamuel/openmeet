@@ -69,8 +69,8 @@ describe("Lobby", () => {
     expect(onJoin).toHaveBeenCalledWith(
       expect.objectContaining({
         displayName: "Ana",
-        videoEnabled: true,
-        audioEnabled: true,
+        videoEnabled: false,
+        audioEnabled: false,
       }),
     );
     // Tracks must stay alive until LiveKit mounts — stopping here caused blank cameras.
@@ -122,24 +122,24 @@ describe("Lobby", () => {
     render(<Lobby title="Sala" onJoin={onJoin} />);
     await userEvent.type(screen.getByLabelText("Seu nome"), "Ana");
     await userEvent.click(
-      screen.getByRole("button", { name: "Desligar câmera" }),
+      screen.getByRole("button", { name: "Ligar câmera" }),
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Desligar microfone" }),
+      screen.getByRole("button", { name: "Ligar microfone" }),
     );
     await userEvent.click(
       screen.getByRole("button", { name: /entrar na reunião/i }),
     );
     expect(onJoin).toHaveBeenCalledWith(
-      expect.objectContaining({ videoEnabled: false, audioEnabled: false }),
+      expect.objectContaining({ videoEnabled: true, audioEnabled: true }),
     );
   });
 
-  it("offers the Chronos login instead of joining when the room requires it", () => {
+  it("offers the login instead of joining when the room requires it", () => {
     render(<Lobby title="Sala" requireLogin isLoggedIn={false} onJoin={vi.fn()} />);
     expect(
-      screen.getByRole("link", { name: /entrar com chronos/i }),
-    ).toHaveAttribute("href", "/api/auth/login");
+      screen.getByRole("link", { name: /entrar/i }),
+    ).toHaveAttribute("href", "/login");
     expect(
       screen.queryByRole("button", { name: /entrar na reunião/i }),
     ).not.toBeInTheDocument();

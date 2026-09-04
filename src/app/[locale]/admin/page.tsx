@@ -25,6 +25,7 @@ import {
   IconSettings,
   IconShield,
   IconSparkles,
+  IconVideo,
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
@@ -44,19 +45,50 @@ type WebhookEvents = {
   chat: boolean;
   summary: boolean;
   tasks: boolean;
+  recording: boolean;
 };
 
 type AdminSettings = {
   locale: string;
+  deploymentMode?: "server" | "platform";
+  allowSignup?: boolean;
+  uiPrimary?: string;
+  uiSecondary?: string;
+  uiTertiary?: string;
+  uiBackground?: string;
+  uiInk?: string;
+  uiWordmark?: string;
+  uiLogoUrl?: string;
+  uiFaviconUrl?: string;
+  uiFontFamily?: string;
   geminiApiKey: SecretMask;
   geminiModel: string;
   geminiSummaryModel: string;
+  aiFallbackEnabled: boolean;
+  aiFallbackEnabledSource?: string;
+  aiFallbackBaseUrl: string;
+  aiFallbackBaseUrlSource?: string;
+  aiFallbackApiKey: SecretMask;
+  aiFallbackModel: string;
+  aiFallbackModelSource?: string;
+  aiFallbackSummaryModel: string;
+  aiFallbackSummaryModelSource?: string;
   deepgramApiKey: SecretMask;
   deepgramNote?: string;
   webhookEnabled: boolean;
   webhookUrl: string;
   webhookSecret: SecretMask;
   webhookEvents: WebhookEvents;
+  recordingEnabled: boolean;
+  recordingEngine: "egress" | "browser";
+  recordingControlMode: "manual" | "auto";
+  recordingStorage: "local" | "s3";
+  recordingLocalDir: string;
+  recordingS3Endpoint: string;
+  recordingS3Bucket: string;
+  recordingS3Region: string;
+  recordingS3AccessKey: SecretMask;
+  recordingS3SecretKey: SecretMask;
 };
 
 type Me = {
@@ -68,7 +100,9 @@ type Me = {
 
 const TABS = [
   { key: "general", icon: IconSettings },
+  { key: "ui", icon: IconSparkles },
   { key: "ai", icon: IconSparkles },
+  { key: "recording", icon: IconVideo },
   { key: "webhooks", icon: IconBolt },
 ] as const;
 
@@ -82,6 +116,7 @@ const EVENT_META: Array<{
   { key: "chat", event: "chat.ready" },
   { key: "summary", event: "summary.ready" },
   { key: "tasks", event: "tasks.generated" },
+  { key: "recording", event: "recording.ready" },
 ];
 
 const AI_LOCALES = ["pt-BR", "en", "es", "fr", "de"] as const;
@@ -98,8 +133,11 @@ export default function AdminPage() {
 
   // Editable drafts for secrets (empty = keep existing)
   const [geminiKeyDraft, setGeminiKeyDraft] = useState("");
+  const [aiFallbackKeyDraft, setAiFallbackKeyDraft] = useState("");
   const [deepgramKeyDraft, setDeepgramKeyDraft] = useState("");
   const [webhookSecretDraft, setWebhookSecretDraft] = useState("");
+  const [s3AccessDraft, setS3AccessDraft] = useState("");
+  const [s3SecretDraft, setS3SecretDraft] = useState("");
   const [exampleEvent, setExampleEvent] =
     useState<OutboundWebhookEvent>("summary.ready");
 
@@ -152,8 +190,11 @@ export default function AdminPage() {
       }
       setSettings(data as AdminSettings);
       setGeminiKeyDraft("");
+      setAiFallbackKeyDraft("");
       setDeepgramKeyDraft("");
       setWebhookSecretDraft("");
+      setS3AccessDraft("");
+      setS3SecretDraft("");
       toast.success(t("saved"));
     } catch {
       toast.error(t("networkFailed"));
@@ -164,18 +205,48 @@ export default function AdminPage() {
 
   async function saveGeneral() {
     if (!settings) return;
-    await save({ locale: settings.locale });
+    await save({
+      locale: settings.locale,
+      deploymentMode: settings.deploymentMode || "platform",
+      allowSignup: settings.allowSignup !== false,
+    });
+  }
+
+  async function saveUi() {
+    if (!settings) return;
+    await save({
+      uiPrimary: settings.uiPrimary,
+      uiSecondary: settings.uiSecondary,
+      uiTertiary: settings.uiTertiary,
+      uiBackground: settings.uiBackground,
+      uiInk: settings.uiInk,
+      uiWordmark: settings.uiWordmark,
+      uiLogoUrl: settings.uiLogoUrl || null,
+      uiFaviconUrl: settings.uiFaviconUrl || null,
+      uiFontFamily: settings.uiFontFamily,
+    });
   }
 
   async function saveAi() {
     if (!settings) return;
     const patch: Record<string, unknown> = {
+      aiFallbackEnabled: settings.aiFallbackEnabled,
+      aiFallbackBaseUrl: settings.aiFallbackBaseUrl || null,
+      aiFallbackModel: settings.aiFallbackModel || null,
+      aiFallbackSummaryModel: settings.aiFallbackSummaryModel || null,
       geminiModel: settings.geminiModel || null,
       geminiSummaryModel: settings.geminiSummaryModel || null,
     };
+    if (aiFallbackKeyDraft.trim()) {
+      patch.aiFallbackApiKey = aiFallbackKeyDraft.trim();
+    }
     if (geminiKeyDraft.trim()) patch.geminiApiKey = geminiKeyDraft.trim();
     if (deepgramKeyDraft.trim()) patch.deepgramApiKey = deepgramKeyDraft.trim();
     await save(patch);
+  }
+
+  async function clearAiFallbackKey() {
+    await save({ aiFallbackApiKey: null });
   }
 
   async function clearGeminiKey() {
@@ -197,6 +268,30 @@ export default function AdminPage() {
       patch.webhookSecret = webhookSecretDraft.trim();
     }
     await save(patch);
+  }
+
+  async function saveRecording() {
+    if (!settings) return;
+    const patch: Record<string, unknown> = {
+      recordingEnabled: settings.recordingEnabled,
+      recordingEngine: settings.recordingEngine,
+      recordingControlMode: settings.recordingControlMode,
+      recordingStorage: settings.recordingStorage,
+      recordingS3Endpoint: settings.recordingS3Endpoint || null,
+      recordingS3Bucket: settings.recordingS3Bucket || null,
+      recordingS3Region: settings.recordingS3Region || null,
+    };
+    if (s3AccessDraft.trim()) patch.recordingS3AccessKey = s3AccessDraft.trim();
+    if (s3SecretDraft.trim()) patch.recordingS3SecretKey = s3SecretDraft.trim();
+    await save(patch);
+  }
+
+  async function clearS3Access() {
+    await save({ recordingS3AccessKey: null });
+  }
+
+  async function clearS3Secret() {
+    await save({ recordingS3SecretKey: null });
   }
 
   async function clearWebhookSecret() {
@@ -256,7 +351,7 @@ export default function AdminPage() {
           <p className="mt-2 text-sm text-ink-muted">
             {t("sessionRequired.body")}
           </p>
-          <a href="/api/auth/login" className="mt-6 inline-block">
+          <a href="/login" className="mt-6 inline-block">
             <Button iconRight={<IconArrowRight className="h-4 w-4" />}>
               {t("sessionRequired.login")}
             </Button>
@@ -368,23 +463,205 @@ export default function AdminPage() {
                     </option>
                   ))}
                 </Select>
+                <Select
+                  label={t("ui.deploymentMode")}
+                  value={settings.deploymentMode || "platform"}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      deploymentMode: e.target.value as "server" | "platform",
+                    })
+                  }
+                >
+                  <option value="platform">platform</option>
+                  <option value="server">server</option>
+                </Select>
+                <label className="flex items-center gap-2 text-sm text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={settings.allowSignup !== false}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        allowSignup: e.target.checked,
+                      })
+                    }
+                  />
+                  {t("ui.allowSignup")}
+                </label>
                 <Button onClick={saveGeneral} disabled={saving}>
                   {saving ? t("saving") : t("general.save")}
                 </Button>
               </div>
             ) : null}
 
-            {tab === "ai" ? (
+            {tab === "ui" ? (
               <div className="max-w-xl space-y-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={settings.geminiApiKey.configured ? "success" : "warn"}>
-                    Gemini{" "}
-                    {settings.geminiApiKey.configured
-                      ? t("viaSource", {
-                          source: settings.geminiApiKey.source ?? "config",
+                <p className="text-sm text-ink-muted">{t("ui.title")}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  {(
+                    [
+                      ["uiPrimary", "primary"],
+                      ["uiSecondary", "secondary"],
+                      ["uiTertiary", "tertiary"],
+                      ["uiBackground", "background"],
+                      ["uiInk", "ink"],
+                    ] as const
+                  ).map(([field, labelKey]) => (
+                    <Input
+                      key={field}
+                      label={t(`ui.${labelKey}`)}
+                      type="color"
+                      value={settings[field] || "#0ea5e9"}
+                      onChange={(e) =>
+                        setSettings({ ...settings, [field]: e.target.value })
+                      }
+                    />
+                  ))}
+                </div>
+                <Input
+                  label={t("ui.wordmark")}
+                  value={settings.uiWordmark || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiWordmark: e.target.value })
+                  }
+                />
+                <Input
+                  label={t("ui.logoUrl")}
+                  value={settings.uiLogoUrl || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiLogoUrl: e.target.value })
+                  }
+                />
+                <Input
+                  label={t("ui.faviconUrl")}
+                  value={settings.uiFaviconUrl || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiFaviconUrl: e.target.value })
+                  }
+                />
+                <Input
+                  label={t("ui.fontFamily")}
+                  value={settings.uiFontFamily || ""}
+                  onChange={(e) =>
+                    setSettings({ ...settings, uiFontFamily: e.target.value })
+                  }
+                />
+                <div
+                  className="rounded-2xl border border-line p-6"
+                  style={{
+                    background: settings.uiBackground || "#0b1020",
+                    color: settings.uiInk || "#f8fafc",
+                  }}
+                >
+                  <p className="text-xs uppercase tracking-widest opacity-70">
+                    {t("ui.preview")}
+                  </p>
+                  <p
+                    className="mt-2 text-2xl font-semibold"
+                    style={{ color: settings.uiPrimary || "#0ea5e9" }}
+                  >
+                    {settings.uiWordmark || "OpenMeet"}
+                  </p>
+                </div>
+                <Button onClick={saveUi} disabled={saving}>
+                  {saving ? t("saving") : t("general.save")}
+                </Button>
+              </div>
+            ) : null}
+
+            {tab === "ai" ? (
+              <div className="max-w-xl space-y-8">
+                <div className="space-y-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={settings.aiFallbackEnabled ? "success" : "warn"}>
+                      Groq / OpenAI-compatible{" "}
+                      {settings.aiFallbackEnabled
+                        ? t("viaSource", {
+                            source:
+                              settings.aiFallbackEnabledSource ?? "config",
+                          })
+                        : t("notConfigured")}
+                    </Badge>
+                    {settings.aiFallbackApiKey.preview ? (
+                      <span className="font-mono text-xs text-ink-faint">
+                        {settings.aiFallbackApiKey.preview}
+                      </span>
+                    ) : null}
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={settings.aiFallbackEnabled}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          aiFallbackEnabled: e.target.checked,
                         })
-                      : t("notConfigured")}
-                  </Badge>
+                      }
+                      className="rounded border-line"
+                    />
+                    {t("ai.groqEnabled")}
+                  </label>
+                  <Input
+                    label={t("ai.groqBaseUrlLabel")}
+                    value={settings.aiFallbackBaseUrl}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        aiFallbackBaseUrl: e.target.value,
+                      })
+                    }
+                    placeholder="https://api.groq.com/openai/v1"
+                    hint={t("ai.groqBaseUrlHint")}
+                  />
+                  <Input
+                    label={t("ai.groqKeyLabel")}
+                    type="password"
+                    autoComplete="off"
+                    value={aiFallbackKeyDraft}
+                    onChange={(e) => setAiFallbackKeyDraft(e.target.value)}
+                    hint={t("ai.groqKeyHint")}
+                    placeholder="gsk_…"
+                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      label={t("ai.groqModelInsights")}
+                      value={settings.aiFallbackModel}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          aiFallbackModel: e.target.value,
+                        })
+                      }
+                      placeholder="openai/gpt-oss-120b"
+                      hint={t("ai.groqModelInsightsHint")}
+                    />
+                    <Input
+                      label={t("ai.groqModelSummary")}
+                      value={settings.aiFallbackSummaryModel}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          aiFallbackSummaryModel: e.target.value,
+                        })
+                      }
+                      placeholder="openai/gpt-oss-120b"
+                      hint={t("ai.groqModelSummaryHint")}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-5 border-t border-line pt-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={settings.geminiApiKey.configured ? "success" : "warn"}>
+                      Gemini{" "}
+                      {settings.geminiApiKey.configured
+                        ? t("viaSource", {
+                            source: settings.geminiApiKey.source ?? "config",
+                          })
+                        : t("notConfigured")}
+                    </Badge>
                   {settings.geminiApiKey.preview ? (
                     <span className="font-mono text-xs text-ink-faint">
                       {settings.geminiApiKey.preview}
@@ -407,7 +684,8 @@ export default function AdminPage() {
                     onChange={(e) =>
                       setSettings({ ...settings, geminiModel: e.target.value })
                     }
-                    placeholder="gemini-2.5-flash-lite"
+                    placeholder="gemini-3.5-flash-lite"
+                    hint={t("ai.modelInsightsHint")}
                   />
                   <Input
                     label={t("ai.modelSummary")}
@@ -418,10 +696,14 @@ export default function AdminPage() {
                         geminiSummaryModel: e.target.value,
                       })
                     }
-                    placeholder="gemini-2.5-flash"
+                    placeholder="gemini-3.5-flash"
+                    hint={t("ai.modelSummaryHint")}
                   />
                 </div>
-                <div className="flex flex-wrap items-center gap-2 pt-2">
+                </div>
+
+                <div className="space-y-5 border-t border-line pt-6">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     tone={settings.deepgramApiKey.configured ? "success" : "warn"}
                   >
@@ -443,10 +725,21 @@ export default function AdminPage() {
                     settings.deepgramNote || t("ai.deepgramKeyHint")
                   }
                 />
-                <div className="flex flex-wrap gap-2">
+                </div>
+
+                <div className="flex flex-wrap gap-2 border-t border-line pt-6">
                   <Button onClick={saveAi} disabled={saving}>
                     {saving ? t("saving") : t("ai.save")}
                   </Button>
+                  {settings.aiFallbackApiKey.source === "db" ? (
+                    <Button
+                      variant="ghost"
+                      onClick={clearAiFallbackKey}
+                      disabled={saving}
+                    >
+                      {t("ai.clearGroq")}
+                    </Button>
+                  ) : null}
                   {settings.geminiApiKey.source === "db" ? (
                     <Button
                       variant="ghost"
@@ -463,6 +756,155 @@ export default function AdminPage() {
                       disabled={saving}
                     >
                       {t("ai.clearDeepgram")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {tab === "recording" ? (
+              <div className="max-w-xl space-y-5">
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-line"
+                    checked={settings.recordingEnabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        recordingEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>{t("recording.enabled")}</span>
+                </label>
+                <Select
+                  label={t("recording.engineLabel")}
+                  value={settings.recordingEngine}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      recordingEngine: e.target.value as "egress" | "browser",
+                    })
+                  }
+                >
+                  <option value="browser">{t("recording.engineBrowser")}</option>
+                  <option value="egress">{t("recording.engineEgress")}</option>
+                </Select>
+                {settings.recordingEngine === "egress" ? (
+                  <p className="text-xs text-ink-faint">
+                    {t("recording.egressNote")}
+                  </p>
+                ) : null}
+                <Select
+                  label={t("recording.controlLabel")}
+                  value={settings.recordingControlMode}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      recordingControlMode: e.target.value as "manual" | "auto",
+                    })
+                  }
+                >
+                  <option value="manual">{t("recording.controlManual")}</option>
+                  <option value="auto">{t("recording.controlAuto")}</option>
+                </Select>
+                <Select
+                  label={t("recording.storageLabel")}
+                  value={settings.recordingStorage}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      recordingStorage: e.target.value as "local" | "s3",
+                    })
+                  }
+                >
+                  <option value="local">{t("recording.storageLocal")}</option>
+                  <option value="s3">{t("recording.storageS3")}</option>
+                </Select>
+                {settings.recordingStorage === "local" ? (
+                  <p className="text-xs text-ink-faint">
+                    {t("recording.localDirHint", {
+                      dir: settings.recordingLocalDir,
+                    })}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <Input
+                      label={t("recording.s3Endpoint")}
+                      value={settings.recordingS3Endpoint}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          recordingS3Endpoint: e.target.value,
+                        })
+                      }
+                      placeholder={t("recording.s3EndpointPlaceholder")}
+                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input
+                        label={t("recording.s3Bucket")}
+                        value={settings.recordingS3Bucket}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            recordingS3Bucket: e.target.value,
+                          })
+                        }
+                      />
+                      <Input
+                        label={t("recording.s3Region")}
+                        value={settings.recordingS3Region}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            recordingS3Region: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <Input
+                      label={t("recording.s3AccessKey")}
+                      type="password"
+                      autoComplete="off"
+                      value={s3AccessDraft}
+                      onChange={(e) => setS3AccessDraft(e.target.value)}
+                      hint={
+                        settings.recordingS3AccessKey.configured
+                          ? settings.recordingS3AccessKey.preview ?? undefined
+                          : t("recording.s3SecretHint")
+                      }
+                    />
+                    <Input
+                      label={t("recording.s3SecretKey")}
+                      type="password"
+                      autoComplete="off"
+                      value={s3SecretDraft}
+                      onChange={(e) => setS3SecretDraft(e.target.value)}
+                      hint={t("recording.s3SecretHint")}
+                    />
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={saveRecording} disabled={saving}>
+                    {saving ? t("saving") : t("recording.save")}
+                  </Button>
+                  {settings.recordingS3AccessKey.source === "db" ? (
+                    <Button
+                      variant="ghost"
+                      onClick={clearS3Access}
+                      disabled={saving}
+                    >
+                      {t("recording.clearS3Access")}
+                    </Button>
+                  ) : null}
+                  {settings.recordingS3SecretKey.source === "db" ? (
+                    <Button
+                      variant="ghost"
+                      onClick={clearS3Secret}
+                      disabled={saving}
+                    >
+                      {t("recording.clearS3Secret")}
                     </Button>
                   ) : null}
                 </div>
@@ -523,7 +965,7 @@ export default function AdminPage() {
                         <input
                           type="checkbox"
                           className="mt-0.5 h-4 w-4 rounded border-line"
-                          checked={settings.webhookEvents[item.key]}
+                          checked={settings.webhookEvents[item.key] ?? true}
                           onChange={(e) =>
                             setSettings({
                               ...settings,

@@ -1,26 +1,41 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { meetings, participants, rooms } from "@/db/schema";
+import { meetings, participants } from "@/db/schema";
 import type { SessionData } from "@/lib/session";
+import type { MeetingHostContext } from "@/lib/hostAuth";
 
 export type MeetingAccessResult =
   | {
       ok: true;
       meeting: typeof meetings.$inferSelect;
-      room: typeof rooms.$inferSelect;
+      room: MeetingHostContext;
       isOwner: boolean;
       isParticipant: boolean;
     }
   | { ok: false; status: 401 | 403 | 404; error: string };
 
+function meetingAsContext(
+  meeting: typeof meetings.$inferSelect,
+): MeetingHostContext {
+  return {
+    id: meeting.id,
+    slug: meeting.slug,
+    title: meeting.title,
+    ownerIdentityId: meeting.ownerIdentityId,
+    boardId: meeting.boardId,
+    livekitRoomName: meeting.livekitRoomName,
+    accessPolicy: meeting.accessPolicy,
+    roomId: meeting.roomId,
+  };
+}
+
 /**
- * Room owner, a logged-in meeting participant, or (for ended meetings)
+ * Meeting owner, a logged-in meeting participant, or (for ended meetings)
  * anyone with the meeting id — guests receive the summary URL after end.
  */
 export async function assertMeetingSummaryAccess(opts: {
   meetingId: string;
   session: SessionData;
-  /** When true, ended meetings are readable without login (share / guest exit). */
   allowEndedPublic?: boolean;
 }): Promise<MeetingAccessResult> {
   const meeting = await db.query.meetings.findFirst({
@@ -30,15 +45,9 @@ export async function assertMeetingSummaryAccess(opts: {
     return { ok: false, status: 404, error: "not_found" };
   }
 
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
-  if (!room) {
-    return { ok: false, status: 404, error: "room_not_found" };
-  }
-
+  const room = meetingAsContext(meeting);
   const identityId = opts.session.identityId;
-  const isOwner = Boolean(identityId) && identityId === room.ownerIdentityId;
+  const isOwner = Boolean(identityId) && identityId === meeting.ownerIdentityId;
 
   let isParticipant = false;
   if (identityId) {

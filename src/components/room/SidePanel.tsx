@@ -6,14 +6,15 @@ import {
 } from "@livekit/components-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { cn, hueFromString, initials } from "@/lib/utils";
+import { cn, formatMessageDateTime, formatMessageTime, hueFromString, initials, messageIsoDateTime } from "@/lib/utils";
 import { EASE_OUT_EXPO, springSoft } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/Button";
 import {
   IconArrowRight,
+  IconHand,
   IconMicOff,
   IconVideoOff,
 } from "@/components/ui/icons";
@@ -24,6 +25,7 @@ import type { CopilotChatMessage } from "@/lib/copilot-chat-prompt";
 import { isAgentParticipant } from "@/lib/participants";
 import { useToast } from "@/components/ui/Toast";
 import { useCopilotChat } from "@/hooks/useCopilotChat";
+import type { JoinRequest } from "@/hooks/useJoinRequests";
 
 export type ChatSend = (
   message: string,
@@ -49,6 +51,10 @@ export function SidePanel({
   copilotDisplayName,
   copilotIdentity,
   overlay = false,
+  joinRequests = [],
+  joinBusyId = null,
+  onJoinDecide,
+  raisedIdentities = new Set<string>(),
 }: {
   panel: PanelKind;
   onClose: () => void;
@@ -69,6 +75,13 @@ export function SidePanel({
   copilotIdentity?: string;
   /** Below lg: render as full-height overlay so the stage keeps full width. */
   overlay?: boolean;
+  joinRequests?: JoinRequest[];
+  joinBusyId?: string | null;
+  onJoinDecide?: (
+    id: string,
+    decision: "approve" | "deny",
+  ) => Promise<boolean>;
+  raisedIdentities?: ReadonlySet<string>;
 }) {
   const t = useTranslations("room.sidePanel");
   const tLabels = useTranslations("common.labels");
@@ -118,6 +131,10 @@ export function SidePanel({
               roomSlug={roomSlug}
               meetingId={meetingId}
               isHost={isHost}
+              joinRequests={joinRequests}
+              joinBusyId={joinBusyId}
+              onJoinDecide={onJoinDecide}
+              raisedIdentities={raisedIdentities}
             />
           ) : null}
           {panel === "captions" ? (
@@ -205,6 +222,10 @@ export function SidePanel({
   );
 }
 
+function isNearBottom(el: HTMLElement, threshold = 80) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+}
+
 function ChatPanel({
   messages,
   send,
@@ -218,16 +239,45 @@ function ChatPanel({
 }) {
   const t = useTranslations("room.sidePanel");
   const [draft, setDraft] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const prevMessageCount = useRef(messages.length);
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
+
+  const scrollToEnd = (behavior: ScrollBehavior) => {
+    endRef.current?.scrollIntoView({ behavior });
+  };
 
   useEffect(() => {
-    onRead();
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, onRead]);
+    scrollToEnd("auto");
+    onReadRef.current();
+    prevMessageCount.current = messages.length;
+  }, []);
+
+  useEffect(() => {
+    const grew = messages.length > prevMessageCount.current;
+    prevMessageCount.current = messages.length;
+    if (!grew) return;
+
+    const latest = messages[messages.length - 1];
+    const isLocal = Boolean(latest?.from?.isLocal);
+    const container = scrollRef.current;
+    const shouldScroll =
+      isLocal || !container || isNearBottom(container);
+
+    if (shouldScroll) {
+      scrollToEnd("smooth");
+      onReadRef.current();
+    }
+  }, [messages.length, messages]);
 
   return (
     <div className="flex h-full flex-col">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4"
+      >
         {messages.length === 0 ? (
           <p className="pt-8 text-center text-sm text-ink-faint">
             {t("chatEmpty")}
@@ -271,9 +321,13 @@ function ChatPanel({
 
 function ChatBubble({ message }: { message: ReceivedChatMessage }) {
   const tLabels = useTranslations("common.labels");
+  const locale = useLocale();
   const from = message.from;
   const name = from?.name || from?.identity || tLabels("anonymous");
   const mine = Boolean(from?.isLocal);
+  const timeLabel = formatMessageTime(message.timestamp, locale);
+  const timeTitle = formatMessageDateTime(message.timestamp, locale);
+  const isoTime = messageIsoDateTime(message.timestamp);
   return (
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -281,8 +335,25 @@ function ChatBubble({ message }: { message: ReceivedChatMessage }) {
       transition={springSoft}
       className={cn("flex flex-col gap-1", mine && "items-end")}
     >
-      <span className="px-1 text-[11px] text-ink-faint">
-        {mine ? tLabels("you") : name}
+      <span
+        className={cn(
+          "flex max-w-[85%] items-center gap-1.5 px-1 text-[11px] text-ink-faint",
+          mine && "justify-end",
+        )}
+      >
+        <span className="truncate">{mine ? tLabels("you") : name}</span>
+        {timeLabel && isoTime ? (
+          <>
+            <span aria-hidden className="text-ink-faint/50">·</span>
+            <time
+              dateTime={isoTime}
+              title={timeTitle || timeLabel}
+              className="shrink-0 tabular-nums text-ink-faint/80"
+            >
+              {timeLabel}
+            </time>
+          </>
+        ) : null}
       </span>
       <p
         className={cn(
@@ -302,10 +373,21 @@ function PeoplePanel({
   roomSlug,
   meetingId,
   isHost,
+  joinRequests,
+  joinBusyId,
+  onJoinDecide,
+  raisedIdentities = new Set<string>(),
 }: {
   roomSlug?: string;
   meetingId?: string;
   isHost?: boolean;
+  joinRequests?: JoinRequest[];
+  joinBusyId?: string | null;
+  onJoinDecide?: (
+    id: string,
+    decision: "approve" | "deny",
+  ) => Promise<boolean>;
+  raisedIdentities?: ReadonlySet<string>;
 }) {
   const participants = useParticipants();
   const toast = useToast();
@@ -327,7 +409,7 @@ function PeoplePanel({
     }
     setBusyId(`${identity}:${action}`);
     try {
-      const res = await fetch(`/api/rooms/${encodeURIComponent(roomSlug)}/moderate`, {
+      const res = await fetch(`/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/moderate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, identity, meetingId }),
@@ -349,8 +431,12 @@ function PeoplePanel({
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {isHost && roomSlug ? (
-        <WaitingQueue roomSlug={roomSlug} />
+      {isHost && roomSlug && onJoinDecide ? (
+        <WaitingQueue
+          requests={joinRequests ?? []}
+          busyId={joinBusyId ?? null}
+          onDecide={onJoinDecide}
+        />
       ) : null}
       <ul className="space-y-1.5 px-3 py-3">
         <AnimatePresence initial={false}>
@@ -358,6 +444,7 @@ function PeoplePanel({
             const name = p.name || p.identity;
             const hue = hueFromString(p.identity);
             const canModerate = Boolean(isHost && !p.isLocal && roomSlug);
+            const handRaised = raisedIdentities.has(p.identity);
             return (
               <motion.li
                 key={p.identity}
@@ -379,6 +466,12 @@ function PeoplePanel({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-ink">
                     {name}
+                    {handRaised ? (
+                      <IconHand
+                        className="ml-1.5 inline h-3.5 w-3.5 text-amber-400"
+                        aria-label={t("handRaised")}
+                      />
+                    ) : null}
                     {p.isLocal ? ` ${tLabels("youParen")}` : ""}
                     {p.isLocal && isHost ? (
                       <span className="ml-1.5 text-[10px] uppercase tracking-wide text-brand-secondary">
@@ -445,65 +538,34 @@ function PeoplePanel({
   );
 }
 
-type WaitingRequest = {
-  id: string;
-  displayName: string;
-  createdAt: string;
-};
+type WaitingRequest = JoinRequest;
 
-function WaitingQueue({ roomSlug }: { roomSlug: string }) {
+function WaitingQueue({
+  requests,
+  busyId,
+  onDecide,
+}: {
+  requests: WaitingRequest[];
+  busyId: string | null;
+  onDecide: (id: string, decision: "approve" | "deny") => Promise<boolean>;
+}) {
   const toast = useToast();
   const t = useTranslations("room.sidePanel");
   const tActions = useTranslations("common.actions");
   const tToast = useTranslations("common.toast");
   const tErrors = useTranslations("common.errors");
-  const [requests, setRequests] = useState<WaitingRequest[]>([]);
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch(
-          `/api/rooms/${encodeURIComponent(roomSlug)}/join-requests`,
-        );
-        if (!res.ok || cancelled) return;
-        const json = await res.json();
-        setRequests(json.requests ?? []);
-      } catch {
-        /* ignore */
-      }
-    };
-    void load();
-    const id = window.setInterval(load, 2500);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [roomSlug]);
 
   async function decide(id: string, decision: "approve" | "deny") {
-    setBusyId(id);
-    try {
-      const res = await fetch(
-        `/api/rooms/${encodeURIComponent(roomSlug)}/join-requests/${id}/${decision}`,
-        { method: "POST" },
-      );
-      if (!res.ok) {
-        toast.error(tErrors("updateRequest"));
-        return;
-      }
-      setRequests((prev) => prev.filter((r) => r.id !== id));
-      toast.push(
-        decision === "approve"
-          ? tToast("entryApproved")
-          : tToast("requestDenied"),
-      );
-    } catch {
-      toast.error(tToast("networkError"));
-    } finally {
-      setBusyId(null);
+    const ok = await onDecide(id, decision);
+    if (!ok) {
+      toast.error(tErrors("updateRequest"));
+      return;
     }
+    toast.push(
+      decision === "approve"
+        ? tToast("entryApproved")
+        : tToast("requestDenied"),
+    );
   }
 
   if (requests.length === 0) return null;

@@ -42,8 +42,8 @@ def test_normalize_strips_accents() -> None:
 
 
 def test_parse_wake_phrases_csv() -> None:
-    phrases = parse_wake_phrases("ei copiloto, hey chronos")
-    assert phrases == ("ei copiloto", "hey chronos")
+    phrases = parse_wake_phrases("ei copiloto, hey openmeet")
+    assert phrases == ("ei copiloto", "hey openmeet")
 
 
 def test_wake_debouncer_cooldown() -> None:

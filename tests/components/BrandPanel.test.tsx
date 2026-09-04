@@ -7,13 +7,13 @@ import { BOARD_THEMES } from "@/lib/brand";
 import { withIntl } from "../helpers/intl";
 
 const INITIAL = {
-  themePreset: "indigo",
-  primaryColor: "#6366f1",
-  secondaryColor: "#22d3ee",
-  tertiaryColor: "#a855f7",
+  themePreset: "violet",
+  primaryColor: "#8b5cf6",
+  secondaryColor: "#a78bfa",
+  tertiaryColor: "#d946ef",
   background: "#0b1020",
   lobbyTitle: "Weekly de produto",
-  lobbySubtitle: "Powered by Chronos Meet",
+  lobbySubtitle: "Powered by OpenMeet",
   logoUrl: null,
   customCss: null,
 };

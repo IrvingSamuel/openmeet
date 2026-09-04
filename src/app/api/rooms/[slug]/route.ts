@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { rooms, roomBrands } from "@/db/schema";
 import { getSession } from "@/lib/session";
+import { deleteRoomFully } from "@/lib/rooms";
 
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -89,4 +90,24 @@ export async function PATCH(
   }
 
   return NextResponse.json({ room: updated });
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  ctx: { params: Promise<{ slug: string }> },
+) {
+  const session = await getSession();
+  if (!session.isLoggedIn || !session.identityId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { slug } = await ctx.params;
+  const room = await db.query.rooms.findFirst({ where: eq(rooms.slug, slug) });
+  if (!room) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (room.ownerIdentityId !== session.identityId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  await deleteRoomFully(room);
+  return NextResponse.json({ ok: true, slug });
 }

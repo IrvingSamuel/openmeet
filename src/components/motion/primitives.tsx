@@ -325,6 +325,7 @@ export function AnimatedNumber({
   prefix = "",
   className,
   locale: localeProp,
+  startOnMount = false,
 }: {
   value: number;
   decimals?: number;
@@ -333,17 +334,20 @@ export function AnimatedNumber({
   className?: string;
   /** BCP-47 or app locale (en/pt/…). Overrides next-intl when set. */
   locale?: string;
+  /** Animate immediately on mount (for above-the-fold stats). */
+  startOnMount?: boolean;
 }) {
   const intlLocale = useLocale();
   const numberLocale = resolveNumberLocale(localeProp ?? intlLocale);
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-20% 0px" });
+  const shouldAnimate = startOnMount || inView;
   const [display, setDisplay] = useState(0);
   const spring = useSpring(0, { stiffness: 70, damping: 22 });
 
   useEffect(() => {
-    if (inView) spring.set(value);
-  }, [inView, spring, value]);
+    if (shouldAnimate) spring.set(value);
+  }, [shouldAnimate, spring, value]);
 
   useEffect(() => spring.on("change", (v) => setDisplay(v)), [spring]);
 

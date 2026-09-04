@@ -83,12 +83,14 @@ describe("webhookEventsOrDefault", () => {
       chat: true,
       summary: true,
       tasks: true,
+      recording: true,
     });
     expect(webhookEventsOrDefault({ transcript: false } as never)).toEqual({
       transcript: false,
       chat: true,
       summary: true,
       tasks: true,
+      recording: true,
     });
   });
 });
@@ -112,7 +114,7 @@ describe("HMAC webhook signing", () => {
         body,
         secret: "secret",
         timestamp,
-      })["X-Chronos-Meet-Signature"],
+      })["X-OpenMeet-Signature"],
     ).toBe(sig);
   });
 
@@ -121,8 +123,8 @@ describe("HMAC webhook signing", () => {
       event: "chat.ready",
       body: "{}",
     });
-    expect(headers["X-Chronos-Meet-Event"]).toBe("chat.ready");
-    expect(headers["X-Chronos-Meet-Signature"]).toBeUndefined();
+    expect(headers["X-OpenMeet-Event"]).toBe("chat.ready");
+    expect(headers["X-OpenMeet-Signature"]).toBeUndefined();
   });
 });
 
