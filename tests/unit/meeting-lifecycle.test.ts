@@ -48,7 +48,9 @@ vi.mock("@/db", () => ({
 
 import {
   activateMeetingIfScheduled,
+  DEFAULT_SCHEDULED_MAX_AGE_SEC,
   expireStaleMeetings,
+  getMeetingEmptyTimeoutSec,
   loadMeetingBySlugAfterExpiry,
   MEETING_EMPTY_TIMEOUT_SEC,
   reconcileActiveMeetingsWithLiveKit,
@@ -69,6 +71,9 @@ beforeEach(() => {
   selectDistinctResult.mockResolvedValue([]);
   listRooms.mockResolvedValue([]);
   deleteRoom.mockResolvedValue(undefined);
+  delete process.env.MEETING_EMPTY_TIMEOUT_SEC;
+  delete process.env.LIVEKIT_EMPTY_TIMEOUT_SEC;
+  delete process.env.MEETING_SCHEDULED_MAX_AGE_SEC;
 });
 
 describe("activateMeetingIfScheduled", () => {
@@ -87,13 +92,20 @@ describe("activateMeetingIfScheduled", () => {
 });
 
 describe("expireStaleMeetings", () => {
-  it("expires scheduled meetings older than the empty timeout", async () => {
+  it("expires scheduled meetings older than the scheduled max age", async () => {
     updateReturning.mockResolvedValueOnce([{ id: "old-scheduled" }]);
     meetingsFindMany.mockResolvedValue([]);
 
     const result = await expireStaleMeetings();
     expect(result.expiredScheduled).toEqual(["old-scheduled"]);
     expect(result.expiredOrphans).toEqual([]);
+  });
+
+  it("does not use empty timeout for scheduled max-age cutoff", () => {
+    expect(DEFAULT_SCHEDULED_MAX_AGE_SEC).toBeGreaterThan(
+      MEETING_EMPTY_TIMEOUT_SEC,
+    );
+    expect(getMeetingEmptyTimeoutSec()).toBe(MEETING_EMPTY_TIMEOUT_SEC);
   });
 
   it("expires orphan active meetings without LiveKit SID or open participants", async () => {
@@ -187,12 +199,14 @@ describe("loadMeetingBySlugAfterExpiry", () => {
     await expect(loadMeetingBySlugAfterExpiry("nope")).resolves.toBeNull();
   });
 
-  it("reloads after attempting expiry for scheduled meetings", async () => {
+  it("reloads after attempting expiry for old scheduled meetings", async () => {
     const scheduled = {
       id: "m1",
       slug: "abc",
       status: "scheduled",
-      startedAt: new Date(Date.now() - (MEETING_EMPTY_TIMEOUT_SEC + 5) * 1000),
+      startedAt: new Date(
+        Date.now() - (DEFAULT_SCHEDULED_MAX_AGE_SEC + 5) * 1000,
+      ),
     };
     const ended = { ...scheduled, status: "ended" };
     meetingsFindFirst

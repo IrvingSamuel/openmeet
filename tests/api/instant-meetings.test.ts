@@ -53,6 +53,7 @@ beforeEach(() => {
   identityBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
   delete process.env.AGENT_SHARED_SECRET;
+  process.env.NEXT_PUBLIC_APP_URL = "https://openmeet.chronos.com.pt";
 });
 
 describe("POST /api/rooms/instant", () => {
@@ -126,6 +127,59 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(body.slug).toBe("apiroom001");
     expect(body.url).toContain("/m/apiroom001");
     expect(body.meeting_id).toBe("m2");
+    expect(body.empty_timeout_sec).toBe(300);
+  });
+
+  it("accepts empty_timeout_sec override", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m4",
+          slug: "holdroom01",
+          title: "Hold",
+          accessPolicy: "public",
+          roomId: null,
+          emptyTimeoutSec: 1800,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m4" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Hold",
+          chronos_user_id: "cu-1",
+          empty_timeout_sec: 1800,
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.empty_timeout_sec).toBe(1800);
+  });
+
+  it("rejects empty_timeout_sec out of range", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Bad",
+          chronos_user_id: "cu-1",
+          empty_timeout_sec: 10,
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("empty_timeout_sec_out_of_range");
   });
 
   it("creates via session cookie", async () => {

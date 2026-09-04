@@ -136,6 +136,7 @@ describe("POST /api/meetings/by-slug/[slug]/token", () => {
     expect(syncRoomMetadata).toHaveBeenCalledWith(
       "meet_abc",
       expect.objectContaining({ meetingId: "m1", slug: "abc" }),
+      expect.objectContaining({ emptyTimeout: expect.any(Number) }),
     );
     expect(activateMeetingIfScheduled).toHaveBeenCalledWith("m1");
   });

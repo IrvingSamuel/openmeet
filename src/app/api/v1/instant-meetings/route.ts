@@ -3,6 +3,10 @@ import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { brandFieldsSchema } from "@/lib/brand-schema";
 import { createMeetingWithBrand } from "@/lib/meetings";
+import {
+  clampEmptyTimeoutSec,
+  resolveEmptyTimeoutSec,
+} from "@/lib/meeting-timeouts";
 import { authorizeBearer, resolveOwnerIdentityId } from "@/lib/rooms";
 
 const schema = z.object({
@@ -16,6 +20,8 @@ const schema = z.object({
   owner_user_id: z.string().uuid().optional(),
   external_id: z.string().min(1).optional(),
   ui: brandFieldsSchema.optional(),
+  /** Seconds after last participant leaves before the room auto-ends (60–86400). */
+  empty_timeout_sec: z.number().int().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,6 +38,19 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: "invalid_body", detail: String(err) },
+      { status: 400 },
+    );
+  }
+
+  let emptyTimeoutSec: number | null = null;
+  try {
+    emptyTimeoutSec = clampEmptyTimeoutSec(body.empty_timeout_sec);
+  } catch {
+    return NextResponse.json(
+      {
+        error: "empty_timeout_sec_out_of_range",
+        detail: "empty_timeout_sec must be between 60 and 86400",
+      },
       { status: 400 },
     );
   }
@@ -77,6 +96,7 @@ export async function POST(req: NextRequest) {
       roomId: body.room_id ?? null,
       ui: body.ui,
       useIdentityBrand: !body.ui,
+      emptyTimeoutSec,
     });
 
     return NextResponse.json(
@@ -88,6 +108,7 @@ export async function POST(req: NextRequest) {
         access_policy: meeting.accessPolicy,
         title: meeting.title,
         brand_room_id: meeting.roomId,
+        empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
       },
       { status: 201 },
     );

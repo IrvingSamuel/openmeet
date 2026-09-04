@@ -25,6 +25,8 @@ export type CreateMeetingInput = {
   themePreset?: string;
   ui?: BrandFieldsInput;
   useIdentityBrand?: boolean;
+  /** Per-meeting empty timeout (seconds); null/undefined = env default. */
+  emptyTimeoutSec?: number | null;
 };
 
 export type CreatedMeetingResult = {
@@ -188,6 +190,7 @@ export async function createMeetingWithBrand(
       livekitRoomName: `meet_${slug}`,
       roomId,
       status: "scheduled",
+      emptyTimeoutSec: input.emptyTimeoutSec ?? null,
     })
     .returning();
 
