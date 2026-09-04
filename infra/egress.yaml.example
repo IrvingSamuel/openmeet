@@ -1,0 +1,21 @@
+# LiveKit Egress — OpenMeet
+# Docs: https://docs.livekit.io/home/egress/overview/
+#
+# Copy to egress.yaml and fill secrets (never commit egress.yaml):
+#   cp infra/egress.yaml.example infra/egress.yaml
+# Keys MUST match livekit.yaml and LIVEKIT_API_* in .env.
+
+log_level: info
+api_key: YOUR_LIVEKIT_API_KEY
+api_secret: "YOUR_LIVEKIT_API_SECRET"
+ws_url: ws://127.0.0.1:7880
+insecure: true
+redis:
+  address: 127.0.0.1:6379
+  db: 5
+health_port: 9090
+cpu_cost:
+  room_composite_cpu_cost: 4
+  web_cpu_cost: 4
+  track_composite_cpu_cost: 1
+  track_cpu_cost: 0.5

@@ -10,7 +10,7 @@ from typing import Any, Optional
 import aiohttp
 from livekit import rtc
 
-logger = logging.getLogger("chronos-meet-agent")
+logger = logging.getLogger("openmeet-agent")
 
 
 async def post_voice_copilot_chat(

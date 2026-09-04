@@ -20,13 +20,14 @@ Diferente de wrappers sobre Jitsi/Zoom/Meet, o produto é próprio — UI 100% n
 4. Copiloto: legendas ao vivo em PT-BR, resumo pós-reunião, criação de tarefas via MCP.
 5. Rodar nesta VPS (porta 3331 atrás do nginx CloudPanel) com capacidade documentada.
 
-## Fora de escopo (MVP)
+## Fora de escopo (MVP original)
 
-- Gravação cloud (LiveKit Egress / Chrome headless) — custo de CPU proibitivo nesta VPS.
-- Domínio customizado por cliente (Fase 5).
+- Domínio customizado por cliente (Fase 5+).
 - Breakout rooms avançados, webinars, streaming RTMP.
 - App mobile nativo (PWA/browser first).
 - Migrar o Jitsi do Rezumme.
+
+> **Actualização:** gravação (browser + Egress, local/S3) está disponível na Fase 5 via `/admin`. Egress continua recomendado em nó dedicado.
 
 ## Personas
 

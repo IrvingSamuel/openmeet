@@ -10,7 +10,7 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === "development",
   reloadOnOnline: false,
   additionalPrecacheEntries: [
-    { url: "/~offline", revision: "chronos-meet-offline-v1" },
+    { url: "/~offline", revision: "openmeet-offline-v1" },
   ],
 });
 

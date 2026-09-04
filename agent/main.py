@@ -1,4 +1,4 @@
-"""Chronos Meet copiloto — LiveKit Agents worker (STT + voice wake Copiloto).
+"""OpenMeet copiloto — LiveKit Agents worker (STT + voice wake Copiloto).
 
 Requires:
   pip install -r requirements.txt
@@ -31,20 +31,21 @@ from livekit.agents import (
 from livekit.agents.stt import SpeechEventType
 from livekit.plugins import deepgram
 
+from caption_guards import CrossCaptionDeduper, participant_mic_muted
 from copilot_voice import handle_voice_copilot
 from wake_word import WakeDebouncer, extract_wake_command, parse_wake_phrases
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
-logger = logging.getLogger("chronos-meet-agent")
+logger = logging.getLogger("openmeet-agent")
 logging.basicConfig(level=logging.INFO)
 
-MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3331")
+MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3332")
 AGENT_SECRET = os.getenv("AGENT_SHARED_SECRET", "")
 
-AGENT_DISPLAY_NAME = "Agente Chronos"
-AGENT_IDENTITY = "agent-chronos"
+AGENT_DISPLAY_NAME = "OpenMeet Agent"
+AGENT_IDENTITY = "agent-openmeet"
 
 # Voice wake Copiloto
 WAKE_DEBOUNCE_SEC = 5.0
@@ -54,7 +55,7 @@ def reload_env() -> None:
     """Job subprocesses may start before PM2 env is visible — reload .env."""
     load_dotenv(dotenv_path=ENV_PATH, override=True)
     global MEET_API_URL, AGENT_SECRET
-    MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3331")
+    MEET_API_URL = os.getenv("MEET_API_URL", "http://127.0.0.1:3332")
     AGENT_SECRET = os.getenv("AGENT_SHARED_SECRET", "")
 
 
@@ -127,7 +128,7 @@ async def persist_segment(
 
 
 async def request_fnc(req: JobRequest) -> None:
-    """Stable display name + identity so UI shows 'Agente Chronos'."""
+    """Stable display name + identity so UI shows 'OpenMeet Agent'."""
     await req.accept(name=AGENT_DISPLAY_NAME, identity=AGENT_IDENTITY)
 
 
@@ -166,11 +167,14 @@ async def entrypoint(ctx: JobContext) -> None:
     stt = deepgram.STT(
         model="nova-3",
         language="multi",
-        keyterm=["Copiloto", "Chronos"],
+        keyterm=["Copiloto", "OpenMeet"],
     )
     room = ctx.room
     tasks: set[asyncio.Task] = set()
+    transcription_tasks: dict[str, asyncio.Task] = {}
     last_published: dict[str, str] = {}
+    cross_deduper = CrossCaptionDeduper()
+    active_speaker_identities: set[str] = set()
     wake_phrases = copilot_wake_phrases()
     wake_debouncer = WakeDebouncer(cooldown_sec=WAKE_DEBOUNCE_SEC)
     shutdown_event = asyncio.Event()
@@ -211,6 +215,29 @@ async def entrypoint(ctx: JobContext) -> None:
         cleaned = text.strip()
         if not cleaned:
             return
+        participant = room.remote_participants.get(livekit_identity)
+        if participant and participant_mic_muted(participant):
+            logger.info(
+                "skip caption: mic muted identity=%s speaker=%s",
+                livekit_identity,
+                speaker,
+            )
+            return
+        if active_speaker_identities and livekit_identity not in active_speaker_identities:
+            logger.info(
+                "skip caption: %s not in active speakers %s",
+                livekit_identity,
+                active_speaker_identities,
+            )
+            return
+        if not cross_deduper.should_publish(livekit_identity, cleaned):
+            logger.info(
+                "cross_talk_suppressed speaker=%s identity=%s text=%s",
+                speaker,
+                livekit_identity,
+                cleaned[:80],
+            )
+            return
         prev = last_published.get(livekit_identity)
         if prev == cleaned:
             return
@@ -229,7 +256,9 @@ async def entrypoint(ctx: JobContext) -> None:
         await persist_segment(meeting_id, speaker, cleaned, livekit_identity)
 
     async def transcribe_track(
-        track: rtc.Track, participant: rtc.RemoteParticipant
+        track: rtc.Track,
+        participant: rtc.RemoteParticipant,
+        publication: rtc.RemoteTrackPublication,
     ) -> None:
         if not is_human(participant):
             return
@@ -240,7 +269,12 @@ async def entrypoint(ctx: JobContext) -> None:
         pending_final = ""
 
         async def pump_audio() -> None:
+            nonlocal pending_final
             async for event in audio_stream:
+                live = room.remote_participants.get(identity)
+                if live is None or participant_mic_muted(live):
+                    pending_final = ""
+                    continue
                 stt_stream.push_frame(event.frame)
             await stt_stream.aclose()
 
@@ -253,12 +287,19 @@ async def entrypoint(ctx: JobContext) -> None:
                 if alts:
                     text = (alts[0].text or "").strip()
 
+                live = room.remote_participants.get(identity)
+                if live and participant_mic_muted(live):
+                    pending_final = ""
+                    continue
+
                 if ev_type == SpeechEventType.FINAL_TRANSCRIPT and text:
                     pending_final = text
                 elif ev_type == SpeechEventType.END_OF_SPEECH:
                     to_publish = pending_final or text
                     pending_final = ""
                     if to_publish:
+                        if live and participant_mic_muted(live):
+                            continue
                         await publish_caption(speaker, to_publish, identity)
                         asyncio.create_task(
                             try_wake_copilot(to_publish, speaker, identity)
@@ -266,6 +307,65 @@ async def entrypoint(ctx: JobContext) -> None:
                 # Ignore INTERIM_TRANSCRIPT and other event types
 
         await asyncio.gather(pump_audio(), read_transcripts())
+
+    def start_mic_transcription(
+        track: rtc.Track,
+        participant: rtc.RemoteParticipant,
+        publication: rtc.RemoteTrackPublication,
+    ) -> None:
+        if publication.source != rtc.TrackSource.SOURCE_MICROPHONE:
+            return
+        if participant_mic_muted(participant):
+            return
+        identity = participant.identity
+        prev = transcription_tasks.get(identity)
+        if prev and not prev.done():
+            prev.cancel()
+        task = asyncio.create_task(transcribe_track(track, participant, publication))
+        transcription_tasks[identity] = task
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+
+    def cancel_mic_transcription(identity: str) -> None:
+        task = transcription_tasks.get(identity)
+        if task and not task.done():
+            task.cancel()
+        transcription_tasks.pop(identity, None)
+
+    @room.on("active_speakers_changed")
+    def on_active_speakers_changed(speakers: list[rtc.Participant]) -> None:
+        active_speaker_identities.clear()
+        for p in speakers:
+            if not p.identity:
+                continue
+            if isinstance(p, rtc.RemoteParticipant) and participant_mic_muted(p):
+                continue
+            active_speaker_identities.add(p.identity)
+
+    @room.on("track_muted")
+    def on_track_muted(
+        participant: rtc.RemoteParticipant,
+        publication: rtc.RemoteTrackPublication,
+    ) -> None:
+        if publication.source != rtc.TrackSource.SOURCE_MICROPHONE:
+            return
+        if not is_human(participant):
+            return
+        cancel_mic_transcription(participant.identity)
+
+    @room.on("track_unmuted")
+    def on_track_unmuted(
+        participant: rtc.RemoteParticipant,
+        publication: rtc.RemoteTrackPublication,
+    ) -> None:
+        if publication.source != rtc.TrackSource.SOURCE_MICROPHONE:
+            return
+        if not is_human(participant):
+            return
+        track = publication.track
+        if track is None:
+            return
+        start_mic_transcription(track, participant, publication)
 
     @room.on("track_subscribed")
     def on_track_subscribed(
@@ -277,9 +377,9 @@ async def entrypoint(ctx: JobContext) -> None:
             return
         if not is_human(participant):
             return
-        task = asyncio.create_task(transcribe_track(track, participant))
-        tasks.add(task)
-        task.add_done_callback(tasks.discard)
+        if publication.source != rtc.TrackSource.SOURCE_MICROPHONE:
+            return
+        start_mic_transcription(track, participant, publication)
 
     @room.on("participant_disconnected")
     def on_participant_disconnected(participant: rtc.RemoteParticipant) -> None:
@@ -324,12 +424,12 @@ async def entrypoint(ctx: JobContext) -> None:
 if __name__ == "__main__":
     reload_env()
     logger.info(
-        "starting chronos-meet-agent deepgram=%s meet_api=%s",
+        "starting openmeet-agent deepgram=%s meet_api=%s",
         deepgram_status(),
         MEET_API_URL,
     )
     ws_url = os.getenv("LIVEKIT_AGENT_URL") or os.getenv("LIVEKIT_URL") or "ws://127.0.0.1:7880"
-    if ws_url.startswith("wss://meet.chronos.com.pt"):
+    if ws_url.startswith("wss://openmeet.chronos.com.pt"):
         ws_url = "ws://127.0.0.1:7880"
     cli.run_app(
         WorkerOptions(

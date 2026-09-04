@@ -5,20 +5,30 @@
 @layer base {
   :root {
     /* Brand tokens — overridden per-room by the brand engine */
-    --brand-primary: #6366f1;
-    --brand-secondary: #22d3ee;
-    --brand-tertiary: #a855f7;
+    --brand-primary: #8b5cf6;
+    --brand-secondary: #a78bfa;
+    --brand-tertiary: #d946ef;
+    --brand-primary-paint: #8b5cf6;
+    --brand-secondary-paint: #a78bfa;
+    --brand-tertiary-paint: #d946ef;
     --brand-font: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
       sans-serif;
     --brand-bg: #05060f;
+    --brand-bg-solid: #05060f;
+    --brand-pattern-url: none;
+    --brand-pattern-size: 24%;
+    --brand-pattern-tint: transparent;
+    --brand-pattern-tint-opacity: 0;
+    --brand-bg-animation: none;
+    --brand-bg-animation-speed: 40s;
 
     --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
 
-    /* Surfaces derive from brand bg so white-label repaints everything */
-    --surface-0: var(--brand-bg);
-    --surface-1: color-mix(in srgb, var(--brand-bg) 88%, white 12%);
-    --surface-2: color-mix(in srgb, var(--brand-bg) 80%, white 20%);
-    --surface-3: color-mix(in srgb, var(--brand-bg) 72%, white 28%);
+    /* Surfaces derive from solid brand bg so white-label repaints everything */
+    --surface-0: var(--brand-bg-solid);
+    --surface-1: color-mix(in srgb, var(--brand-bg-solid) 88%, white 12%);
+    --surface-2: color-mix(in srgb, var(--brand-bg-solid) 80%, white 20%);
+    --surface-3: color-mix(in srgb, var(--brand-bg-solid) 72%, white 28%);
 
     --line-subtle: rgb(255 255 255 / 0.06);
     --line: rgb(255 255 255 / 0.1);
@@ -216,6 +226,108 @@
     --lk-fg: var(--ink);
     --lk-font-family: var(--brand-font);
   }
+
+  /* Brand backdrop layers (meeting / lobby / preview) */
+  .brand-backdrop {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .brand-backdrop__base {
+    position: absolute;
+    inset: 0;
+    background: var(--brand-bg);
+    background-size: 200% 200%;
+  }
+  .brand-backdrop__pattern {
+    position: absolute;
+    inset: 0;
+    background-image: var(--brand-pattern-url);
+    background-repeat: repeat;
+    background-position: 0 0;
+    background-size: var(--brand-pattern-size) auto;
+  }
+  .brand-backdrop__pattern-tint {
+    position: absolute;
+    inset: 0;
+    background-color: var(--brand-pattern-tint);
+    opacity: var(--brand-pattern-tint-opacity);
+    -webkit-mask-image: var(--brand-pattern-url);
+    mask-image: var(--brand-pattern-url);
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+    -webkit-mask-size: var(--brand-pattern-size) auto;
+    mask-size: var(--brand-pattern-size) auto;
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+  .brand-backdrop__beam {
+    position: absolute;
+    inset: -40%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      color-mix(in srgb, var(--brand-primary) 35%, transparent) 40deg,
+      transparent 80deg,
+      color-mix(in srgb, var(--brand-secondary) 28%, transparent) 200deg,
+      transparent 260deg
+    );
+    opacity: 0.55;
+    mix-blend-mode: screen;
+  }
+  .brand-backdrop[data-anim="wave"] .brand-backdrop__base,
+  .brand-backdrop[data-anim="wave"] .brand-backdrop__pattern,
+  .brand-backdrop[data-anim="wave"] .brand-backdrop__pattern-tint {
+    animation: brand-wave var(--brand-bg-animation-speed) ease-in-out infinite;
+  }
+  .brand-backdrop[data-anim="beam"] .brand-backdrop__beam {
+    animation: brand-beam-spin var(--brand-bg-animation-speed) linear infinite;
+  }
+  .brand-backdrop[data-anim="pulse"] .brand-backdrop__base {
+    animation: brand-pulse var(--brand-bg-animation-speed) ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brand-backdrop[data-anim] .brand-backdrop__base,
+    .brand-backdrop[data-anim] .brand-backdrop__pattern,
+    .brand-backdrop[data-anim] .brand-backdrop__pattern-tint,
+    .brand-backdrop[data-anim] .brand-backdrop__beam {
+      animation: none !important;
+    }
+  }
+}
+
+@keyframes brand-wave {
+  0%,
+  100% {
+    background-position: 0% 40%;
+    -webkit-mask-position: 0% 40%;
+    mask-position: 0% 40%;
+  }
+  50% {
+    background-position: 100% 60%;
+    -webkit-mask-position: 100% 60%;
+    mask-position: 100% 60%;
+  }
+}
+
+@keyframes brand-beam-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes brand-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    filter: saturate(1);
+  }
+  50% {
+    opacity: 0.82;
+    filter: saturate(1.25);
+  }
 }
 
 @layer utilities {
@@ -227,12 +339,35 @@
     scrollbar-width: none;
   }
 
+  .bg-brand-paint-primary {
+    background: var(--brand-primary-paint);
+  }
+  .bg-brand-paint-secondary {
+    background: var(--brand-secondary-paint);
+  }
+  .bg-brand-paint-tertiary {
+    background: var(--brand-tertiary-paint);
+  }
+
   .perspective {
     perspective: 1200px;
   }
 
   .preserve-3d {
     transform-style: preserve-3d;
+  }
+
+  .waveform-bar {
+    display: block;
+    width: 3px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: var(--brand-secondary);
+    opacity: 0.85;
+    transform-origin: bottom center;
+    animation-name: waveform-pulse;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
   }
 
   /* Safe-area insets for notched devices / PWA standalone */
@@ -272,7 +407,22 @@
   }
 }
 
+@keyframes waveform-pulse {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .waveform-bar {
+    animation: none;
+    transform: scaleY(0.65);
+  }
+
   *,
   *::before,
   *::after {

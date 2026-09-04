@@ -14,7 +14,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge, SectionHeading } from "@/components/ui/Surface";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
-import { IconArrowRight } from "@/components/ui/icons";
+import { IconArrowRight, IconGithub } from "@/components/ui/icons";
+import { GITHUB_REPO_URL } from "@/lib/site";
 
 export function Infra() {
   const t = useTranslations("landing.infra");
@@ -111,9 +112,19 @@ export function FinalCta() {
                     </Button>
                   </Link>
                 </Magnetic>
-                <a href="/api/auth/login">
+                <a href="/login">
                   <Button size="lg" variant="secondary">
                     {t("loginChronos")}
+                  </Button>
+                </a>
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("openSourceAria")}
+                >
+                  <Button size="lg" variant="outline" icon={<IconGithub />}>
+                    {t("openSource")}
                   </Button>
                 </a>
               </div>
@@ -142,6 +153,14 @@ export function SiteFooter() {
           </Link>
           <a href="/api/health" className="transition-colors hover:text-ink">
             {t("status")}
+          </a>
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-ink"
+          >
+            {t("github")}
           </a>
         </nav>
       </div>

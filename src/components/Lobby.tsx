@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn, initials } from "@/lib/utils";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
 import {
-  Aurora,
   EASE_OUT_EXPO,
   Reveal,
   morphTransition,
@@ -15,6 +14,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Surface";
+import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
+import type { BgAnimation } from "@/lib/brand";
 import {
   IconArrowRight,
   IconMic,
@@ -38,6 +39,9 @@ export function Lobby({
   title,
   subtitle,
   logoUrl,
+  bgAnimation,
+  patternUrl,
+  patternTintActive,
   onJoin,
   requireLogin,
   showHostLoginHint,
@@ -50,6 +54,9 @@ export function Lobby({
   title: string;
   subtitle?: string | null;
   logoUrl?: string | null;
+  bgAnimation?: BgAnimation | null;
+  patternUrl?: string | null;
+  patternTintActive?: boolean;
   requireLogin?: boolean;
   /** Invite rooms: hint that the host must sign in to manage approvals. */
   showHostLoginHint?: boolean;
@@ -65,8 +72,9 @@ export function Lobby({
   const [devices, setDevices] = useState<Devices>({ cameras: [], mics: [] });
   const [videoDeviceId, setVideoDeviceId] = useState("");
   const [audioDeviceId, setAudioDeviceId] = useState("");
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
+  // Privacy-first: join muted / camera off unless the user opts in.
+  const [videoEnabled, setVideoEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
   const [permission, setPermission] = useState<
     "pending" | "granted" | "denied"
   >("pending");
@@ -76,7 +84,7 @@ export function Lobby({
   const level = useAudioLevel(stream, audioEnabled);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("chronos-meet:display-name");
+    const stored = window.localStorage.getItem("openmeet:display-name");
     if (stored) setName(stored);
   }, []);
 
@@ -110,20 +118,20 @@ export function Lobby({
   }, [attach]);
 
   useEffect(() => {
-    streamRef.current
+    stream
       ?.getVideoTracks()
       .forEach((track) => {
         track.enabled = videoEnabled;
       });
-  }, [videoEnabled]);
+  }, [stream, videoEnabled]);
 
   useEffect(() => {
-    streamRef.current
+    stream
       ?.getAudioTracks()
       .forEach((track) => {
         track.enabled = audioEnabled;
       });
-  }, [audioEnabled]);
+  }, [stream, audioEnabled]);
 
   // Restore preview after a failed join attempt (tracks were never stopped on
   // submit, but device enumeration / attach may still need a nudge).
@@ -139,7 +147,7 @@ export function Lobby({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!canJoin) return;
-    window.localStorage.setItem("chronos-meet:display-name", name.trim());
+    window.localStorage.setItem("openmeet:display-name", name.trim());
     // Do NOT stop tracks here — LiveKit re-acquires on mount. Stopping early
     // (before the token round-trip) causes NotReadableError / blank camera.
     onJoin({
@@ -153,13 +161,18 @@ export function Lobby({
 
   return (
     <div className="relative grid min-h-screen place-items-center px-5 py-12">
-      <Aurora intensity={0.75} />
+      <BrandBackdrop
+        animation={bgAnimation || "aurora"}
+        patternUrl={patternUrl}
+        patternTintActive={patternTintActive}
+        intensity={0.75}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 24, filter: "blur(12px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.8, ease: EASE_OUT_EXPO }}
-        className="relative w-full max-w-5xl"
+        className="relative z-[1] w-full max-w-5xl"
       >
         <header className="mb-8 flex flex-col items-center text-center">
           {logoUrl ? (
@@ -363,7 +376,7 @@ export function Lobby({
                     <p className="mt-1 text-[12px] text-ink-faint">
                       {t("hostLoginHintBody")}
                     </p>
-                    <a href="/api/auth/login" className="mt-2 inline-block">
+                    <a href="/login" className="mt-2 inline-block">
                       <Button type="button" size="sm" variant="outline">
                         {t("loginChronos")}
                       </Button>
@@ -374,7 +387,7 @@ export function Lobby({
 
               <div className="mt-auto pt-2">
                 {requireLogin && !isLoggedIn ? (
-                  <a href="/api/auth/login">
+                  <a href="/login">
                     <Button full size="lg" iconRight={<IconArrowRight />}>
                       {t("loginChronos")}
                     </Button>

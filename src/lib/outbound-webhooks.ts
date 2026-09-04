@@ -6,7 +6,6 @@ import {
   copilotChatMessages,
   meetingSummaries,
   meetings,
-  rooms,
   transcriptSegments,
   type WebhookEventsConfig,
 } from "@/db/schema";
@@ -34,6 +33,7 @@ const EVENT_TOGGLE: Record<
   "chat.ready": "chat",
   "summary.ready": "summary",
   "tasks.generated": "tasks",
+  "recording.ready": "recording",
 };
 
 async function loadMeetingMeta(
@@ -43,13 +43,10 @@ async function loadMeetingMeta(
     where: eq(meetings.id, meetingId),
   });
   if (!meeting) return null;
-  const room = await db.query.rooms.findFirst({
-    where: eq(rooms.id, meeting.roomId),
-  });
   return {
     id: meeting.id,
-    roomSlug: room?.slug ?? "",
-    roomTitle: room?.title ?? "",
+    roomSlug: meeting.slug,
+    roomTitle: meeting.title,
     startedAt: meeting.startedAt.toISOString(),
     endedAt: meeting.endedAt ? meeting.endedAt.toISOString() : null,
   };
@@ -209,12 +206,12 @@ export async function deliverWebhook(opts: {
       }
       lastError = `HTTP ${res.status}`;
       console.warn(
-        `[chronos-meet] webhook ${opts.envelope.event} attempt ${attempt} failed: ${lastError}`,
+        `[openmeet] webhook ${opts.envelope.event} attempt ${attempt} failed: ${lastError}`,
       );
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
       console.warn(
-        `[chronos-meet] webhook ${opts.envelope.event} attempt ${attempt} error: ${lastError}`,
+        `[openmeet] webhook ${opts.envelope.event} attempt ${attempt} error: ${lastError}`,
       );
     }
     if (attempt < maxAttempts) {
@@ -264,7 +261,7 @@ async function deliverIfEnabled(
   });
   if (!result.ok) {
     console.error(
-      `[chronos-meet] webhook ${event} delivery failed:`,
+      `[openmeet] webhook ${event} delivery failed:`,
       result.error,
     );
   }

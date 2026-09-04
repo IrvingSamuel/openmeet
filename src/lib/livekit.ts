@@ -4,8 +4,9 @@ import {
   TrackSource,
   WebhookReceiver,
 } from "livekit-server-sdk";
+import { getLiveKitEmptyTimeoutSec } from "@/lib/meeting-timeouts";
 
-export const AGENT_LIVEKIT_IDENTITY = "agent-chronos";
+export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
 
 export function getLiveKitCreds() {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -21,7 +22,10 @@ export function getLiveKitCreds() {
 export function getLiveKitHttpHost() {
   if (process.env.LIVEKIT_HTTP_URL) return process.env.LIVEKIT_HTTP_URL;
   const { url } = getLiveKitCreds();
-  if (url.includes("meet.chronos.com.pt") || url.includes("127.0.0.1")) {
+  if (
+    url.includes("openmeet.chronos.com.pt") ||
+    url.includes("127.0.0.1")
+  ) {
     return "http://127.0.0.1:7880";
   }
   return url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
@@ -43,14 +47,16 @@ export type RoomMetadataPayload = {
 export async function syncRoomMetadata(
   livekitRoomName: string,
   meta: RoomMetadataPayload,
+  opts?: { emptyTimeout?: number },
 ) {
   const client = getRoomServiceClient();
   const metadata = JSON.stringify(meta);
+  const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
   try {
     await client.createRoom({
       name: livekitRoomName,
       metadata,
-      emptyTimeout: 60,
+      emptyTimeout,
     });
   } catch {
     // Room may already exist — update metadata instead.

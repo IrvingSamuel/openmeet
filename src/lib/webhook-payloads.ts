@@ -4,7 +4,8 @@ export type OutboundWebhookEvent =
   | "transcript.ready"
   | "chat.ready"
   | "summary.ready"
-  | "tasks.generated";
+  | "tasks.generated"
+  | "recording.ready";
 
 export type WebhookMeetingMeta = {
   id: string;
@@ -27,6 +28,7 @@ export const OUTBOUND_WEBHOOK_EVENTS: OutboundWebhookEvent[] = [
   "chat.ready",
   "summary.ready",
   "tasks.generated",
+  "recording.ready",
 ];
 
 export function exampleWebhookPayload(
@@ -114,7 +116,7 @@ export function exampleWebhookPayload(
         data: {
           summaryMarkdown:
             "## Principais pontos\n\n- Status do sprint alinhado\n- Board atualizado\n",
-          model: "gemini-2.5-flash",
+          model: "gemini-3.5-flash-lite",
         },
       };
     case "tasks.generated":
@@ -138,6 +140,25 @@ export function exampleWebhookPayload(
           ],
         },
       };
+    case "recording.ready":
+      return {
+        event,
+        version: 1,
+        sentAt,
+        meeting,
+        data: {
+          recordingId: "88888888-8888-8888-8888-888888888888",
+          status: "ready",
+          engine: "browser",
+          storageBackend: "local",
+          mimeType: "video/webm",
+          bytes: 12_345_678,
+          downloadPath:
+            "/api/meetings/11111111-1111-1111-1111-111111111111/recording/88888888-8888-8888-8888-888888888888/file",
+          startedAt: "2026-08-04T11:00:10.000Z",
+          endedAt: "2026-08-04T11:30:00.000Z",
+        },
+      };
   }
 }
 
@@ -145,9 +166,9 @@ export function exampleWebhookPayload(
 export function exampleWebhookHeaders(event: OutboundWebhookEvent): string {
   return [
     "Content-Type: application/json",
-    `X-Chronos-Meet-Event: ${event}`,
-    "X-Chronos-Meet-Timestamp: 1722771000",
-    "X-Chronos-Meet-Signature: sha256=<hmac_sha256(secret, timestamp + '.' + body)>",
-    "User-Agent: Chronos-Meet-Webhooks/1.0",
+    `X-OpenMeet-Event: ${event}`,
+    "X-OpenMeet-Timestamp: 1722771000",
+    "X-OpenMeet-Signature: sha256=<hmac_sha256(secret, timestamp + '.' + body)>",
+    "User-Agent: OpenMeet-Webhooks/1.0",
   ].join("\n");
 }

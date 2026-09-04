@@ -12,6 +12,12 @@ export async function GET() {
   const session = await getSession();
   Object.assign(session, defaultSession);
   await session.save();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://meet.chronos.com.pt";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (!appUrl) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_APP_URL is required" },
+      { status: 500 },
+    );
+  }
   return NextResponse.redirect(`${appUrl}/`);
 }

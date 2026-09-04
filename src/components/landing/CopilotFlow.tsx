@@ -280,17 +280,18 @@ function PanelTitle({ children }: { children: React.ReactNode }) {
 
 function Waveform() {
   return (
-    <div className="flex h-14 items-end justify-center gap-[3px] rounded-2xl border border-line bg-black/30 px-4 py-3">
+    <div
+      className="flex h-14 items-end justify-center gap-[3px] rounded-2xl border border-line bg-black/30 px-4 py-3"
+      aria-hidden
+    >
       {Array.from({ length: 40 }).map((_, i) => (
-        <motion.span
+        <span
           key={i}
-          className="w-[3px] rounded-full bg-brand-secondary/70"
-          animate={{ height: ["18%", `${25 + Math.random() * 70}%`, "18%"] }}
-          transition={{
-            duration: 0.9 + Math.random() * 0.7,
-            repeat: Infinity,
-            delay: i * 0.03,
-            ease: "easeInOut",
+          className="waveform-bar"
+          style={{
+            height: `${12 + ((i * 11 + 5) % 34)}px`,
+            animationDelay: `${i * 30}ms`,
+            animationDuration: `${0.85 + (i % 6) * 0.12}s`,
           }}
         />
       ))}
