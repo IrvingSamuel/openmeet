@@ -2,9 +2,24 @@ import { and, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
 import { getRoomServiceClient } from "@/lib/livekit";
+import {
+  getMeetingEmptyTimeoutSec,
+  getScheduledMaxAgeSec,
+} from "@/lib/meeting-timeouts";
 
-/** Seconds without a real join (or empty LiveKit room) before auto-end. */
-export const MEETING_EMPTY_TIMEOUT_SEC = 60;
+export {
+  clampEmptyTimeoutSec,
+  DEFAULT_LIVEKIT_EMPTY_TIMEOUT_SEC,
+  DEFAULT_MEETING_EMPTY_TIMEOUT_SEC,
+  DEFAULT_SCHEDULED_MAX_AGE_SEC,
+  EMPTY_TIMEOUT_SEC_MAX,
+  EMPTY_TIMEOUT_SEC_MIN,
+  getLiveKitEmptyTimeoutSec,
+  getMeetingEmptyTimeoutSec,
+  getScheduledMaxAgeSec,
+  MEETING_EMPTY_TIMEOUT_SEC,
+  resolveEmptyTimeoutSec,
+} from "@/lib/meeting-timeouts";
 
 export type MeetingReconcileResult = {
   expiredScheduled: string[];
@@ -42,21 +57,27 @@ async function meetingIdsWithOpenParticipants(meetingIds: string[]) {
 }
 
 /**
- * End scheduled meetings that never got a join, and orphan active meetings
- * that never reached LiveKit (no room SID, no open participants).
+ * End scheduled meetings older than max age (never joined), and orphan active
+ * meetings that never reached LiveKit (no room SID, no open participants).
  * Does not trigger summary generation.
  */
 export async function expireStaleMeetings(opts?: { meetingId?: string }) {
-  const cutoff = new Date(Date.now() - MEETING_EMPTY_TIMEOUT_SEC * 1000);
+  const scheduledCutoff = new Date(
+    Date.now() - getScheduledMaxAgeSec() * 1000,
+  );
+  const emptyCutoff = new Date(Date.now() - getMeetingEmptyTimeoutSec() * 1000);
   const endedAt = new Date();
 
   const scheduledWhere = opts?.meetingId
     ? and(
         eq(meetings.id, opts.meetingId),
         eq(meetings.status, "scheduled"),
-        lt(meetings.startedAt, cutoff),
+        lt(meetings.startedAt, scheduledCutoff),
       )
-    : and(eq(meetings.status, "scheduled"), lt(meetings.startedAt, cutoff));
+    : and(
+        eq(meetings.status, "scheduled"),
+        lt(meetings.startedAt, scheduledCutoff),
+      );
 
   const scheduled = await db
     .update(meetings)
@@ -70,12 +91,12 @@ export async function expireStaleMeetings(opts?: { meetingId?: string }) {
           eq(meetings.id, opts.meetingId),
           eq(meetings.status, "active"),
           isNull(meetings.livekitRoomSid),
-          lt(meetings.startedAt, cutoff),
+          lt(meetings.startedAt, emptyCutoff),
         )
       : and(
           eq(meetings.status, "active"),
           isNull(meetings.livekitRoomSid),
-          lt(meetings.startedAt, cutoff),
+          lt(meetings.startedAt, emptyCutoff),
         ),
     columns: { id: true },
   });
@@ -111,7 +132,7 @@ export async function expireStaleMeetings(opts?: { meetingId?: string }) {
 export async function reconcileActiveMeetingsWithLiveKit(opts?: {
   meetingId?: string;
 }) {
-  const cutoff = new Date(Date.now() - MEETING_EMPTY_TIMEOUT_SEC * 1000);
+  const cutoff = new Date(Date.now() - getMeetingEmptyTimeoutSec() * 1000);
   const endedAt = new Date();
 
   const activeWhere = opts?.meetingId

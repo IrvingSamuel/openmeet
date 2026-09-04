@@ -1,6 +1,6 @@
 {
   "name": "openmeet",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Open-source white-label videoconferencing with LiveKit, live captions, and an AI copilot that turns meetings into summaries and webhooks.",
   "license": "MIT",
   "private": false,

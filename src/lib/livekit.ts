@@ -4,6 +4,7 @@ import {
   TrackSource,
   WebhookReceiver,
 } from "livekit-server-sdk";
+import { getLiveKitEmptyTimeoutSec } from "@/lib/meeting-timeouts";
 
 export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
 
@@ -46,14 +47,16 @@ export type RoomMetadataPayload = {
 export async function syncRoomMetadata(
   livekitRoomName: string,
   meta: RoomMetadataPayload,
+  opts?: { emptyTimeout?: number },
 ) {
   const client = getRoomServiceClient();
   const metadata = JSON.stringify(meta);
+  const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
   try {
     await client.createRoom({
       name: livekitRoomName,
       metadata,
-      emptyTimeout: 60,
+      emptyTimeout,
     });
   } catch {
     // Room may already exist — update metadata instead.
