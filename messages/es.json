@@ -785,7 +785,7 @@
       "modelSummary": "Modelo (resumen)",
       "modelSummaryHint": "Una generación post-reunión — usar un modelo más capaz (p. ej. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
-      "deepgramKeyHint": "El worker de Python sigue leyendo DEEPGRAM_API_KEY del .env.",
+      "deepgramKeyHint": "Se resuelve desde Admin (base de datos) y, si falta, DEEPGRAM_API_KEY en .env. El worker de Python usa el mismo orden.",
       "save": "Guardar IA",
       "clearGemini": "Borrar override de Gemini",
       "clearDeepgram": "Borrar override de Deepgram"

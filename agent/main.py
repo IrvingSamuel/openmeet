@@ -5,7 +5,7 @@ Requires:
 
 Env from ../.env:
   LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
-  DEEPGRAM_API_KEY (optional — without it, agent idles)
+  DEEPGRAM_API_KEY (optional fallback — DB key from Admin wins when set)
   MEET_API_URL, AGENT_SHARED_SECRET
 """
 
@@ -50,6 +50,9 @@ AGENT_IDENTITY = "agent-openmeet"
 # Voice wake Copiloto
 WAKE_DEBOUNCE_SEC = 5.0
 
+# Last resolved Deepgram source for logging (db | env | none | error).
+_DEEPGRAM_SOURCE = "none"
+
 
 def reload_env() -> None:
     """Job subprocesses may start before PM2 env is visible — reload .env."""
@@ -73,7 +76,55 @@ def copilot_wake_phrases() -> tuple[str, ...]:
 
 
 def deepgram_status() -> str:
-    return "ok" if os.getenv("DEEPGRAM_API_KEY") else "missing"
+    key = (os.getenv("DEEPGRAM_API_KEY") or "").strip()
+    if not key:
+        return "missing"
+    return f"ok({_DEEPGRAM_SOURCE})"
+
+
+async def resolve_deepgram_api_key() -> Optional[str]:
+    """Prefer Admin/DB key via Meet API; fall back to DEEPGRAM_API_KEY env."""
+    global _DEEPGRAM_SOURCE
+    reload_env()
+    env_key = (os.getenv("DEEPGRAM_API_KEY") or "").strip()
+
+    headers = {}
+    if AGENT_SECRET:
+        headers["x-agent-secret"] = AGENT_SECRET
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{MEET_API_URL.rstrip('/')}/api/agent/config",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    api_key = (data.get("deepgramApiKey") or "").strip()
+                    source = data.get("deepgramSource") or "none"
+                    if api_key:
+                        os.environ["DEEPGRAM_API_KEY"] = api_key
+                        _DEEPGRAM_SOURCE = (
+                            source if source in ("db", "env") else "db"
+                        )
+                        return api_key
+                    # API reachable but no key configured — still allow env.
+                else:
+                    logger.warning(
+                        "agent config fetch failed status=%s — using env fallback",
+                        resp.status,
+                    )
+    except Exception as exc:
+        logger.warning("agent config fetch error: %s — using env fallback", exc)
+
+    if env_key:
+        os.environ["DEEPGRAM_API_KEY"] = env_key
+        _DEEPGRAM_SOURCE = "env"
+        return env_key
+
+    _DEEPGRAM_SOURCE = "none"
+    return None
 
 
 def parse_meeting_id(metadata: str | None) -> Optional[str]:
@@ -136,9 +187,10 @@ async def entrypoint(ctx: JobContext) -> None:
     reload_env()
     room_name = ctx.room.name if ctx.room else "?"
 
-    if not os.getenv("DEEPGRAM_API_KEY"):
+    deepgram_key = await resolve_deepgram_api_key()
+    if not deepgram_key:
         logger.warning(
-            "DEEPGRAM_API_KEY missing — skipping room %s (deepgram=%s)",
+            "DEEPGRAM_API_KEY missing (db+env) — skipping room %s (deepgram=%s)",
             room_name,
             deepgram_status(),
         )
@@ -423,6 +475,10 @@ async def entrypoint(ctx: JobContext) -> None:
 
 if __name__ == "__main__":
     reload_env()
+    try:
+        asyncio.run(resolve_deepgram_api_key())
+    except Exception as exc:
+        logger.warning("startup deepgram resolve skipped: %s", exc)
     logger.info(
         "starting openmeet-agent deepgram=%s meet_api=%s",
         deepgram_status(),

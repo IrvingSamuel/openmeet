@@ -159,7 +159,7 @@ function publicSettingsPayload(
     aiFallbackSummaryModelSource: openAi.sources.summaryModel,
     deepgramApiKey: deepgramMask,
     deepgramNote:
-      "A chave Deepgram na UI fica guardada para referência; o worker Python do agente continua a ler DEEPGRAM_API_KEY do .env.",
+      "A chave Deepgram resolve-se a partir da base de dados, com fallback para DEEPGRAM_API_KEY no .env (o worker Python usa o mesmo critério).",
     webhookEnabled: row.webhookEnabled,
     webhookUrl: row.webhookUrl || "",
     webhookSecret: row.webhookSecret?.trim()
