@@ -13,7 +13,8 @@ export type HostEntryCookie = {
 const COOKIE_NAME = "om_host_entry";
 const MAX_AGE_SEC = 60 * 60 * 12; // 12h
 
-function publicOrigin(): string {
+/** Public site origin for absolute links/redirects (never listen-host/localhost). */
+export function publicOrigin(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (!url) {
     throw new Error("NEXT_PUBLIC_APP_URL is required");

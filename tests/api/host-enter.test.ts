@@ -102,7 +102,7 @@ describe("GET /api/v1/meetings/{id}/enter", () => {
 
     const res = await enterHost(
       getRequest(
-        `http://localhost/api/v1/meetings/${meetingId}/enter?token=${encodeURIComponent(token)}&display_name=Teacher`,
+        `http://localhost:3332/api/v1/meetings/${meetingId}/enter?token=${encodeURIComponent(token)}&display_name=Teacher`,
       ),
       { params: Promise.resolve({ meeting_id: meetingId }) },
     );
@@ -112,7 +112,30 @@ describe("GET /api/v1/meetings/{id}/enter", () => {
       displayName: "Teacher",
     });
     const location = res.headers.get("location") || "";
-    expect(location).toContain("/m/abc123");
+    expect(location).toBe("https://openmeet.chronos.com.pt/pt/m/abc123");
+    expect(location).not.toContain("localhost");
+  });
+
+  it("redirect Location uses NEXT_PUBLIC_APP_URL, not request origin", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://ismeet.stepone.com.br";
+    const token = generateHostEntryToken();
+    meetingsFindFirst.mockResolvedValue({
+      id: meetingId,
+      slug: "hostslug",
+      status: "live",
+      hostEntryTokenHash: hashHostEntryToken(token),
+    });
+
+    const res = await enterHost(
+      getRequest(
+        `http://127.0.0.1:3332/api/v1/meetings/${meetingId}/enter?token=${encodeURIComponent(token)}`,
+      ),
+      { params: Promise.resolve({ meeting_id: meetingId }) },
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(
+      "https://ismeet.stepone.com.br/pt/m/hostslug",
+    );
   });
 
   it("rejects ended meetings", async () => {

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings } from "@/db/schema";
 import {
+  publicOrigin,
   setHostEntryGrant,
   verifyHostEntryToken,
 } from "@/lib/host-entry";
@@ -52,6 +53,8 @@ export async function GET(
     req.cookies.get("NEXT_LOCALE")?.value ||
     process.env.NEXT_PUBLIC_DEFAULT_LOCALE ||
     "pt";
-  const dest = new URL(`/${locale}/m/${meeting.slug}`, req.nextUrl.origin);
+  // Prefer NEXT_PUBLIC_APP_URL — req.nextUrl.origin is often localhost:3332
+  // when Next listens on 127.0.0.1 behind nginx/Cloudflare.
+  const dest = new URL(`/${locale}/m/${meeting.slug}`, publicOrigin());
   return NextResponse.redirect(dest, 302);
 }
