@@ -2,40 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
   brandAdvancedSchema,
+  brandGroupsToFields,
   brandIdentitySchema,
   brandPaletteSchema,
-  resolveApiBrandUi,
+  brandRowToPublic,
 } from "@/lib/api-brand";
-import { brandFieldsSchema } from "@/lib/brand-schema";
-import { createMeetingWithBrand } from "@/lib/meetings";
-import {
-  clampEmptyTimeoutSec,
-  resolveEmptyTimeoutSec,
-} from "@/lib/meeting-timeouts";
+import { createRoomWithBrand } from "@/lib/rooms";
 import { resolveV1Owner } from "@/lib/v1-auth";
 
 const schema = z.object({
-  title: z.string().min(1).max(200).optional(),
+  /** Nome de identificação do template (não é o título da reunião). */
+  name: z.string().min(1).max(200),
+  slug: z
+    .string()
+    .min(2)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
   access_policy: z.enum(["public", "members", "invite"]).optional(),
   board_id: z.string().optional(),
-  /**
-   * Brand template room — visual only; does not create or own the meeting.
-   * Prefer POST /api/v1/rooms/{room_id}/meetings for the from-room flow.
-   */
-  room_id: z.string().uuid().optional(),
   owner_identity_id: z.string().uuid().optional(),
   chronos_user_id: z.string().min(1).optional(),
   owner_user_id: z.string().uuid().optional(),
   external_id: z.string().min(1).optional(),
-  /** @deprecated Prefer identity / palette / advanced groups. */
-  ui: brandFieldsSchema.optional(),
   identity: brandIdentitySchema.optional(),
   palette: brandPaletteSchema.optional(),
   advanced: brandAdvancedSchema.optional(),
-  /** Seconds after last participant leaves before the room auto-ends (60–86400). */
-  empty_timeout_sec: z.number().int().optional(),
 });
 
+/**
+ * POST /api/v1/rooms — create a brand-template room (sala padrão).
+ * Personalization groups are optional; omitted fields use platform defaults.
+ */
 export async function POST(req: NextRequest) {
   let body: z.infer<typeof schema>;
   try {
@@ -53,64 +51,43 @@ export async function POST(req: NextRequest) {
     owner_user_id: body.owner_user_id,
     external_id: body.external_id,
     chronos_user_id: body.chronos_user_id,
-    title: body.title,
+    title: body.name,
   });
   if (owner instanceof NextResponse) return owner;
 
-  let emptyTimeoutSec: number | null = null;
-  try {
-    emptyTimeoutSec = clampEmptyTimeoutSec(body.empty_timeout_sec);
-  } catch {
-    return NextResponse.json(
-      {
-        error: "empty_timeout_sec_out_of_range",
-        detail: "empty_timeout_sec must be between 60 and 86400",
-      },
-      { status: 400 },
-    );
-  }
-
-  const ui = resolveApiBrandUi({
-    ui: body.ui,
+  const ui = brandGroupsToFields({
     identity: body.identity,
     palette: body.palette,
     advanced: body.advanced,
   });
 
-  const title =
-    body.title?.trim() ||
-    `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
-
   try {
-    const { meeting, url, joinPath } = await createMeetingWithBrand({
-      title,
+    const { room, brand, url, joinPath } = await createRoomWithBrand({
+      title: body.name.trim(),
       ownerIdentityId: owner.ownerIdentityId,
+      slug: body.slug,
       boardId: body.board_id,
       accessPolicy: body.access_policy || "public",
-      roomId: body.room_id ?? null,
+      kind: "persistent",
       ui,
-      useIdentityBrand: !ui,
-      emptyTimeoutSec,
+      // Platform defaults when no personalization — not owner identity brand.
+      useIdentityBrand: false,
     });
 
     return NextResponse.json(
       {
-        meeting_id: meeting.id,
-        slug: meeting.slug,
+        room_id: room.id,
+        name: room.title,
+        slug: room.slug,
         url,
         join_path: joinPath,
-        access_policy: meeting.accessPolicy,
-        title: meeting.title,
-        brand_room_id: meeting.roomId,
-        empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+        access_policy: room.accessPolicy,
+        brand: brandRowToPublic(brand as unknown as Record<string, unknown>),
       },
       { status: 201 },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message === "room_template_not_found") {
-      return NextResponse.json({ error: "room_not_found" }, { status: 404 });
-    }
     return NextResponse.json(
       { error: "create_failed", detail: message },
       { status: 500 },

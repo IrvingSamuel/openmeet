@@ -205,4 +205,69 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(body.slug).toBe("sessroom01");
     expect(body.join_path).toBe("/m/sessroom01");
   });
+
+  it("accepts identity/palette/advanced snake_case groups", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m5",
+          slug: "branded01",
+          title: "Partner kickoff",
+          accessPolicy: "public",
+          roomId: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m5" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Partner kickoff",
+          chronos_user_id: "cu-1",
+          identity: { lobby_title: "Acme Kickoff", wordmark: "Acme" },
+          palette: { theme_preset: "emerald", bg_animation: "wave" },
+          advanced: { font_family: "Inter, system-ui, sans-serif" },
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.meeting_id).toBe("m5");
+    expect(body.slug).toBe("branded01");
+  });
+
+  it("keeps legacy ui camelCase working", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m6",
+          slug: "legacyui01",
+          title: "Legacy",
+          accessPolicy: "public",
+          roomId: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m6" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Legacy",
+          chronos_user_id: "cu-1",
+          ui: { lobbyTitle: "Legacy Lobby", themePreset: "violet" },
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.meeting_id).toBe("m6");
+  });
 });
