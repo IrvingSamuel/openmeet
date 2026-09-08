@@ -57,6 +57,8 @@ module.exports = {
       env: {
         ...fileEnv,
         PYTHONUNBUFFERED: "1",
+        // chronos-meet-agent already binds 8095 on this host
+        AGENT_HTTP_PORT: "8096",
       },
     },
   ],

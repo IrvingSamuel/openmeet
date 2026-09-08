@@ -436,7 +436,7 @@ if __name__ == "__main__":
             entrypoint_fnc=entrypoint,
             request_fnc=request_fnc,
             agent_name="",
-            port=8095,
+            port=int(os.getenv("AGENT_HTTP_PORT", "8095")),
             ws_url=ws_url,
             api_key=os.getenv("LIVEKIT_API_KEY"),
             api_secret=os.getenv("LIVEKIT_API_SECRET"),
