@@ -408,6 +408,13 @@ export const appSettings = pgTable("app_settings", {
   webhookUrl: text("webhook_url"),
   webhookSecret: text("webhook_secret"),
   webhookEnabled: boolean("webhook_enabled").notNull().default(false),
+  /** Bearer token for public v1 / MCP API (generated in Admin). */
+  publicApiToken: text("public_api_token"),
+  publicApiTokenCreatedAt: timestamp("public_api_token_created_at", {
+    withTimezone: true,
+  }),
+  /** Admin user id that generated the token — default owner when body omits owner. */
+  publicApiTokenOwnerId: uuid("public_api_token_owner_id"),
   webhookEvents: jsonb("webhook_events").$type<WebhookEventsConfig>(),
   recordingEnabled: boolean("recording_enabled").notNull().default(false),
   recordingEngine: text("recording_engine").notNull().default("browser"),

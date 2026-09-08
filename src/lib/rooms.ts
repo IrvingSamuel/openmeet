@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { rm } from "fs/promises";
@@ -10,6 +11,7 @@ import {
   rooms,
   type RoomKind,
 } from "@/db/schema";
+import { getAppSettings } from "@/lib/app-settings";
 import { BOARD_THEMES } from "@/lib/brand";
 import {
   brandFieldsToPatch,
@@ -207,15 +209,61 @@ export async function resolveOwnerIdentityId(args: {
   return row.id;
 }
 
-export function authorizeBearer(req: {
+function extractBearerToken(req: {
   headers: { get(name: string): string | null };
-}): boolean {
+}): string {
   const auth = req.headers.get("Authorization") || "";
-  const token = auth.replace(/^Bearer\s+/i, "");
-  const expected =
-    process.env.MEET_MCP_TOKEN || process.env.AGENT_SHARED_SECRET || "";
-  if (!expected) return false;
-  return token === expected;
+  return auth.replace(/^Bearer\s+/i, "").trim();
+}
+
+/** Constant-time string compare (length mismatch → false). */
+export function safeEqualToken(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+export type PublicApiAuthResult = {
+  ok: boolean;
+  /** Admin who generated the DB token — used as default owner when body omits owner. */
+  defaultOwnerId?: string | null;
+};
+
+/**
+ * Authorize public v1 / MCP Bearer tokens.
+ * Priority: app_settings.publicApiToken → MEET_MCP_TOKEN (env).
+ * Does not accept AGENT_SHARED_SECRET (agent-only via x-agent-secret).
+ */
+export async function authorizePublicApi(req: {
+  headers: { get(name: string): string | null };
+}): Promise<PublicApiAuthResult> {
+  const token = extractBearerToken(req);
+  if (!token) return { ok: false };
+
+  const settings = await getAppSettings();
+  const dbToken = settings?.publicApiToken?.trim() || "";
+  if (dbToken && safeEqualToken(token, dbToken)) {
+    return {
+      ok: true,
+      defaultOwnerId: settings?.publicApiTokenOwnerId ?? null,
+    };
+  }
+
+  const envToken = process.env.MEET_MCP_TOKEN?.trim() || "";
+  if (envToken && safeEqualToken(token, envToken)) {
+    return { ok: true, defaultOwnerId: null };
+  }
+
+  return { ok: false };
+}
+
+/** @deprecated Prefer authorizePublicApi — kept as async boolean for MCP. */
+export async function authorizeBearer(req: {
+  headers: { get(name: string): string | null };
+}): Promise<boolean> {
+  const result = await authorizePublicApi(req);
+  return result.ok;
 }
 
 async function removeBrandAssetDirs(roomId: string) {

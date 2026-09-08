@@ -165,6 +165,19 @@ function publicSettingsPayload(
     webhookSecret: row.webhookSecret?.trim()
       ? maskSecret(row.webhookSecret)
       : { configured: false, preview: null, source: "none" as const },
+    publicApiToken: row.publicApiToken?.trim()
+      ? {
+          ...maskSecret(row.publicApiToken),
+          createdAt: row.publicApiTokenCreatedAt?.toISOString() ?? null,
+          ownerIdentityId: row.publicApiTokenOwnerId ?? null,
+        }
+      : {
+          configured: false,
+          preview: null,
+          source: "none" as const,
+          createdAt: null,
+          ownerIdentityId: null,
+        },
     webhookEvents: events,
     recordingEnabled: recording.enabled,
     recordingEngine: recording.engine,

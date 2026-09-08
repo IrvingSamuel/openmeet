@@ -4,46 +4,182 @@ import { z } from "zod";
 import { db } from "@/db";
 import { rooms, meetings, transcriptSegments } from "@/db/schema";
 import {
-  authorizeBearer,
+  brandAdvancedSchema,
+  brandGroupsToFields,
+  brandIdentitySchema,
+  brandPaletteSchema,
+  brandRowToPublic,
+  resolveApiBrandUi,
+} from "@/lib/api-brand";
+import { createMeetingWithBrand } from "@/lib/meetings";
+import {
+  clampEmptyTimeoutSec,
+  resolveEmptyTimeoutSec,
+} from "@/lib/meeting-timeouts";
+import {
+  authorizePublicApi,
   createRoomWithBrand,
   resolveOwnerIdentityId,
 } from "@/lib/rooms";
 
 /**
  * Minimal MCP-compatible HTTP endpoint for Meet tools.
- * Auth: Bearer AGENT_SHARED_SECRET or MCP-style token in MEET_MCP_TOKEN.
+ * Auth: Bearer public API token (Admin) or MEET_MCP_TOKEN.
  */
-function authorize(req: NextRequest) {
-  return authorizeBearer(req);
+async function authorize(req: NextRequest) {
+  return authorizePublicApi(req);
 }
 
-async function meetCreateRoom(args: {
-  title: string;
-  board_id?: string;
-  owner_identity_id?: string;
-  owner_user_id?: string;
-  external_id?: string;
-  chronos_user_id?: string;
-  slug?: string;
-}) {
-  const ownerIdentityId = await resolveOwnerIdentityId({
-    owner_identity_id: args.owner_identity_id || args.owner_user_id,
-    external_id: args.external_id || args.chronos_user_id,
-    title: args.title,
+const ownerFields = {
+  owner_identity_id: z.string().uuid().optional(),
+  owner_user_id: z.string().uuid().optional(),
+  external_id: z.string().min(1).optional(),
+};
+
+async function resolveMcpOwner(
+  args: {
+    owner_identity_id?: string;
+    owner_user_id?: string;
+    external_id?: string;
+    title?: string;
+  },
+  defaultOwnerId: string | null | undefined,
+): Promise<string> {
+  if (args.owner_identity_id || args.owner_user_id || args.external_id) {
+    return resolveOwnerIdentityId({
+      owner_identity_id: args.owner_identity_id || args.owner_user_id,
+      external_id: args.external_id,
+      title: args.title,
+    });
+  }
+  if (defaultOwnerId) return defaultOwnerId;
+  throw new Error("owner_identity_id or external_id required");
+}
+
+async function meetCreateRoom(
+  args: {
+    name: string;
+    board_id?: string;
+    owner_identity_id?: string;
+    owner_user_id?: string;
+    external_id?: string;
+    slug?: string;
+    access_policy?: "public" | "members" | "invite";
+    identity?: z.infer<typeof brandIdentitySchema>;
+    palette?: z.infer<typeof brandPaletteSchema>;
+    advanced?: z.infer<typeof brandAdvancedSchema>;
+  },
+  defaultOwnerId: string | null | undefined,
+) {
+  const ownerIdentityId = await resolveMcpOwner(
+    { ...args, title: args.name },
+    defaultOwnerId,
+  );
+  const ui = brandGroupsToFields({
+    identity: args.identity,
+    palette: args.palette,
+    advanced: args.advanced,
   });
-  const { room, url } = await createRoomWithBrand({
-    title: args.title,
+  const { room, brand, url } = await createRoomWithBrand({
+    title: args.name,
     ownerIdentityId,
     boardId: args.board_id,
     slug: args.slug,
     kind: "persistent",
-    accessPolicy: "members",
-    useIdentityBrand: true,
+    accessPolicy: args.access_policy || "public",
+    ui,
+    useIdentityBrand: false,
   });
   return {
     room_id: room.id,
+    name: room.title,
     slug: room.slug,
     url,
+    brand: brandRowToPublic(brand as unknown as Record<string, unknown>),
+  };
+}
+
+async function meetCreateMeetingFromRoom(args: {
+  room_id: string;
+  title: string;
+  access_policy?: "public" | "members" | "invite";
+  empty_timeout_sec?: number;
+  board_id?: string;
+}) {
+  const room = await db.query.rooms.findFirst({
+    where: eq(rooms.id, args.room_id),
+  });
+  if (!room) throw new Error("room_not_found");
+
+  const emptyTimeoutSec = clampEmptyTimeoutSec(args.empty_timeout_sec);
+  const { meeting, url, joinPath } = await createMeetingWithBrand({
+    title: args.title.trim(),
+    ownerIdentityId: room.ownerIdentityId,
+    roomId: room.id,
+    boardId: args.board_id ?? room.boardId,
+    accessPolicy:
+      args.access_policy ||
+      (room.accessPolicy as "public" | "members" | "invite"),
+    useIdentityBrand: false,
+    emptyTimeoutSec,
+  });
+  return {
+    meeting_id: meeting.id,
+    slug: meeting.slug,
+    url,
+    join_path: joinPath,
+    access_policy: meeting.accessPolicy,
+    title: meeting.title,
+    brand_room_id: meeting.roomId,
+    empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+  };
+}
+
+async function meetCreateInstantMeeting(
+  args: {
+    title?: string;
+    board_id?: string;
+    room_id?: string;
+    owner_identity_id?: string;
+    owner_user_id?: string;
+    external_id?: string;
+    access_policy?: "public" | "members" | "invite";
+    empty_timeout_sec?: number;
+    identity?: z.infer<typeof brandIdentitySchema>;
+    palette?: z.infer<typeof brandPaletteSchema>;
+    advanced?: z.infer<typeof brandAdvancedSchema>;
+  },
+  defaultOwnerId: string | null | undefined,
+) {
+  const ownerIdentityId = await resolveMcpOwner(args, defaultOwnerId);
+  const ui = resolveApiBrandUi({
+    identity: args.identity,
+    palette: args.palette,
+    advanced: args.advanced,
+  });
+  const title =
+    args.title?.trim() ||
+    `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
+  const emptyTimeoutSec = clampEmptyTimeoutSec(args.empty_timeout_sec);
+  const { meeting, url, joinPath } = await createMeetingWithBrand({
+    title,
+    ownerIdentityId,
+    boardId: args.board_id,
+    accessPolicy: args.access_policy || "public",
+    roomId: args.room_id ?? null,
+    ui,
+    useIdentityBrand: !ui,
+    emptyTimeoutSec,
+  });
+  return {
+    meeting_id: meeting.id,
+    slug: meeting.slug,
+    url,
+    join_path: joinPath,
+    access_policy: meeting.accessPolicy,
+    title: meeting.title,
+    brand_room_id: meeting.roomId,
+    empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
   };
 }
 
@@ -92,7 +228,8 @@ async function meetGetTranscript(args: {
 }
 
 export async function POST(req: NextRequest) {
-  if (!authorize(req)) {
+  const auth = await authorize(req);
+  if (!auth.ok) {
     return NextResponse.json(
       {
         jsonrpc: "2.0",
@@ -115,17 +252,66 @@ export async function POST(req: NextRequest) {
           {
             name: "meet_create_room",
             description:
-              "Create an OpenMeet room and return its join URL.",
+              "Create an OpenMeet brand-template room (sala padrão). Returns room_id and /r/{slug} URL. Optional identity/palette/advanced personalization.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Template name (not meeting title)" },
+                board_id: { type: "string" },
+                owner_identity_id: { type: "string" },
+                external_id: { type: "string" },
+                slug: { type: "string" },
+                access_policy: {
+                  type: "string",
+                  enum: ["public", "members", "invite"],
+                },
+                identity: { type: "object" },
+                palette: { type: "object" },
+                advanced: { type: "object" },
+              },
+              required: ["name"],
+            },
+          },
+          {
+            name: "meet_create_meeting_from_room",
+            description:
+              "Create a meeting from a predefined room template. Requires room_id and meeting title.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                room_id: { type: "string", format: "uuid" },
+                title: { type: "string" },
+                access_policy: {
+                  type: "string",
+                  enum: ["public", "members", "invite"],
+                },
+                empty_timeout_sec: { type: "integer" },
+                board_id: { type: "string" },
+              },
+              required: ["room_id", "title"],
+            },
+          },
+          {
+            name: "meet_create_instant_meeting",
+            description:
+              "Create an instant meeting with optional identity/palette/advanced personalization.",
             inputSchema: {
               type: "object",
               properties: {
                 title: { type: "string" },
                 board_id: { type: "string" },
+                room_id: { type: "string" },
                 owner_identity_id: { type: "string" },
-                chronos_user_id: { type: "string" },
-                slug: { type: "string" },
+                external_id: { type: "string" },
+                access_policy: {
+                  type: "string",
+                  enum: ["public", "members", "invite"],
+                },
+                empty_timeout_sec: { type: "integer" },
+                identity: { type: "object" },
+                palette: { type: "object" },
+                advanced: { type: "object" },
               },
-              required: ["title"],
             },
           },
           {
@@ -152,17 +338,54 @@ export async function POST(req: NextRequest) {
       if (name === "meet_create_room") {
         const parsed = z
           .object({
-            title: z.string().min(1),
+            name: z.string().min(1).max(200).optional(),
+            /** @deprecated Prefer `name`. */
+            title: z.string().min(1).max(200).optional(),
             board_id: z.string().optional(),
-            owner_identity_id: z.string().uuid().optional(),
-            chronos_user_id: z.string().min(1).optional(),
             slug: z.string().optional(),
+            access_policy: z.enum(["public", "members", "invite"]).optional(),
+            identity: brandIdentitySchema.optional(),
+            palette: brandPaletteSchema.optional(),
+            advanced: brandAdvancedSchema.optional(),
+            ...ownerFields,
           })
-          .refine((v) => Boolean(v.owner_identity_id || v.chronos_user_id), {
-            message: "owner_identity_id or chronos_user_id required",
+          .refine((v) => Boolean(v.name || v.title), {
+            message: "name required",
           })
           .parse(args);
-        result = await meetCreateRoom(parsed);
+        result = await meetCreateRoom(
+          {
+            ...parsed,
+            name: (parsed.name || parsed.title)!,
+          },
+          auth.defaultOwnerId,
+        );
+      } else if (name === "meet_create_meeting_from_room") {
+        const parsed = z
+          .object({
+            room_id: z.string().uuid(),
+            title: z.string().min(1).max(200),
+            access_policy: z.enum(["public", "members", "invite"]).optional(),
+            empty_timeout_sec: z.number().int().optional(),
+            board_id: z.string().optional(),
+          })
+          .parse(args);
+        result = await meetCreateMeetingFromRoom(parsed);
+      } else if (name === "meet_create_instant_meeting") {
+        const parsed = z
+          .object({
+            title: z.string().min(1).max(200).optional(),
+            board_id: z.string().optional(),
+            room_id: z.string().uuid().optional(),
+            access_policy: z.enum(["public", "members", "invite"]).optional(),
+            empty_timeout_sec: z.number().int().optional(),
+            identity: brandIdentitySchema.optional(),
+            palette: brandPaletteSchema.optional(),
+            advanced: brandAdvancedSchema.optional(),
+            ...ownerFields,
+          })
+          .parse(args);
+        result = await meetCreateInstantMeeting(parsed, auth.defaultOwnerId);
       } else if (name === "meet_get_transcript") {
         result = await meetGetTranscript(
           z
@@ -191,7 +414,7 @@ export async function POST(req: NextRequest) {
           content: [
             {
               type: "text",
-              text: e instanceof Error ? e.message : "error",
+              text: e instanceof Error ? e.message : String(e),
             },
           ],
         },
@@ -202,6 +425,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     jsonrpc: "2.0",
     id,
-    error: { code: -32601, message: "method not found" },
+    error: { code: -32601, message: "Method not found" },
   });
 }

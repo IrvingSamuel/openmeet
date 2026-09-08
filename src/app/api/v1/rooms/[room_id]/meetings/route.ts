@@ -1,41 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import {
-  brandAdvancedSchema,
-  brandIdentitySchema,
-  brandPaletteSchema,
-  resolveApiBrandUi,
-} from "@/lib/api-brand";
-import { brandFieldsSchema } from "@/lib/brand-schema";
+import { db } from "@/db";
+import { rooms } from "@/db/schema";
 import { createMeetingWithBrand } from "@/lib/meetings";
 import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
-import { resolveV1Owner } from "@/lib/v1-auth";
+import { authorizePublicApi } from "@/lib/rooms";
 
 const schema = z.object({
-  title: z.string().min(1).max(200).optional(),
+  /** Título da reunião (obrigatório — definido pela plataforma terceirizada). */
+  title: z.string().min(1).max(200),
   access_policy: z.enum(["public", "members", "invite"]).optional(),
-  board_id: z.string().optional(),
-  /**
-   * Brand template room — visual only; does not create or own the meeting.
-   * Prefer POST /api/v1/rooms/{room_id}/meetings for the from-room flow.
-   */
-  room_id: z.string().uuid().optional(),
-  owner_identity_id: z.string().uuid().optional(),
-  owner_user_id: z.string().uuid().optional(),
-  external_id: z.string().min(1).optional(),
-  /** @deprecated Prefer identity / palette / advanced groups. */
-  ui: brandFieldsSchema.optional(),
-  identity: brandIdentitySchema.optional(),
-  palette: brandPaletteSchema.optional(),
-  advanced: brandAdvancedSchema.optional(),
-  /** Seconds after last participant leaves before the room auto-ends (60–86400). */
   empty_timeout_sec: z.number().int().optional(),
+  board_id: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/v1/rooms/{room_id}/meetings
+ * Create a meeting from a predefined room template. Brand is snapshotted from
+ * the room; meeting title is provided by the caller. Bearer required.
+ */
+export async function POST(
+  req: NextRequest,
+  ctx: { params: Promise<{ room_id: string }> },
+) {
+  const auth = await authorizePublicApi(req);
+  if (!auth.ok) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { room_id: roomId } = await ctx.params;
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      roomId,
+    )
+  ) {
+    return NextResponse.json({ error: "invalid_room_id" }, { status: 400 });
+  }
+
   let body: z.infer<typeof schema>;
   try {
     body = schema.parse(await req.json());
@@ -45,15 +50,6 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-
-  const owner = await resolveV1Owner({
-    req,
-    owner_identity_id: body.owner_identity_id,
-    owner_user_id: body.owner_user_id,
-    external_id: body.external_id,
-    title: body.title,
-  });
-  if (owner instanceof NextResponse) return owner;
 
   let emptyTimeoutSec: number | null = null;
   try {
@@ -68,26 +64,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const ui = resolveApiBrandUi({
-    ui: body.ui,
-    identity: body.identity,
-    palette: body.palette,
-    advanced: body.advanced,
+  const room = await db.query.rooms.findFirst({
+    where: eq(rooms.id, roomId),
   });
-
-  const title =
-    body.title?.trim() ||
-    `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
+  if (!room) {
+    return NextResponse.json({ error: "room_not_found" }, { status: 404 });
+  }
 
   try {
     const { meeting, url, joinPath } = await createMeetingWithBrand({
-      title,
-      ownerIdentityId: owner.ownerIdentityId,
-      boardId: body.board_id,
-      accessPolicy: body.access_policy || "public",
-      roomId: body.room_id ?? null,
-      ui,
-      useIdentityBrand: !ui,
+      title: body.title.trim(),
+      ownerIdentityId: room.ownerIdentityId,
+      roomId: room.id,
+      boardId: body.board_id ?? room.boardId,
+      accessPolicy:
+        body.access_policy ||
+        (room.accessPolicy as "public" | "members" | "invite"),
+      useIdentityBrand: false,
       emptyTimeoutSec,
     });
 

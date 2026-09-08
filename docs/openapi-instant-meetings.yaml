@@ -1,30 +1,199 @@
 openapi: 3.0.3
 info:
-  title: Chronos Meet — Instant Meetings API
-  version: 2.0.0
+  title: OpenMeet — API pública (salas e reuniões)
+  version: 3.0.0
   description: |
-    Create an independent meeting (no room row). Optionally apply a brand template
-    via `room_id`, request `ui`, or the owner's personal default UI.
+    API para plataformas terceirizadas criarem **salas-template** (personalização reutilizável)
+    e **reuniões** (sessões com URL de entrada `/m/{slug}`).
 
-    Authentication (either):
-    - Session cookie from Chronos OAuth (`chronos_meet_session`)
-    - Bearer token (`MEET_MCP_TOKEN` or `AGENT_SHARED_SECRET`)
+    ## Fluxos
 
-    When using Bearer auth, provide `owner_identity_id` or `chronos_user_id`.
+    1. **Sala padrão** — `POST /api/v1/rooms`  
+       Cria um template de marca. O `name` identifica a sala; a personalização
+       (identidade, paleta, avançado) é opcional e usa defaults da plataforma
+       quando omitida.
+
+    2. **Reunião a partir de sala** — `POST /api/v1/rooms/{room_id}/meetings`  
+       Cria uma reunião com o título fornecido e snapshot da marca da sala.
+
+    3. **Reunião instantânea** — `POST /api/v1/instant-meetings`  
+       Cria uma reunião sem sala. Campos de identidade/paleta/avançado são
+       opcionais (default = UI predefinida do owner ou tema da plataforma).
+
+    ## Autenticação
+
+    Bearer token obrigatório (`Authorization: Bearer …`), gerado em
+    **Admin → API** (ou `MEET_MCP_TOKEN` no ambiente, em transição).
+
+    Se o body omitir o owner, o token de plataforma usa o admin que o gerou
+    como owner por omissão. Caso contrário envie `owner_identity_id` ou
+    `external_id`.
 servers:
-  - url: https://meet.chronos.com.pt
+  - url: https://openmeet.chronos.com.pt
     description: Production
 paths:
+  /api/v1/rooms:
+    post:
+      operationId: createRoom
+      summary: Criar sala padrão (template de personalização)
+      description: |
+        Cria uma sala-template em `/r/{slug}`. **Não cria reunião.**
+
+        O campo `name` serve apenas para identificar o template. O título que
+        aparece na reunião deve ser definido depois em
+        `POST /api/v1/rooms/{room_id}/meetings`.
+
+        Grupos `identity`, `palette` e `advanced` são opcionais. Campos omitidos
+        usam o padrão da plataforma (`theme_preset: sky`, wordmark/lobby a partir
+        de `name`, subtítulo "Powered by OpenMeet").
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+            examples:
+              minimal:
+                summary: Só o nome (tema padrão da plataforma)
+                value:
+                  name: Template Acme
+                  external_id: "partner-user-123"
+              withPalette:
+                summary: Nome + paleta emerald
+                value:
+                  name: Template Acme
+                  external_id: "partner-user-123"
+                  palette:
+                    theme_preset: emerald
+              fullBrand:
+                summary: Identidade + paleta + avançado
+                value:
+                  name: Template Acme
+                  external_id: "partner-user-123"
+                  access_policy: public
+                  identity:
+                    logo_url: "https://cdn.example.com/logo.png"
+                    wordmark: Acme
+                    lobby_subtitle: Reuniões Acme
+                  palette:
+                    theme_preset: emerald
+                    bg_animation: aurora
+                    bg_animation_speed: 4
+                  advanced:
+                    font_family: "Inter, system-ui, sans-serif"
+      responses:
+        "201":
+          description: Sala-template criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRoomResponse"
+              example:
+                room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                name: Template Acme
+                slug: "x7k9m2pqab"
+                url: "https://openmeet.chronos.com.pt/r/x7k9m2pqab"
+                join_path: "/r/x7k9m2pqab"
+                access_policy: public
+                brand:
+                  identity:
+                    lobby_title: Template Acme
+                    lobby_subtitle: Powered by OpenMeet
+                    logo_url: null
+                    wordmark: Template Acme
+                  palette:
+                    theme_preset: sky
+                    primary_color: "#0ea5e9"
+                    secondary_color: "#38bdf8"
+                    tertiary_color: "#818cf8"
+                    background: "#0b1020"
+                  advanced:
+                    font_family: "Inter, system-ui, sans-serif"
+                    favicon_url: null
+                    custom_css: null
+        "400":
+          description: Corpo inválido ou falha ao resolver owner
+        "401":
+          description: Autenticação em falta ou inválida
+
+  /api/v1/rooms/{room_id}/meetings:
+    post:
+      operationId: createMeetingFromRoom
+      summary: Criar reunião a partir de sala predefinida
+      description: |
+        Cria uma reunião independente (`/m/{slug}`) usando a marca da sala como
+        snapshot. O **título da reunião é obrigatório** e vem da plataforma
+        terceirizada — não usa o `name` da sala.
+
+        Sem override de personalização neste endpoint (a marca vem da sala).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: room_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID da sala-template criada em POST /api/v1/rooms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMeetingFromRoomRequest"
+            examples:
+              basic:
+                summary: Título obrigatório
+                value:
+                  title: Comercial 8 set
+              withTimeout:
+                summary: Título + timeout
+                value:
+                  title: Kickoff parceiro
+                  access_policy: public
+                  empty_timeout_sec: 300
+      responses:
+        "201":
+          description: Reunião criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMeetingResponse"
+              example:
+                meeting_id: "8c3e2a1b-5717-4562-b3fc-2c963f66afa6"
+                slug: "m7k9m2pqab"
+                url: "https://openmeet.chronos.com.pt/m/m7k9m2pqab"
+                join_path: "/m/m7k9m2pqab"
+                access_policy: public
+                title: Comercial 8 set
+                brand_room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                empty_timeout_sec: 300
+        "400":
+          description: Corpo inválido (ex. title em falta)
+        "401":
+          description: Autenticação em falta ou inválida
+        "404":
+          description: Sala não encontrada
+
   /api/v1/instant-meetings:
     post:
       operationId: createInstantMeeting
-      summary: Create an instant meeting
+      summary: Criar reunião instantânea
       description: |
-        Creates a meeting with its own join URL (`/m/{slug}`). Does **not** create a room.
-        Brand is snapshotted from `ui`, else `room_id` template, else owner identity defaults.
+        Cria uma reunião com URL própria (`/m/{slug}`). **Não cria sala.**
+
+        Personalização opcional via `identity`, `palette` e `advanced`.
+        Campos omitidos usam a UI predefinida do owner (se existir) ou o tema
+        padrão da plataforma (`sky`).
+
+        O campo legado `ui` (camelCase) continua aceite por compatibilidade.
+        Para reutilizar uma sala já criada, prefira
+        `POST /api/v1/rooms/{room_id}/meetings`.
       security:
         - bearerAuth: []
-        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -33,90 +202,375 @@ paths:
               $ref: "#/components/schemas/CreateInstantMeetingRequest"
             examples:
               minimal:
-                summary: Minimal (owner default UI)
+                summary: Mínimo (UI predefinida / tema plataforma)
                 value:
                   title: Quick sync
-                  chronos_user_id: "chronos-user-123"
-              withRoomBrand:
-                summary: Reuse a brand template room
-                value:
-                  title: Weekly partner sync
-                  room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
-                  chronos_user_id: "chronos-user-123"
-              fullUi:
-                summary: Full UI override
+                  external_id: "partner-user-123"
+              withGroups:
+                summary: Com identidade, paleta e avançado
                 value:
                   title: Partner kickoff
                   access_policy: public
-                  chronos_user_id: "chronos-user-123"
+                  external_id: "partner-user-123"
+                  identity:
+                    lobby_title: Acme Kickoff
+                    wordmark: Acme
+                  palette:
+                    theme_preset: emerald
+                    primary_color: "#10b981"
+                    bg_animation: wave
+                  advanced:
+                    font_family: "Inter, system-ui, sans-serif"
+              legacyUi:
+                summary: Alias legado ui (camelCase)
+                value:
+                  title: Partner kickoff
+                  external_id: "partner-user-123"
                   ui:
                     lobbyTitle: Acme Kickoff
                     themePreset: emerald
-                    primaryColor: "#10b981"
       responses:
         "201":
-          description: Instant meeting created
+          description: Reunião instantânea criada
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateInstantMeetingResponse"
+                $ref: "#/components/schemas/CreateMeetingResponse"
               example:
                 meeting_id: "8c3e2a1b-5717-4562-b3fc-2c963f66afa6"
                 slug: "x7k9m2pqab"
-                url: "https://meet.chronos.com.pt/m/x7k9m2pqab"
+                url: "https://openmeet.chronos.com.pt/m/x7k9m2pqab"
                 join_path: "/m/x7k9m2pqab"
                 access_policy: public
                 title: Quick sync
                 brand_room_id: null
                 empty_timeout_sec: 300
         "400":
-          description: Invalid body or owner resolve failed
+          description: Corpo inválido ou falha ao resolver owner
         "401":
-          description: Missing or invalid authentication
+          description: Autenticação em falta ou inválida
+        "404":
+          description: room_id (legado) não encontrado
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: chronos_meet_session
+      description: Token gerado em Admin → API (ou MEET_MCP_TOKEN)
+
   schemas:
-    BrandUi:
+    PaintStop:
       type: object
-      additionalProperties: true
-    CreateInstantMeetingRequest:
-      type: object
+      required: [color, at]
       properties:
-        title:
+        color:
           type: string
+          example: "#10b981"
+        at:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Posição do stop (0–100)
+
+    PaintGradient:
+      type: object
+      required: [type, angle, stops]
+      properties:
+        type:
+          type: string
+          enum: [linear, radial]
+        angle:
+          type: number
+          minimum: 0
+          maximum: 360
+        stops:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/PaintStop"
+
+    PaintToken:
+      type: object
+      nullable: true
+      required: [mode, solid]
+      properties:
+        mode:
+          type: string
+          enum: [solid, gradient]
+        solid:
+          type: string
+          description: Cor sólida (também fallback quando mode=gradient)
+          example: "#0ea5e9"
+        gradient:
+          $ref: "#/components/schemas/PaintGradient"
+
+    BrandIdentity:
+      type: object
+      description: |
+        Tab Identidade. Todos os campos são opcionais.
+        Defaults: lobby_title/wordmark = nome da sala ou título da reunião;
+        lobby_subtitle = "Powered by OpenMeet"; logo_url = null.
+      properties:
+        lobby_title:
+          type: string
+          description: Título mostrado no lobby
+        lobby_subtitle:
+          type: string
+          description: Subtítulo do lobby (default "Powered by OpenMeet")
+        logo_url:
+          type: string
+          nullable: true
+          description: URL absoluta http(s) ou caminho relativo (/brand-assets/…)
+        wordmark:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: Texto exibido quando não há logo
+
+    BrandPalette:
+      type: object
+      description: |
+        Tab Paleta. Todos os campos são opcionais.
+        Default theme_preset = sky (#0ea5e9 / #38bdf8 / #818cf8, fundo #0b1020).
+        Se só theme_preset for enviado, as cores do preset são aplicadas.
+      properties:
+        theme_preset:
+          type: string
+          enum: [sky, violet, indigo, emerald, rose, amber]
+          description: Preset de tema (default sky)
+          default: sky
+        primary_color:
+          type: string
+          example: "#0ea5e9"
+        secondary_color:
+          type: string
+          example: "#38bdf8"
+        tertiary_color:
+          type: string
+          example: "#818cf8"
+        background:
+          type: string
+          example: "#0b1020"
+          description: Fundo sólido (default #0b1020)
+        primary_paint:
+          $ref: "#/components/schemas/PaintToken"
+        secondary_paint:
+          $ref: "#/components/schemas/PaintToken"
+        tertiary_paint:
+          $ref: "#/components/schemas/PaintToken"
+        background_paint:
+          $ref: "#/components/schemas/PaintToken"
+        pattern_url:
+          type: string
+          nullable: true
+          description: URL do padrão de fundo
+        pattern_size_mode:
+          type: string
+          nullable: true
+          enum: [percent, fixed]
+          default: percent
+        pattern_size:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 512
+          default: 24
+        pattern_tint:
+          type: string
+          nullable: true
+          enum: [none, primary, secondary, tertiary, custom]
+          default: none
+        pattern_tint_color:
+          type: string
+          nullable: true
+        pattern_tint_opacity:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          default: 55
+        bg_animation:
+          type: string
+          nullable: true
+          enum: [none, wave, beam, aurora, pulse]
+          default: none
+        bg_animation_speed:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 10
+          default: 3
+
+    BrandAdvanced:
+      type: object
+      description: |
+        Tab Avançado. Todos os campos são opcionais.
+        Default font_family = "Inter, system-ui, sans-serif".
+      properties:
+        font_family:
+          type: string
+          example: "Inter, system-ui, sans-serif"
+          default: "Inter, system-ui, sans-serif"
+        favicon_url:
+          type: string
+          nullable: true
+        custom_css:
+          type: string
+          nullable: true
+          description: CSS injetado na página da sala/reunião
+
+    BrandPublic:
+      type: object
+      description: Marca aplicada (resposta), agrupada como nas tabs do editor
+      properties:
+        identity:
+          $ref: "#/components/schemas/BrandIdentity"
+        palette:
+          $ref: "#/components/schemas/BrandPalette"
+        advanced:
+          $ref: "#/components/schemas/BrandAdvanced"
+
+    BrandUiLegacy:
+      type: object
+      description: |
+        Alias legado camelCase (compatibilidade). Preferir identity / palette / advanced.
+        Aceita os mesmos campos internos (logoUrl, themePreset, etc.).
+      additionalProperties: true
+
+    CreateRoomRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Nome de identificação do template (não é o título da reunião)
+        slug:
+          type: string
+          pattern: "^[a-z0-9-]+$"
+          minLength: 2
+          maxLength: 64
+          description: Slug opcional; gerado automaticamente se omitido
         access_policy:
           type: string
           enum: [public, members, invite]
+          default: public
         board_id:
           type: string
-        room_id:
-          type: string
-          format: uuid
-          description: Optional brand template room (visual only)
         owner_identity_id:
           type: string
           format: uuid
-        chronos_user_id:
+          description: UUID interno do owner (utilizador OpenMeet)
+        owner_user_id:
+          type: string
+          format: uuid
+          description: Alias de owner_identity_id
+        external_id:
+          type: string
+          description: |
+            ID externo do utilizador na plataforma parceira. Se omitido
+            (com token de Admin), usa o admin que gerou o token.
+        identity:
+          $ref: "#/components/schemas/BrandIdentity"
+        palette:
+          $ref: "#/components/schemas/BrandPalette"
+        advanced:
+          $ref: "#/components/schemas/BrandAdvanced"
+
+    CreateRoomResponse:
+      type: object
+      required: [room_id, name, slug, url, join_path]
+      properties:
+        room_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: URL do template (/r/{slug})
+        join_path:
+          type: string
+          example: /r/x7k9m2pqab
+        access_policy:
+          type: string
+        brand:
+          $ref: "#/components/schemas/BrandPublic"
+
+    CreateMeetingFromRoomRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Título da reunião (obrigatório — definido pela plataforma)
+        access_policy:
+          type: string
+          enum: [public, members, invite]
+          description: Se omitido, herda da sala
+        board_id:
           type: string
         empty_timeout_sec:
           type: integer
           minimum: 60
           maximum: 86400
           description: |
-            Seconds after the last participant leaves before the LiveKit room
-            auto-ends. Omit to use server default (LIVEKIT_EMPTY_TIMEOUT_SEC,
-            typically 300). Scheduled meetings that never get a join remain
-            joinable until MEETING_SCHEDULED_MAX_AGE_SEC (default 7 days).
+            Segundos após o último participante sair até a sala LiveKit terminar.
+            Omitir para usar o default do servidor (LIVEKIT_EMPTY_TIMEOUT_SEC).
+
+    CreateInstantMeetingRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Título da reunião (default = "Instant YYYY-MM-DD HH:mm")
+        access_policy:
+          type: string
+          enum: [public, members, invite]
+          default: public
+        board_id:
+          type: string
+        room_id:
+          type: string
+          format: uuid
+          description: |
+            Legado — copia marca de uma sala. Preferir
+            POST /api/v1/rooms/{room_id}/meetings.
+        owner_identity_id:
+          type: string
+          format: uuid
+        owner_user_id:
+          type: string
+          format: uuid
+        external_id:
+          type: string
+          description: ID externo do owner; omitível com token Admin (default = admin gerador)
+        empty_timeout_sec:
+          type: integer
+          minimum: 60
+          maximum: 86400
+          description: |
+            Segundos após o último participante sair até a sala LiveKit terminar.
+            Omitir para usar o default do servidor (LIVEKIT_EMPTY_TIMEOUT_SEC,
+            tipicamente 300).
+        identity:
+          $ref: "#/components/schemas/BrandIdentity"
+        palette:
+          $ref: "#/components/schemas/BrandPalette"
+        advanced:
+          $ref: "#/components/schemas/BrandAdvanced"
         ui:
-          $ref: "#/components/schemas/BrandUi"
-    CreateInstantMeetingResponse:
+          $ref: "#/components/schemas/BrandUiLegacy"
+
+    CreateMeetingResponse:
       type: object
       required: [meeting_id, slug, url, join_path]
       properties:
@@ -128,6 +582,7 @@ components:
         url:
           type: string
           format: uri
+          description: URL de entrada (/m/{slug})
         join_path:
           type: string
           example: /m/x7k9m2pqab
@@ -139,6 +594,7 @@ components:
           type: string
           format: uuid
           nullable: true
+          description: ID da sala-template usada como marca (null se instantânea pura)
         empty_timeout_sec:
           type: integer
-          description: Effective empty-room timeout in seconds for this meeting
+          description: Timeout efetivo de sala vazia em segundos

@@ -77,6 +77,9 @@ const baseRow = {
   deepgramApiKey: null,
   webhookUrl: "https://hooks.example/meet",
   webhookSecret: null,
+  publicApiToken: null,
+  publicApiTokenCreatedAt: null,
+  publicApiTokenOwnerId: null,
   webhookEnabled: true,
   webhookEvents: {
     transcript: true,
