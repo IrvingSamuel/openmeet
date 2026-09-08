@@ -40,7 +40,7 @@ export function buildCopilotChatPrompt(opts: {
     ? opts.transcript
     : "(ainda sem transcrição — a reunião pode ter acabado de começar)";
 
-  return `Você é o Copiloto Chronos Meet durante uma reunião ao vivo (${lang}).
+  return `Você é o Copiloto OpenMeet durante uma reunião ao vivo (${lang}).
 Responda de forma concisa e útil com base na transcrição e no histórico de perguntas.
 Se não houver transcrição ainda, diga isso claramente.
 Não invente falas ou decisões que não apareçam na transcrição.
@@ -63,7 +63,7 @@ export function formatAssistantFallback(opts: {
   error?: string;
 }): string {
   if (opts.billingDepleted) {
-    return "O Copiloto está temporariamente indisponível — créditos Gemini esgotados. Tente novamente mais tarde.";
+    return "O Copiloto está temporariamente indisponível — limite de API atingido. Tente novamente mais tarde.";
   }
   if (opts.offline) {
     return "O Copiloto está temporariamente indisponível. Verifique a configuração do servidor ou tente novamente.";

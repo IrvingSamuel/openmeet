@@ -11,6 +11,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import { springSoft } from "@/components/motion/primitives";
+import { playMeetingErrorSound } from "@/lib/meeting-sounds";
 
 export type ToastTone = "info" | "success" | "error";
 
@@ -46,6 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const push = useCallback((message: string, tone: ToastTone = "info") => {
+    if (tone === "error") playMeetingErrorSound();
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev.slice(-3), { id, message, tone }]);
     setTimeout(

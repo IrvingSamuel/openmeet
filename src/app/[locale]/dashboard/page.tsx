@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Aurora,
@@ -19,6 +20,7 @@ import { useToast } from "@/components/ui/Toast";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
 import {
   IconArrowRight,
+  IconBolt,
   IconCalendar,
   IconCheck,
   IconCopy,
@@ -28,8 +30,10 @@ import {
   IconPalette,
   IconPencil,
   IconPlus,
+  IconSettings,
   IconShield,
   IconSparkles,
+  IconTrash,
   IconVideo,
 } from "@/components/ui/icons";
 import { cn, formatDuration, initials, timeAgo } from "@/lib/utils";
@@ -49,6 +53,7 @@ type Room = {
   title: string;
   boardId?: string | null;
   accessPolicy?: string;
+  kind?: string;
   createdAt: string;
 };
 
@@ -85,6 +90,7 @@ function useTimeAgoFormatter() {
 
 export default function DashboardPage() {
   const toast = useToast();
+  const router = useRouter();
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const tHeader = useTranslations("header");
@@ -94,6 +100,9 @@ export default function DashboardPage() {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [renameRoom, setRenameRoom] = useState<Room | null>(null);
+  const [deleteRoom, setDeleteRoom] = useState<Room | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [startingInstant, setStartingInstant] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -161,6 +170,46 @@ export default function DashboardPage() {
     }
   }
 
+  async function startInstantMeeting() {
+    setStartingInstant(true);
+    try {
+      const res = await fetch("/api/rooms/instant", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || t("instantFailed"));
+        return;
+      }
+      toast.success(t("instantStarted"));
+      router.push(`/m/${data.slug || data.meeting?.slug}`);
+    } catch {
+      toast.error(t("instantNetworkFailed"));
+    } finally {
+      setStartingInstant(false);
+    }
+  }
+
+  async function confirmDeleteRoom() {
+    if (!deleteRoom) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/rooms/${deleteRoom.slug}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || t("deleteFailed"));
+        return;
+      }
+      toast.success(t("roomDeleted", { title: deleteRoom.title }));
+      setDeleteRoom(null);
+      await refresh();
+    } catch {
+      toast.error(t("deleteNetworkFailed"));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // Hold the shell back until the session resolves, otherwise anonymous
   // visitors briefly see the authenticated header before the sign-in card.
   if (me === null) return <SessionLoading />;
@@ -178,6 +227,15 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher compact />
             <InstallPrompt />
+            <Link href="/settings">
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<IconSettings className="h-4 w-4" />}
+              >
+                <span className="hidden sm:inline">{tHeader("settings")}</span>
+              </Button>
+            </Link>
             {me.isAdmin ? (
               <Link href="/admin">
                 <Button
@@ -233,15 +291,26 @@ export default function DashboardPage() {
                 {t("subtitle")}
               </p>
             </div>
-            <motion.div layoutId="create-room-surface" transition={morphTransition}>
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="lg"
-                icon={<IconPlus />}
-                onClick={() => setCreateOpen(true)}
+                variant="outline"
+                icon={<IconBolt />}
+                loading={startingInstant}
+                onClick={() => void startInstantMeeting()}
               >
-                {t("newRoom")}
+                {t("instantMeeting")}
               </Button>
-            </motion.div>
+              <motion.div layoutId="create-room-surface" transition={morphTransition}>
+                <Button
+                  size="lg"
+                  icon={<IconPlus />}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  {t("newRoom")}
+                </Button>
+              </motion.div>
+            </div>
           </div>
         </Reveal>
 
@@ -315,6 +384,7 @@ export default function DashboardPage() {
                     copied={copied === room.slug}
                     onCopy={() => copyLink(room.slug)}
                     onRename={() => setRenameRoom(room)}
+                    onDelete={() => setDeleteRoom(room)}
                   />
                 </motion.li>
               ))
@@ -389,6 +459,39 @@ export default function DashboardPage() {
           await refresh();
         }}
       />
+
+      <Modal
+        open={Boolean(deleteRoom)}
+        onClose={() => {
+          if (!deleting) setDeleteRoom(null);
+        }}
+        title={t("deleteModal.title")}
+        description={
+          deleteRoom
+            ? t("deleteModal.description", { title: deleteRoom.title })
+            : undefined
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => setDeleteRoom(null)}
+            >
+              {tCommon("actions.cancel")}
+            </Button>
+            <Button
+              loading={deleting}
+              onClick={() => void confirmDeleteRoom()}
+              icon={<IconTrash className="h-4 w-4" />}
+            >
+              {t("deleteModal.submit")}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-ink-muted">{t("deleteModal.warning")}</p>
+      </Modal>
     </div>
   );
 }
@@ -432,26 +535,84 @@ function RoomRow({
   copied,
   onCopy,
   onRename,
+  onDelete,
 }: {
   room: Room;
   copied: boolean;
   onCopy: () => void;
   onRename: () => void;
+  onDelete: () => void;
 }) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const formatAgo = useTimeAgoFormatter();
+  const toast = useToast();
+  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const moreRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPos = useCallback(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const menuWidth = 192;
+    const pad = 8;
+    setMenuPos({
+      top: rect.bottom + pad,
+      left: Math.max(
+        pad,
+        Math.min(rect.left, window.innerWidth - menuWidth - pad),
+      ),
+    });
+  }, []);
 
   useEffect(() => {
-    if (!moreOpen) return;
+    if (!moreOpen) {
+      setMenuPos(null);
+      return;
+    }
+    updateMenuPos();
     function onDoc(e: MouseEvent) {
-      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
+      const target = e.target as Node;
+      if (
+        moreRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setMoreOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [moreOpen]);
+    window.addEventListener("resize", updateMenuPos);
+    window.addEventListener("scroll", updateMenuPos, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("resize", updateMenuPos);
+      window.removeEventListener("scroll", updateMenuPos, true);
+    };
+  }, [moreOpen, updateMenuPos]);
+
+  async function startFromTemplate() {
+    setStarting(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.slug}/start`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || t("startFromRoomFailed"));
+        return;
+      }
+      router.push(`/m/${data.slug}`);
+    } catch {
+      toast.error(t("startFromRoomNetworkFailed"));
+    } finally {
+      setStarting(false);
+    }
+  }
 
   return (
     <motion.div
@@ -477,6 +638,7 @@ function RoomRow({
           {room.boardId ? (
             <Badge tone="brand">{tCommon("badges.linkedBoard")}</Badge>
           ) : null}
+          <Badge>{t("brandTemplateBadge")}</Badge>
           {room.accessPolicy === "invite" ? (
             <Badge tone="warn">{tCommon("badges.private")}</Badge>
           ) : room.accessPolicy === "public" ? (
@@ -512,6 +674,15 @@ function RoomRow({
               {t("ics")}
             </Button>
           </a>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDelete}
+            icon={<IconTrash className="h-4 w-4" />}
+            aria-label={t("deleteRoom")}
+          >
+            {tCommon("actions.delete")}
+          </Button>
         </div>
 
         <div ref={moreRef} className="relative md:hidden">
@@ -520,47 +691,72 @@ function RoomRow({
             variant="ghost"
             aria-label={t("moreActions")}
             aria-expanded={moreOpen}
-            onClick={() => setMoreOpen((v) => !v)}
+            onClick={() => {
+              if (moreOpen) {
+                setMoreOpen(false);
+                return;
+              }
+              updateMenuPos();
+              setMoreOpen(true);
+            }}
             icon={<IconMore className="h-4 w-4" />}
           >
             {tCommon("actions.more")}
           </Button>
-          <AnimatePresence>
-            {moreOpen ? (
-              <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                transition={springSoft}
-                className="absolute bottom-[calc(100%+8px)] right-0 z-20 w-48 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_94%,black)] p-1.5 shadow-lift backdrop-blur-xl"
-              >
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    onRename();
-                  }}
-                >
-                  <IconPencil className="h-4 w-4" /> {tCommon("actions.rename")}
-                </button>
-                <Link
-                  href={`/r/${room.slug}/brand`}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
-                  onClick={() => setMoreOpen(false)}
-                >
-                  <IconPalette className="h-4 w-4" /> {t("brand")}
-                </Link>
-                <a
-                  href={`/api/rooms/${room.slug}/ics`}
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
-                  onClick={() => setMoreOpen(false)}
-                >
-                  <IconCalendar className="h-4 w-4" /> {t("ics")}
-                </a>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+          {typeof document !== "undefined" &&
+            createPortal(
+              <AnimatePresence>
+                {moreOpen && menuPos ? (
+                  <motion.div
+                    ref={menuRef}
+                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                    transition={springSoft}
+                    style={{ top: menuPos.top, left: menuPos.left }}
+                    className="fixed z-[80] w-48 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_94%,black)] p-1.5 shadow-lift backdrop-blur-xl"
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        onRename();
+                      }}
+                    >
+                      <IconPencil className="h-4 w-4" />{" "}
+                      {tCommon("actions.rename")}
+                    </button>
+                    <Link
+                      href={`/r/${room.slug}/brand`}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
+                      onClick={() => setMoreOpen(false)}
+                    >
+                      <IconPalette className="h-4 w-4" /> {t("brand")}
+                    </Link>
+                    <a
+                      href={`/api/rooms/${room.slug}/ics`}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-ink-muted hover:bg-white/[0.06] hover:text-ink"
+                      onClick={() => setMoreOpen(false)}
+                    >
+                      <IconCalendar className="h-4 w-4" /> {t("ics")}
+                    </a>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-rose-300 hover:bg-rose-500/10"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        onDelete();
+                      }}
+                    >
+                      <IconTrash className="h-4 w-4" />{" "}
+                      {tCommon("actions.delete")}
+                    </button>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>,
+              document.body,
+            )}
         </div>
 
         <Button
@@ -578,11 +774,14 @@ function RoomRow({
         >
           {copied ? tCommon("actions.copied") : tCommon("actions.link")}
         </Button>
-        <Link href={`/r/${room.slug}`} className="min-[380px]:ml-0">
-          <Button size="sm" iconRight={<IconArrowRight className="h-4 w-4" />}>
-            {tCommon("actions.enter")}
-          </Button>
-        </Link>
+        <Button
+          size="sm"
+          loading={starting}
+          onClick={() => void startFromTemplate()}
+          iconRight={<IconArrowRight className="h-4 w-4" />}
+        >
+          {t("startMeeting")}
+        </Button>
       </div>
     </motion.div>
   );
@@ -648,6 +847,8 @@ function MeetingRow({ meeting }: { meeting: MeetingHistoryItem }) {
               <Badge tone="brand" pulse>
                 {tCommon("badges.inProgress")}
               </Badge>
+            ) : meeting.status === "scheduled" ? (
+              <Badge>{tCommon("badges.scheduled")}</Badge>
             ) : (
               <SummaryStatusBadge status={meeting.summaryStatus} hasSummary={meeting.hasSummary} />
             )}
@@ -1002,7 +1203,7 @@ function SignedOut() {
             {t("title")}
           </h1>
           <p className="mt-2 text-sm text-ink-muted">{t("body")}</p>
-          <a href="/api/auth/login" className="mt-7 block">
+          <a href="/login" className="mt-7 block">
             <Button full size="lg" iconRight={<IconArrowRight />}>
               {t("login")}
             </Button>

@@ -1,114 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { z } from "zod";
-import { nanoid } from "nanoid";
 import { db } from "@/db";
+import { rooms, meetings, transcriptSegments } from "@/db/schema";
 import {
-  chronosIdentities,
-  rooms,
-  roomBrands,
-  meetings,
-  transcriptSegments,
-} from "@/db/schema";
-import { BOARD_THEMES } from "@/lib/brand";
-import { asc } from "drizzle-orm";
+  authorizeBearer,
+  createRoomWithBrand,
+  resolveOwnerIdentityId,
+} from "@/lib/rooms";
 
 /**
  * Minimal MCP-compatible HTTP endpoint for Meet tools.
  * Auth: Bearer AGENT_SHARED_SECRET or MCP-style token in MEET_MCP_TOKEN.
  */
 function authorize(req: NextRequest) {
-  const auth = req.headers.get("Authorization") || "";
-  const token = auth.replace(/^Bearer\s+/i, "");
-  const expected =
-    process.env.MEET_MCP_TOKEN || process.env.AGENT_SHARED_SECRET || "";
-  if (!expected) return false;
-  return token === expected;
-}
-
-async function resolveOwnerIdentityId(args: {
-  owner_identity_id?: string;
-  chronos_user_id?: string;
-  title?: string;
-}): Promise<string> {
-  if (args.owner_identity_id) {
-    const existing = await db.query.chronosIdentities.findFirst({
-      where: eq(chronosIdentities.id, args.owner_identity_id),
-    });
-    if (!existing) throw new Error("owner_identity_id not found");
-    return existing.id;
-  }
-
-  if (!args.chronos_user_id) {
-    throw new Error("owner_identity_id or chronos_user_id required");
-  }
-
-  const chronosUserId = String(args.chronos_user_id);
-  const existing = await db.query.chronosIdentities.findFirst({
-    where: eq(chronosIdentities.chronosUserId, chronosUserId),
-  });
-  if (existing) return existing.id;
-
-  const [row] = await db
-    .insert(chronosIdentities)
-    .values({
-      chronosUserId,
-      name: args.title ? `Chronos user` : undefined,
-    })
-    .returning();
-  return row.id;
+  return authorizeBearer(req);
 }
 
 async function meetCreateRoom(args: {
   title: string;
   board_id?: string;
   owner_identity_id?: string;
+  owner_user_id?: string;
+  external_id?: string;
   chronos_user_id?: string;
   slug?: string;
 }) {
-  const ownerIdentityId = await resolveOwnerIdentityId(args);
-  const slug = args.slug || nanoid(10).toLowerCase();
-  const [room] = await db
-    .insert(rooms)
-    .values({
-      slug,
-      title: args.title,
-      ownerIdentityId,
-      boardId: args.board_id,
-      livekitRoomName: `meet_${slug}`,
-      accessPolicy: "members",
-    })
-    .returning();
-  const colors = BOARD_THEMES.indigo;
-  await db.insert(roomBrands).values({
-    roomId: room.id,
-    themePreset: "indigo",
-    primaryColor: colors.primary,
-    secondaryColor: colors.secondary,
-    tertiaryColor: colors.tertiary,
-    wordmark: args.title,
-    lobbyTitle: args.title,
+  const ownerIdentityId = await resolveOwnerIdentityId({
+    owner_identity_id: args.owner_identity_id || args.owner_user_id,
+    external_id: args.external_id || args.chronos_user_id,
+    title: args.title,
+  });
+  const { room, url } = await createRoomWithBrand({
+    title: args.title,
+    ownerIdentityId,
+    boardId: args.board_id,
+    slug: args.slug,
+    kind: "persistent",
+    accessPolicy: "members",
+    useIdentityBrand: true,
   });
   return {
     room_id: room.id,
     slug: room.slug,
-    url: `https://meet.chronos.com.pt/r/${room.slug}`,
+    url,
   };
 }
 
-async function meetGetTranscript(args: { meeting_id?: string; room_slug?: string }) {
+async function meetGetTranscript(args: {
+  meeting_id?: string;
+  room_slug?: string;
+  meeting_slug?: string;
+}) {
   let meetingId = args.meeting_id;
-  if (!meetingId && args.room_slug) {
-    const room = await db.query.rooms.findFirst({
-      where: eq(rooms.slug, args.room_slug),
-    });
-    if (!room) throw new Error("room not found");
+  if (!meetingId && args.meeting_slug) {
     const meeting = await db.query.meetings.findFirst({
-      where: eq(meetings.roomId, room.id),
+      where: eq(meetings.slug, args.meeting_slug),
     });
     meetingId = meeting?.id;
   }
-  if (!meetingId) throw new Error("meeting_id or room_slug required");
+  if (!meetingId && args.room_slug) {
+    const meeting = await db.query.meetings.findFirst({
+      where: eq(meetings.slug, args.room_slug),
+    });
+    if (!meeting) {
+      const room = await db.query.rooms.findFirst({
+        where: eq(rooms.slug, args.room_slug),
+      });
+      if (!room) throw new Error("room not found");
+      const linked = await db.query.meetings.findFirst({
+        where: eq(meetings.roomId, room.id),
+      });
+      meetingId = linked?.id;
+    } else {
+      meetingId = meeting.id;
+    }
+  }
+  if (!meetingId) throw new Error("meeting_id or meeting_slug required");
   const segments = await db.query.transcriptSegments.findMany({
     where: eq(transcriptSegments.meetingId, meetingId),
     orderBy: [asc(transcriptSegments.createdAt)],
@@ -126,7 +94,11 @@ async function meetGetTranscript(args: { meeting_id?: string; room_slug?: string
 export async function POST(req: NextRequest) {
   if (!authorize(req)) {
     return NextResponse.json(
-      { jsonrpc: "2.0", error: { code: -32001, message: "unauthorized" }, id: null },
+      {
+        jsonrpc: "2.0",
+        error: { code: -32001, message: "unauthorized" },
+        id: null,
+      },
       { status: 401 },
     );
   }
@@ -143,7 +115,7 @@ export async function POST(req: NextRequest) {
           {
             name: "meet_create_room",
             description:
-              "Create a Chronos Meet room and return its join URL. Prefer chronos_user_id when calling from Chronos Organizador.",
+              "Create an OpenMeet room and return its join URL.",
             inputSchema: {
               type: "object",
               properties: {
@@ -186,10 +158,9 @@ export async function POST(req: NextRequest) {
             chronos_user_id: z.string().min(1).optional(),
             slug: z.string().optional(),
           })
-          .refine(
-            (v) => Boolean(v.owner_identity_id || v.chronos_user_id),
-            { message: "owner_identity_id or chronos_user_id required" },
-          )
+          .refine((v) => Boolean(v.owner_identity_id || v.chronos_user_id), {
+            message: "owner_identity_id or chronos_user_id required",
+          })
           .parse(args);
         result = await meetCreateRoom(parsed);
       } else if (name === "meet_get_transcript") {
@@ -217,7 +188,12 @@ export async function POST(req: NextRequest) {
         id,
         result: {
           isError: true,
-          content: [{ type: "text", text: e instanceof Error ? e.message : "error" }],
+          content: [
+            {
+              type: "text",
+              text: e instanceof Error ? e.message : "error",
+            },
+          ],
         },
       });
     }

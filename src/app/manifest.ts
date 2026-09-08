@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Chronos Meet",
-    short_name: "Meet",
+    name: "OpenMeet",
+    short_name: "OpenMeet",
     description:
-      "Videoconferência inteligente white-label com copiloto Chronos",
+      "Videoconferência inteligente white-label com copiloto OpenMeet",
     start_url: "/",
     scope: "/",
     display: "standalone",

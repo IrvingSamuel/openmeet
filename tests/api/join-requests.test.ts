@@ -60,12 +60,34 @@ vi.mock("@/db", () => ({
   },
 }));
 
+
+vi.mock("@/lib/meeting-lifecycle", () => ({
+  loadMeetingBySlugAfterExpiry: (...args: unknown[]) => meetingsFindFirst(...args),
+  activateMeetingIfScheduled: vi.fn(async (m: unknown) => m),
+}));
+
+vi.mock("@/lib/recording", () => ({
+  startMeetingRecording: vi.fn(async () => undefined),
+}));
+
+vi.mock("@/lib/app-settings", () => ({
+  resolveRecordingConfig: vi.fn(async () => ({
+    enabled: false,
+    controlMode: "manual",
+    engine: "browser",
+    storage: "local",
+    localDir: "/tmp",
+    s3: {},
+    sources: {},
+  })),
+}));
+
 vi.mock("@/lib/livekit", () => ({
   mintRoomToken: vi.fn(async () => "jwt-token"),
   syncRoomMetadata: vi.fn(async () => undefined),
 }));
 
-import { POST as tokenPost } from "@/app/api/rooms/[slug]/token/route";
+import { POST as tokenPost } from "@/app/api/meetings/by-slug/[slug]/token/route";
 import { GET as listJoinRequests } from "@/app/api/rooms/[slug]/join-requests/route";
 import { GET as getJoinRequest } from "@/app/api/rooms/[slug]/join-requests/[id]/route";
 import { POST as approveJoin } from "@/app/api/rooms/[slug]/join-requests/[id]/approve/route";
@@ -108,6 +130,15 @@ beforeEach(() => {
 describe("invite waiting room", () => {
   it("returns pending instead of a token for non-owners", async () => {
     roomsFindFirst.mockResolvedValue(inviteRoom);
+    meetingsFindFirst.mockResolvedValue({
+      id: "meeting-1",
+      roomId: "room-1",
+      slug: "weekly",
+      ownerIdentityId: "identity-owner",
+      accessPolicy: "invite",
+      livekitRoomName: "meet_weekly",
+      status: "active",
+    });
     joinRequestsFindFirst.mockResolvedValue(undefined);
     insertReturning.mockResolvedValue([{ id: "req-1", status: "pending" }]);
 
@@ -130,6 +161,10 @@ describe("invite waiting room", () => {
     meetingsFindFirst.mockResolvedValue({
       id: "meeting-1",
       roomId: "room-1",
+      slug: "weekly",
+      ownerIdentityId: "identity-owner",
+      accessPolicy: "invite",
+      livekitRoomName: "meet_weekly",
       status: "active",
     });
 
@@ -241,6 +276,10 @@ describe("invite waiting room", () => {
     meetingsFindFirst.mockResolvedValue({
       id: "meeting-1",
       roomId: "room-1",
+      slug: "weekly",
+      ownerIdentityId: "identity-owner",
+      accessPolicy: "invite",
+      livekitRoomName: "meet_weekly",
       status: "active",
     });
 
@@ -264,9 +303,19 @@ describe("invite waiting room", () => {
 
   it("rejects a second token mint for an already consumed request", async () => {
     roomsFindFirst.mockResolvedValue(inviteRoom);
+    meetingsFindFirst.mockResolvedValue({
+      id: "meeting-1",
+      roomId: "room-1",
+      slug: "weekly",
+      ownerIdentityId: "identity-owner",
+      accessPolicy: "invite",
+      livekitRoomName: "meet_weekly",
+      status: "active",
+    });
     joinRequestsFindFirst.mockResolvedValue({
       id: "req-1",
       roomId: "room-1",
+      meetingId: "meeting-1",
       clientInstanceId: "tab123",
       status: "consumed",
     });
@@ -288,9 +337,19 @@ describe("invite waiting room", () => {
 
   it("rejects token mint when clientInstanceId mismatches", async () => {
     roomsFindFirst.mockResolvedValue(inviteRoom);
+    meetingsFindFirst.mockResolvedValue({
+      id: "meeting-1",
+      roomId: "room-1",
+      slug: "weekly",
+      ownerIdentityId: "identity-owner",
+      accessPolicy: "invite",
+      livekitRoomName: "meet_weekly",
+      status: "active",
+    });
     joinRequestsFindFirst.mockResolvedValue({
       id: "req-1",
       roomId: "room-1",
+      meetingId: "meeting-1",
       clientInstanceId: "tab123",
       status: "approved",
     });

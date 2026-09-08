@@ -2,6 +2,8 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   cn,
   formatDuration,
+  formatMessageDateTime,
+  formatMessageTime,
   hueFromString,
   initials,
   readableOn,
@@ -81,6 +83,24 @@ describe("formatDuration", () => {
   it("guards against invalid input", () => {
     expect(formatDuration(-1)).toBe("00:00");
     expect(formatDuration(Number.NaN)).toBe("00:00");
+  });
+});
+
+describe("formatMessageTime", () => {
+  it("formats a known instant in pt-BR", () => {
+    const ms = new Date("2026-01-15T14:32:00").getTime();
+    expect(formatMessageTime(ms, "pt-BR")).toMatch(/14:32/);
+  });
+
+  it("returns empty for invalid timestamps", () => {
+    expect(formatMessageTime(0)).toBe("");
+    expect(formatMessageTime(Number.NaN)).toBe("");
+  });
+
+  it("formatMessageDateTime includes date and time", () => {
+    const ms = new Date("2026-01-15T14:32:00").getTime();
+    const label = formatMessageDateTime(ms, "pt-BR");
+    expect(label.length).toBeGreaterThan(5);
   });
 });
 

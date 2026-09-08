@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCaption } from "@/lib/captions";
+import { captionsSimilar, parseCaption } from "@/lib/captions";
 
 function encode(value: unknown) {
   return new TextEncoder().encode(
@@ -42,5 +42,10 @@ describe("parseCaption", () => {
   it("rejects malformed json instead of throwing", () => {
     expect(parseCaption(encode("{not json"))).toBeNull();
     expect(parseCaption(new Uint8Array([0xff, 0xfe, 0x00]))).toBeNull();
+  });
+
+  it("detects similar caption text", () => {
+    expect(captionsSimilar("bom dia a todos", "bom dia a todos!")).toBe(true);
+    expect(captionsSimilar("contrato", "café")).toBe(false);
   });
 });

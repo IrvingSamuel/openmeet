@@ -4,26 +4,32 @@ import { useTrackToggle } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, forwardRef, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
+import { unlockMeetingChimes } from "@/lib/recording-beep";
 import { useIsSmUp } from "@/hooks/useMediaQuery";
 import { springSoft } from "@/components/motion/primitives";
 import {
   IconCaptions,
   IconChat,
   IconGrid,
+  IconHand,
   IconMic,
   IconMicOff,
   IconMore,
   IconPhoneOff,
+  IconReaction,
   IconScreen,
   IconSparkles,
   IconSpotlight,
   IconUsers,
   IconVideo,
   IconVideoOff,
+  IconRecord,
 } from "@/components/ui/icons";
 import type { StageLayout } from "@/components/room/Stage";
+import { FloatingMenu } from "@/components/room/FloatingMenu";
+import { ReactionPicker } from "@/components/room/ReactionPicker";
 
 export type SidePanel = "none" | "chat" | "people" | "captions" | "copilot";
 
@@ -36,10 +42,18 @@ export function ControlBar({
   onCaptionsToggle,
   unreadChat,
   peopleCount,
+  pendingJoinRequests = 0,
   insightCount,
   isHost,
+  recordingActive,
+  recordingBusy,
+  canToggleRecording,
+  onToggleRecording,
   onLeave,
   onEndForAll,
+  handRaised = false,
+  onToggleHand,
+  onSendReaction,
 }: {
   layout: StageLayout;
   onLayoutChange: (layout: StageLayout) => void;
@@ -49,10 +63,18 @@ export function ControlBar({
   onCaptionsToggle: () => void;
   unreadChat: number;
   peopleCount: number;
+  pendingJoinRequests?: number;
   insightCount?: number;
   isHost?: boolean;
+  recordingActive?: boolean;
+  recordingBusy?: boolean;
+  canToggleRecording?: boolean;
+  onToggleRecording?: () => void;
   onLeave: () => void;
   onEndForAll?: () => void | Promise<void>;
+  handRaised?: boolean;
+  onToggleHand?: () => void | Promise<void>;
+  onSendReaction?: (emoji: string) => void | Promise<boolean>;
 }) {
   const t = useTranslations("room.controlBar");
   const mic = useTrackToggle({ source: Track.Source.Microphone });
@@ -60,17 +82,22 @@ export function ControlBar({
   const screen = useTrackToggle({ source: Track.Source.ScreenShare });
   const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [reactionsOpen, setReactionsOpen] = useState(false);
   const compact = !useIsSmUp();
-  const moreRef = useRef<HTMLDivElement>(null);
+  const moreAnchorRef = useRef<HTMLButtonElement>(null);
+  const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
+  const chimesUnlockedRef = useRef(false);
 
-  useEffect(() => {
-    if (!moreOpen) return;
-    function onDoc(e: MouseEvent) {
-      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [moreOpen]);
+  function unlockChimesOnce() {
+    if (chimesUnlockedRef.current) return;
+    chimesUnlockedRef.current = true;
+    unlockMeetingChimes();
+  }
+
+  function pickReaction(emoji: string) {
+    void onSendReaction?.(emoji);
+    setReactionsOpen(false);
+  }
 
   function selectPanel(next: SidePanel) {
     onPanelChange(panel === next ? "none" : next);
@@ -80,224 +107,305 @@ export function ControlBar({
   const moreBadge =
     (unreadChat > 0 ? 1 : 0) +
     (insightCount && insightCount > 0 ? 1 : 0) +
+    (pendingJoinRequests > 0 ? 1 : 0) +
     (peopleCount > 1 ? 1 : 0);
 
+  const peopleBadge =
+    pendingJoinRequests > 0
+      ? String(pendingJoinRequests)
+      : peopleCount > 1
+        ? String(peopleCount)
+        : undefined;
+  const peopleBadgeTone =
+    pendingJoinRequests > 0 ? "danger" : "brand";
+
   return (
-    <motion.div
-      initial={{ y: 40, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ ...springSoft, delay: 0.15 }}
-      className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl glass-strong p-1.5 shadow-lift"
+    <div
+      className="relative flex max-w-[calc(100vw-1.5rem)] items-end gap-1.5"
+      onPointerDown={unlockChimesOnce}
     >
-      <ControlButton
-        active={mic.enabled}
-        danger={!mic.enabled}
-        pending={mic.pending}
-        onClick={() => {
-          void mic.toggle();
-        }}
-        label={mic.enabled ? t("muteMic") : t("unmuteMic")}
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ ...springSoft, delay: 0.15 }}
+        className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl glass-strong p-1.5 shadow-lift"
       >
-        {mic.enabled ? <IconMic /> : <IconMicOff />}
-      </ControlButton>
-
-      <ControlButton
-        active={cam.enabled}
-        danger={!cam.enabled}
-        pending={cam.pending}
-        onClick={() => {
-          void cam.toggle();
-        }}
-        label={cam.enabled ? t("turnOffCam") : t("turnOnCam")}
-      >
-        {cam.enabled ? <IconVideo /> : <IconVideoOff />}
-      </ControlButton>
-
-      {!compact ? (
         <ControlButton
-          active={screen.enabled}
-          pending={screen.pending}
+          active={mic.enabled}
+          danger={!mic.enabled}
+          pending={mic.pending}
           onClick={() => {
-            void screen.toggle();
+            void mic.toggle();
           }}
-          label={screen.enabled ? t("stopShare") : t("startShare")}
+          label={mic.enabled ? t("muteMic") : t("unmuteMic")}
         >
-          <IconScreen />
+          {mic.enabled ? <IconMic /> : <IconMicOff />}
         </ControlButton>
-      ) : null}
 
-      <Separator />
+        <ControlButton
+          active={cam.enabled}
+          danger={!cam.enabled}
+          pending={cam.pending}
+          onClick={() => {
+            void cam.toggle();
+          }}
+          label={cam.enabled ? t("turnOffCam") : t("turnOnCam")}
+        >
+          {cam.enabled ? <IconVideo /> : <IconVideoOff />}
+        </ControlButton>
 
-      <ControlButton
-        active={layout === "spotlight"}
-        onClick={() =>
-          onLayoutChange(layout === "grid" ? "spotlight" : "grid")
-        }
-        label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.span
-            key={layout}
-            initial={{ opacity: 0, rotate: -35, scale: 0.6 }}
-            animate={{ opacity: 1, rotate: 0, scale: 1 }}
-            exit={{ opacity: 0, rotate: 35, scale: 0.6 }}
-            transition={{ duration: 0.2 }}
-            className="grid place-items-center"
-          >
-            {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
-          </motion.span>
-        </AnimatePresence>
-      </ControlButton>
+        <ControlButton
+          active={handRaised}
+          onClick={() => {
+            void onToggleHand?.();
+          }}
+          label={handRaised ? t("lowerHand") : t("raiseHand")}
+        >
+          <IconHand />
+        </ControlButton>
 
-      {compact ? (
-        <div ref={moreRef} className="relative">
+        {!compact ? (
           <ControlButton
-            active={moreOpen || panel !== "none" || captionsOn}
-            onClick={() => setMoreOpen((v) => !v)}
-            label={t("moreControls")}
-            badge={moreBadge > 0 ? String(moreBadge) : undefined}
+            ref={reactionsAnchorRef}
+            active={reactionsOpen}
+            onClick={() => setReactionsOpen((v) => !v)}
+            label={t("reactions")}
           >
-            <IconMore />
+            <IconReaction />
           </ControlButton>
-          <AnimatePresence>
-            {moreOpen ? (
-              <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                transition={springSoft}
-                className="absolute bottom-[calc(100%+10px)] left-1/2 z-50 w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_92%,black)] p-1.5 shadow-lift backdrop-blur-xl"
-              >
-                <MoreItem
-                  label={screen.enabled ? t("stopShare") : t("startShare")}
-                  active={screen.enabled}
-                  onClick={() => {
-                    void screen.toggle();
-                    setMoreOpen(false);
-                  }}
-                >
-                  <IconScreen />
-                </MoreItem>
-                <MoreItem
-                  label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-                  active={captionsOn}
-                  onClick={() => {
-                    onCaptionsToggle();
-                    setMoreOpen(false);
-                  }}
-                >
-                  <IconCaptions />
-                </MoreItem>
-                <MoreItem
-                  label={t("fullTranscript")}
-                  active={panel === "captions"}
-                  onClick={() => selectPanel("captions")}
-                >
-                  <TranscriptIcon />
-                </MoreItem>
-                <MoreItem
-                  label={t("copilot")}
-                  active={panel === "copilot"}
-                  badge={
-                    insightCount && insightCount > 0
-                      ? String(insightCount)
-                      : undefined
-                  }
-                  onClick={() => selectPanel("copilot")}
-                >
-                  <IconSparkles />
-                </MoreItem>
-                <MoreItem
-                  label={t("people")}
-                  active={panel === "people"}
-                  badge={peopleCount > 1 ? String(peopleCount) : undefined}
-                  onClick={() => selectPanel("people")}
-                >
-                  <IconUsers />
-                </MoreItem>
-                <MoreItem
-                  label={t("chat")}
-                  active={panel === "chat"}
-                  badge={unreadChat > 0 ? String(unreadChat) : undefined}
-                  badgeTone="danger"
-                  onClick={() => selectPanel("chat")}
-                >
-                  <IconChat />
-                </MoreItem>
-              </motion.div>
-            ) : null}
+        ) : null}
+
+        {!compact ? (
+          <ControlButton
+            active={screen.enabled}
+            pending={screen.pending}
+            onClick={() => {
+              void screen.toggle();
+            }}
+            label={screen.enabled ? t("stopShare") : t("startShare")}
+          >
+            <IconScreen />
+          </ControlButton>
+        ) : null}
+
+        {canToggleRecording ? (
+          <ControlButton
+            active={Boolean(recordingActive)}
+            danger={Boolean(recordingActive)}
+            pending={Boolean(recordingBusy)}
+            onClick={() => onToggleRecording?.()}
+            label={recordingActive ? t("stopRecording") : t("startRecording")}
+          >
+            <IconRecord />
+          </ControlButton>
+        ) : null}
+
+        <Separator />
+
+        <ControlButton
+          active={layout === "spotlight"}
+          onClick={() =>
+            onLayoutChange(layout === "grid" ? "spotlight" : "grid")
+          }
+          label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={layout}
+              initial={{ opacity: 0, rotate: -35, scale: 0.6 }}
+              animate={{ opacity: 1, rotate: 0, scale: 1 }}
+              exit={{ opacity: 0, rotate: 35, scale: 0.6 }}
+              transition={{ duration: 0.2 }}
+              className="grid place-items-center"
+            >
+              {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
+            </motion.span>
           </AnimatePresence>
-        </div>
-      ) : (
-        <>
-          <ControlButton
-            active={captionsOn}
-            onClick={onCaptionsToggle}
-            label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-          >
-            <IconCaptions />
-          </ControlButton>
+        </ControlButton>
 
-          <ControlButton
-            active={panel === "captions"}
-            onClick={() =>
-              onPanelChange(panel === "captions" ? "none" : "captions")
-            }
-            label={t("fullTranscript")}
-          >
-            <TranscriptIcon />
-          </ControlButton>
+        {compact ? (
+          <>
+            <ControlButton
+              ref={moreAnchorRef}
+              active={moreOpen || panel !== "none" || captionsOn}
+              onClick={() => setMoreOpen((v) => !v)}
+              label={t("moreControls")}
+              badge={moreBadge > 0 ? String(moreBadge) : undefined}
+            >
+              <IconMore />
+            </ControlButton>
+            <FloatingMenu
+              open={moreOpen}
+              onClose={() => setMoreOpen(false)}
+              anchorRef={moreAnchorRef}
+              align="center"
+            >
+              <MoreItem
+                label={t("reactions")}
+                active={reactionsOpen}
+                onClick={() => {
+                  setReactionsOpen(true);
+                  setMoreOpen(false);
+                }}
+              >
+                <IconReaction />
+              </MoreItem>
+              <MoreItem
+                label={screen.enabled ? t("stopShare") : t("startShare")}
+                active={screen.enabled}
+                onClick={() => {
+                  void screen.toggle();
+                  setMoreOpen(false);
+                }}
+              >
+                <IconScreen />
+              </MoreItem>
+              <MoreItem
+                label={handRaised ? t("lowerHand") : t("raiseHand")}
+                active={handRaised}
+                onClick={() => {
+                  void onToggleHand?.();
+                  setMoreOpen(false);
+                }}
+              >
+                <IconHand />
+              </MoreItem>
+              <MoreItem
+                label={captionsOn ? t("hideCaptions") : t("showCaptions")}
+                active={captionsOn}
+                onClick={() => {
+                  onCaptionsToggle();
+                  setMoreOpen(false);
+                }}
+              >
+                <IconCaptions />
+              </MoreItem>
+              <MoreItem
+                label={t("fullTranscript")}
+                active={panel === "captions"}
+                onClick={() => selectPanel("captions")}
+              >
+                <TranscriptIcon />
+              </MoreItem>
+              <MoreItem
+                label={t("copilot")}
+                active={panel === "copilot"}
+                badge={
+                  insightCount && insightCount > 0
+                    ? String(insightCount)
+                    : undefined
+                }
+                onClick={() => selectPanel("copilot")}
+              >
+                <IconSparkles />
+              </MoreItem>
+              <MoreItem
+                label={t("people")}
+                active={panel === "people"}
+                badge={peopleBadge}
+                badgeTone={peopleBadgeTone}
+                onClick={() => selectPanel("people")}
+              >
+                <IconUsers />
+              </MoreItem>
+              <MoreItem
+                label={t("chat")}
+                active={panel === "chat"}
+                badge={unreadChat > 0 ? String(unreadChat) : undefined}
+                badgeTone="danger"
+                onClick={() => selectPanel("chat")}
+              >
+                <IconChat />
+              </MoreItem>
+            </FloatingMenu>
+          </>
+        ) : (
+          <>
+            <ControlButton
+              active={captionsOn}
+              onClick={onCaptionsToggle}
+              label={captionsOn ? t("hideCaptions") : t("showCaptions")}
+            >
+              <IconCaptions />
+            </ControlButton>
 
-          <Separator />
+            <ControlButton
+              active={panel === "captions"}
+              onClick={() =>
+                onPanelChange(panel === "captions" ? "none" : "captions")
+              }
+              label={t("fullTranscript")}
+            >
+              <TranscriptIcon />
+            </ControlButton>
 
-          <ControlButton
-            active={panel === "copilot"}
-            onClick={() =>
-              onPanelChange(panel === "copilot" ? "none" : "copilot")
-            }
-            label={t("copilot")}
-            badge={
-              insightCount && insightCount > 0
-                ? String(insightCount)
-                : undefined
-            }
-          >
-            <IconSparkles />
-          </ControlButton>
+            <Separator />
 
-          <ControlButton
-            active={panel === "people"}
-            onClick={() =>
-              onPanelChange(panel === "people" ? "none" : "people")
-            }
-            label={t("people")}
-            badge={peopleCount > 1 ? String(peopleCount) : undefined}
-          >
-            <IconUsers />
-          </ControlButton>
+            <ControlButton
+              active={panel === "copilot"}
+              onClick={() =>
+                onPanelChange(panel === "copilot" ? "none" : "copilot")
+              }
+              label={t("copilot")}
+              badge={
+                insightCount && insightCount > 0
+                  ? String(insightCount)
+                  : undefined
+              }
+            >
+              <IconSparkles />
+            </ControlButton>
 
-          <ControlButton
-            active={panel === "chat"}
-            onClick={() => onPanelChange(panel === "chat" ? "none" : "chat")}
-            label={t("chat")}
-            badge={unreadChat > 0 ? String(unreadChat) : undefined}
-            badgeTone="danger"
-          >
-            <IconChat />
-          </ControlButton>
-        </>
-      )}
+            <ControlButton
+              active={panel === "people"}
+              onClick={() =>
+                onPanelChange(panel === "people" ? "none" : "people")
+              }
+              label={t("people")}
+              badge={peopleBadge}
+              badgeTone={peopleBadgeTone}
+            >
+              <IconUsers />
+            </ControlButton>
 
-      <Separator />
+            <ControlButton
+              active={panel === "chat"}
+              onClick={() => onPanelChange(panel === "chat" ? "none" : "chat")}
+              label={t("chat")}
+              badge={unreadChat > 0 ? String(unreadChat) : undefined}
+              badgeTone="danger"
+            >
+              <IconChat />
+            </ControlButton>
+          </>
+        )}
+      </motion.div>
 
-      <LeaveControl
-        isHost={isHost}
-        open={leaveMenuOpen}
-        onOpenChange={setLeaveMenuOpen}
-        onLeave={onLeave}
-        onEndForAll={onEndForAll}
-      />
-    </motion.div>
+      <FloatingMenu
+        open={reactionsOpen}
+        onClose={() => setReactionsOpen(false)}
+        anchorRef={compact ? moreAnchorRef : reactionsAnchorRef}
+        align="center"
+      >
+        <ReactionPicker onPick={pickReaction} />
+      </FloatingMenu>
+
+      {/* Leave sits outside overflow-x-auto so its menu isn't clipped under video */}
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ ...springSoft, delay: 0.15 }}
+        className="pointer-events-auto relative shrink-0 rounded-2xl glass-strong p-1.5 shadow-lift"
+      >
+        <LeaveControl
+          isHost={isHost}
+          open={leaveMenuOpen}
+          onOpenChange={setLeaveMenuOpen}
+          onLeave={onLeave}
+          onEndForAll={onEndForAll}
+        />
+      </motion.div>
+    </div>
   );
 }
 
@@ -377,20 +485,12 @@ function LeaveControl({
   onEndForAll?: () => void | Promise<void>;
 }) {
   const t = useTranslations("room.controlBar");
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) onOpenChange(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, onOpenChange]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div ref={wrapRef} className="relative">
+    <>
       <motion.button
+        ref={buttonRef}
         onClick={() => {
           if (isHost && onEndForAll) {
             onOpenChange(!open);
@@ -407,45 +507,42 @@ function LeaveControl({
       >
         <IconPhoneOff />
       </motion.button>
-      <AnimatePresence>
-        {open && isHost ? (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.96 }}
-            transition={springSoft}
-            className="absolute bottom-[calc(100%+10px)] right-0 z-50 w-56 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_92%,black)] p-1.5 shadow-lift backdrop-blur-xl"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                onOpenChange(false);
-                onLeave();
-              }}
-              className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-white/[0.06]"
-            >
-              {t("leaveMeeting")}
-              <span className="mt-0.5 block text-[11px] text-ink-faint">
-                {t("leaveHint")}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onOpenChange(false);
-                onEndForAll?.();
-              }}
-              className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-rose-200 transition-colors hover:bg-rose-500/15"
-            >
-              {t("endForAll")}
-              <span className="mt-0.5 block text-[11px] text-rose-200/70">
-                {t("endForAllHint")}
-              </span>
-            </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
+      <FloatingMenu
+        open={Boolean(open && isHost)}
+        onClose={() => onOpenChange(false)}
+        anchorRef={buttonRef}
+        align="right"
+      >
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onOpenChange(false);
+            onLeave();
+          }}
+          className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-white/[0.06]"
+        >
+          {t("leaveMeeting")}
+          <span className="mt-0.5 block text-[11px] text-ink-faint">
+            {t("leaveHint")}
+          </span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onOpenChange(false);
+            onEndForAll?.();
+          }}
+          className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-rose-200 transition-colors hover:bg-rose-500/15"
+        >
+          {t("endForAll")}
+          <span className="mt-0.5 block text-[11px] text-rose-200/70">
+            {t("endForAllHint")}
+          </span>
+        </button>
+      </FloatingMenu>
+    </>
   );
 }
 
@@ -453,29 +550,33 @@ function Separator() {
   return <span aria-hidden className="mx-0.5 h-7 w-px shrink-0 bg-line" />;
 }
 
-function ControlButton({
-  children,
-  onClick,
-  label,
-  active,
-  danger,
-  pending,
-  badge,
-  badgeTone = "brand",
-  className,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  label: string;
-  active?: boolean;
-  danger?: boolean;
-  pending?: boolean;
-  badge?: string;
-  badgeTone?: "brand" | "danger";
-  className?: string;
-}) {
+const ControlButton = forwardRef(function ControlButton(
+  {
+    children,
+    onClick,
+    label,
+    active,
+    danger,
+    pending,
+    badge,
+    badgeTone = "brand",
+    className,
+  }: {
+    children: ReactNode;
+    onClick: () => void;
+    label: string;
+    active?: boolean;
+    danger?: boolean;
+    pending?: boolean;
+    badge?: string;
+    badgeTone?: "brand" | "danger";
+    className?: string;
+  },
+  ref: Ref<HTMLButtonElement>,
+) {
   return (
     <motion.button
+      ref={ref}
       onClick={onClick}
       disabled={pending}
       aria-label={label}
@@ -510,4 +611,5 @@ function ControlButton({
       ) : null}
     </motion.button>
   );
-}
+});
+ControlButton.displayName = "ControlButton";

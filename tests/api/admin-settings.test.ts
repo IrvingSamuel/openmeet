@@ -9,6 +9,8 @@ const session = {
 
 const ensureAppSettings = vi.fn();
 const resolveAiConfig = vi.fn();
+const resolveOpenAiLlmConfigAsync = vi.fn();
+const resolveRecordingConfig = vi.fn();
 const invalidateAppSettingsCache = vi.fn();
 const updateReturning = vi.fn();
 const sendTestWebhook = vi.fn();
@@ -25,6 +27,10 @@ vi.mock("@/lib/app-settings", async () => {
     ...actual,
     ensureAppSettings: (...args: unknown[]) => ensureAppSettings(...args),
     resolveAiConfig: (...args: unknown[]) => resolveAiConfig(...args),
+    resolveOpenAiLlmConfigAsync: (...args: unknown[]) =>
+      resolveOpenAiLlmConfigAsync(...args),
+    resolveRecordingConfig: (...args: unknown[]) =>
+      resolveRecordingConfig(...args),
     invalidateAppSettingsCache: (...args: unknown[]) =>
       invalidateAppSettingsCache(...args),
   };
@@ -77,20 +83,66 @@ const baseRow = {
     chat: true,
     summary: true,
     tasks: true,
+    recording: true,
   },
+  recordingEnabled: false,
+  recordingEngine: "browser",
+  recordingControlMode: "manual",
+  recordingStorage: "local",
+  recordingS3Endpoint: null,
+  recordingS3Bucket: null,
+  recordingS3Region: null,
+  recordingS3AccessKey: null,
+  recordingS3SecretKey: null,
   updatedAt: new Date("2026-08-04T12:00:00.000Z"),
 };
 
 const baseAi = {
   geminiApiKey: "env-key-1234",
-  geminiModel: "gemini-2.5-flash-lite",
-  geminiSummaryModel: "gemini-2.5-flash",
+  geminiModel: "gemini-3.5-flash-lite",
+  geminiSummaryModel: "gemini-3.5-flash-lite",
   deepgramApiKey: undefined,
   sources: {
     geminiApiKey: "env" as const,
     geminiModel: "default" as const,
     geminiSummaryModel: "default" as const,
     deepgramApiKey: "none" as const,
+  },
+};
+
+const baseOpenAi = {
+  enabled: true,
+  baseUrl: "https://api.groq.com/openai/v1",
+  apiKey: "gsk-test",
+  model: "openai/gpt-oss-120b",
+  summaryModel: "openai/gpt-oss-120b",
+  sources: {
+    enabled: "env" as const,
+    apiKey: "env" as const,
+    baseUrl: "env" as const,
+    model: "env" as const,
+    summaryModel: "env" as const,
+  },
+};
+
+const baseRecording = {
+  enabled: false,
+  engine: "browser" as const,
+  controlMode: "manual" as const,
+  storage: "local" as const,
+  localDir: "/var/chronos-meet/recordings",
+  s3: {
+    endpoint: undefined,
+    bucket: undefined,
+    region: "us-east-1",
+    accessKey: undefined,
+    secretKey: undefined,
+  },
+  sources: {
+    s3AccessKey: "none" as const,
+    s3SecretKey: "none" as const,
+    s3Bucket: "none" as const,
+    s3Endpoint: "none" as const,
   },
 };
 
@@ -101,11 +153,15 @@ beforeEach(() => {
   process.env.ADMIN_EMAILS = "admin@chronos.com.pt";
   ensureAppSettings.mockReset();
   resolveAiConfig.mockReset();
+  resolveOpenAiLlmConfigAsync.mockReset();
+  resolveRecordingConfig.mockReset();
   invalidateAppSettingsCache.mockReset();
   updateReturning.mockReset();
   sendTestWebhook.mockReset();
   ensureAppSettings.mockResolvedValue(baseRow);
   resolveAiConfig.mockResolvedValue(baseAi);
+  resolveOpenAiLlmConfigAsync.mockResolvedValue(baseOpenAi);
+  resolveRecordingConfig.mockResolvedValue(baseRecording);
   updateReturning.mockResolvedValue([
     { ...baseRow, locale: "en", updatedAt: new Date() },
   ]);
@@ -134,6 +190,43 @@ describe("GET /api/admin/settings", () => {
     expect(json.geminiApiKey.configured).toBe(true);
     expect(json.geminiApiKey.preview).toBe("••••1234");
     expect(json.webhookUrl).toBe("https://hooks.example/meet");
+    expect(json.recordingEnabled).toBe(false);
+    expect(json.recordingEngine).toBe("browser");
+  });
+
+  it("updates recording settings for admin", async () => {
+    session.isLoggedIn = true;
+    session.email = "admin@chronos.com.pt";
+    updateReturning.mockResolvedValue([
+      {
+        ...baseRow,
+        recordingEnabled: true,
+        recordingEngine: "egress",
+        recordingControlMode: "auto",
+        recordingStorage: "s3",
+        updatedAt: new Date(),
+      },
+    ]);
+    resolveRecordingConfig.mockResolvedValue({
+      ...baseRecording,
+      enabled: true,
+      engine: "egress",
+      controlMode: "auto",
+      storage: "s3",
+    });
+    const res = await PUT(
+      jsonRequest({
+        recordingEnabled: true,
+        recordingEngine: "egress",
+        recordingControlMode: "auto",
+        recordingStorage: "s3",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.recordingEnabled).toBe(true);
+    expect(json.recordingEngine).toBe("egress");
+    expect(json.recordingControlMode).toBe("auto");
   });
 });
 

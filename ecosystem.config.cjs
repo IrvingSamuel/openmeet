@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const ROOT = "/home/chronos-meet/htdocs/meet.chronos.com.pt";
+const ROOT = "/home/chronos-meet/htdocs/openmeet.chronos.com.pt";
 
 /** Minimal .env parser — no dotenv dependency required for PM2. */
 function loadEnvFile(filePath) {
@@ -30,21 +30,21 @@ const fileEnv = loadEnvFile(path.join(ROOT, ".env"));
 module.exports = {
   apps: [
     {
-      name: "chronos-meet",
+      name: "openmeet",
       cwd: ROOT,
       script: "node_modules/next/dist/bin/next",
-      args: "start -H 127.0.0.1 -p 3331",
+      args: "start -H 127.0.0.1 -p 3332",
       env: {
         ...fileEnv,
         NODE_ENV: "production",
-        PORT: "3331",
+        PORT: "3332",
       },
       instances: 1,
       exec_mode: "fork",
       max_memory_restart: "512M",
     },
     {
-      name: "chronos-meet-agent",
+      name: "openmeet-agent",
       cwd: path.join(ROOT, "agent"),
       script: "venv/bin/python",
       args: "main.py start",

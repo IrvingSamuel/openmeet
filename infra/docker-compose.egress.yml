@@ -1,0 +1,32 @@
+# Optional LiveKit Egress for Chronos Meet room composite recording.
+# Heavy (Chrome headless) — on this VPS use ONLY for short isolated tests, then down.
+# See docs/02-arquitetura.md and ADR-002.
+#
+# Start (test only):
+#   docker compose -f infra/docker-compose.egress.yml up -d
+# Stop when done:
+#   docker compose -f infra/docker-compose.egress.yml down
+#
+# Prefer /admin storage = S3 (MinIO on this host) over local disk for egress output.
+# SYS_ADMIN is required since egress v1.7.6 for Chrome sandbox.
+
+services:
+  egress:
+    image: livekit/egress:v1.9.1
+    container_name: chronos-meet-egress
+    # Ephemeral: do not survive reboot / crash loops on this shared VPS.
+    restart: "no"
+    network_mode: host
+    # Required for Chrome after egress v1.7.6
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./egress.yaml:/etc/egress.yaml:ro
+      - ${RECORDINGS_DIR:-/var/chronos-meet/recordings}:/var/chronos-meet/recordings
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"

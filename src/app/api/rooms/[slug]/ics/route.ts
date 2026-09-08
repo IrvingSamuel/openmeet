@@ -16,18 +16,23 @@ export async function GET(
     where: eq(meetings.roomId, room.id),
   });
 
+  const origin = (
+    process.env.NEXT_PUBLIC_APP_URL || "https://openmeet.chronos.com.pt"
+  ).replace(/\/$/, "");
+  const host = new URL(origin).host;
+
   const dtStart = (meeting?.startedAt || new Date()).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const dtEnd = (meeting?.endedAt || new Date(Date.now() + 3600000))
     .toISOString()
     .replace(/[-:]/g, "")
     .replace(/\.\d{3}/, "");
-  const uid = `${room.slug}@meet.chronos.com.pt`;
-  const url = `https://meet.chronos.com.pt/r/${room.slug}`;
+  const uid = `${room.slug}@${host}`;
+  const url = `${origin}/r/${room.slug}`;
 
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Chronos Meet//PT",
+    "PRODID:-//OpenMeet//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

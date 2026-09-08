@@ -6,12 +6,22 @@ const session = { isLoggedIn: false, identityId: undefined as string | undefined
 const roomsFindFirst = vi.fn();
 const roomsFindMany = vi.fn();
 const roomBrandsFindFirst = vi.fn();
+const identityBrandsFindFirst = vi.fn();
+const meetingsFindFirst = vi.fn();
 const insertReturning = vi.fn();
 const updateReturning = vi.fn();
 const brandUpdateSet = vi.fn();
+const deleteWhere = vi.fn();
+const deleteRoomLivekit = vi.fn();
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
+}));
+
+vi.mock("@/lib/livekit", () => ({
+  getRoomServiceClient: () => ({
+    deleteRoom: (...args: unknown[]) => deleteRoomLivekit(...args),
+  }),
 }));
 
 vi.mock("@/db", () => ({
@@ -23,6 +33,12 @@ vi.mock("@/db", () => ({
       },
       roomBrands: {
         findFirst: (...args: unknown[]) => roomBrandsFindFirst(...args),
+      },
+      identityBrands: {
+        findFirst: (...args: unknown[]) => identityBrandsFindFirst(...args),
+      },
+      meetings: {
+        findFirst: (...args: unknown[]) => meetingsFindFirst(...args),
       },
     },
     insert: () => ({
@@ -38,6 +54,9 @@ vi.mock("@/db", () => ({
         };
       },
     }),
+    delete: () => ({
+      where: (...args: unknown[]) => deleteWhere(...args),
+    }),
   },
 }));
 
@@ -45,6 +64,7 @@ import { GET as listRooms, POST as createRoom } from "@/app/api/rooms/route";
 import {
   GET as getRoom,
   PATCH as patchRoom,
+  DELETE as deleteRoom,
 } from "@/app/api/rooms/[slug]/route";
 
 function jsonRequest(body: unknown, method = "POST") {
@@ -62,10 +82,18 @@ beforeEach(() => {
   roomsFindFirst.mockReset();
   roomsFindMany.mockReset();
   roomBrandsFindFirst.mockReset();
+  identityBrandsFindFirst.mockReset();
+  meetingsFindFirst.mockReset();
   insertReturning.mockReset();
   updateReturning.mockReset();
   brandUpdateSet.mockReset();
+  deleteWhere.mockReset();
+  deleteRoomLivekit.mockReset();
   roomBrandsFindFirst.mockResolvedValue({ themePreset: "sky" });
+  identityBrandsFindFirst.mockResolvedValue(undefined);
+  meetingsFindFirst.mockResolvedValue(undefined);
+  deleteRoomLivekit.mockResolvedValue(undefined);
+  deleteWhere.mockResolvedValue(undefined);
 });
 
 describe("GET /api/rooms", () => {
@@ -98,7 +126,16 @@ describe("POST /api/rooms", () => {
   it("creates a room and returns 201", async () => {
     session.isLoggedIn = true;
     session.identityId = "identity-1";
-    insertReturning.mockResolvedValue([{ id: "r1", slug: "abc", title: "Weekly" }]);
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "r1",
+          slug: "abc",
+          title: "Weekly",
+          kind: "persistent",
+        },
+      ])
+      .mockResolvedValueOnce([{ roomId: "r1", themePreset: "violet" }]);
 
     const res = await createRoom(jsonRequest({ title: "Weekly" }));
     expect(res.status).toBe(201);
@@ -193,5 +230,48 @@ describe("PATCH /api/rooms/[slug]", () => {
     expect(res.status).toBe(200);
     const payload = await res.json();
     expect(payload.room.title).toBe("Novo nome");
+  });
+});
+
+describe("DELETE /api/rooms/[slug]", () => {
+  it("rejects anonymous callers", async () => {
+    const res = await deleteRoom({} as never, {
+      params: Promise.resolve({ slug: "weekly" }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("forbids non-owners", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-1";
+    roomsFindFirst.mockResolvedValue({
+      id: "r1",
+      slug: "weekly",
+      ownerIdentityId: "other",
+      livekitRoomName: "meet_weekly",
+    });
+    const res = await deleteRoom({} as never, {
+      params: Promise.resolve({ slug: "weekly" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("deletes an owned room without requiring LiveKit eviction", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-1";
+    roomsFindFirst.mockResolvedValue({
+      id: "r1",
+      slug: "weekly",
+      title: "Weekly",
+      ownerIdentityId: "identity-1",
+      livekitRoomName: "meet_weekly",
+    });
+
+    const res = await deleteRoom({} as never, {
+      params: Promise.resolve({ slug: "weekly" }),
+    });
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true, slug: "weekly" });
+    expect(deleteWhere).toHaveBeenCalled();
   });
 });

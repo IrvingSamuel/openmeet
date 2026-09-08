@@ -6,13 +6,38 @@ import {
 } from "@/lib/transcript-sample";
 
 vi.mock("@/lib/app-settings", () => ({
+  resolveOpenAiLlmConfig: () => {
+    const enabled = process.env.AI_FALLBACK_ENABLED?.trim() === "true";
+    const model =
+      process.env.AI_FALLBACK_MODEL?.trim() || "openai/gpt-oss-120b";
+    const summaryModel =
+      process.env.AI_FALLBACK_SUMMARY_MODEL?.trim() || model;
+    return {
+      enabled,
+      baseUrl:
+        process.env.AI_FALLBACK_BASE_URL?.trim() ||
+        "https://api.groq.com/openai/v1",
+      apiKey: process.env.AI_FALLBACK_API_KEY?.trim() || undefined,
+      model,
+      summaryModel,
+      sources: {
+        enabled: enabled ? "env" : "default",
+        apiKey: process.env.AI_FALLBACK_API_KEY?.trim() ? "env" : "none",
+        baseUrl: process.env.AI_FALLBACK_BASE_URL?.trim() ? "env" : "default",
+        model: process.env.AI_FALLBACK_MODEL?.trim() ? "env" : "default",
+        summaryModel: process.env.AI_FALLBACK_SUMMARY_MODEL?.trim()
+          ? "env"
+          : "default",
+      },
+    };
+  },
   resolveAiConfig: vi.fn(async () => ({
     apiKey: "test",
-    model: "gemini-2.5-flash",
+    model: "gemini-3.5-flash-lite",
   })),
 }));
 
-import { estimateTokens, defaultGeminiModel } from "@/lib/gemini";
+import { estimateTokens, defaultGeminiModel, summaryGeminiModel } from "@/lib/gemini";
 
 describe("needsExpandedContext", () => {
   it("expands for summary-like questions", () => {
@@ -52,8 +77,30 @@ describe("estimateTokens", () => {
 describe("defaultGeminiModel", () => {
   it("defaults to flash-lite when env unset", () => {
     const prev = process.env.GEMINI_MODEL;
+    const prevFallback = process.env.AI_FALLBACK_ENABLED;
     delete process.env.GEMINI_MODEL;
-    expect(defaultGeminiModel()).toBe("gemini-2.5-flash-lite");
+    delete process.env.AI_FALLBACK_ENABLED;
+    expect(defaultGeminiModel()).toBe("gemini-3.5-flash-lite");
     if (prev !== undefined) process.env.GEMINI_MODEL = prev;
+    if (prevFallback !== undefined) {
+      process.env.AI_FALLBACK_ENABLED = prevFallback;
+    }
+  });
+});
+
+describe("summaryGeminiModel", () => {
+  it("defaults to stronger flash (not lite) when env unset", () => {
+    const prev = process.env.GEMINI_SUMMARY_MODEL;
+    const prevLite = process.env.GEMINI_MODEL;
+    const prevFallback = process.env.AI_FALLBACK_ENABLED;
+    delete process.env.GEMINI_SUMMARY_MODEL;
+    delete process.env.GEMINI_MODEL;
+    delete process.env.AI_FALLBACK_ENABLED;
+    expect(summaryGeminiModel()).toBe("gemini-3.5-flash");
+    if (prev !== undefined) process.env.GEMINI_SUMMARY_MODEL = prev;
+    if (prevLite !== undefined) process.env.GEMINI_MODEL = prevLite;
+    if (prevFallback !== undefined) {
+      process.env.AI_FALLBACK_ENABLED = prevFallback;
+    }
   });
 });

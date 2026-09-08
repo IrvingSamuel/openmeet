@@ -21,12 +21,12 @@ export function buildWebhookHeaders(opts: {
   const timestamp = opts.timestamp ?? String(Math.floor(Date.now() / 1000));
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-Chronos-Meet-Event": opts.event,
-    "X-Chronos-Meet-Timestamp": timestamp,
-    "User-Agent": "Chronos-Meet-Webhooks/1.0",
+    "X-OpenMeet-Event": opts.event,
+    "X-OpenMeet-Timestamp": timestamp,
+    "User-Agent": "OpenMeet-Webhooks/1.0",
   };
   if (opts.secret?.trim()) {
-    headers["X-Chronos-Meet-Signature"] = signWebhookPayload(
+    headers["X-OpenMeet-Signature"] = signWebhookPayload(
       opts.secret.trim(),
       timestamp,
       opts.body,
