@@ -8,7 +8,7 @@ import {
 import {
   DEFAULT_SYSTEM_UI,
   type SystemUiTheme,
-} from "@/lib/system-theme";
+} from "@/lib/system-ui";
 
 const PlatformBrandContext = createContext<SystemUiTheme>(DEFAULT_SYSTEM_UI);
 

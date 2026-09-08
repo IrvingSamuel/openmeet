@@ -9,7 +9,14 @@ export async function GET() {
     "openapi-instant-meetings.yaml",
   );
   try {
-    const body = await readFile(filePath, "utf8");
+    let body = await readFile(filePath, "utf8");
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+      "http://localhost:3332";
+    body = body.replace(
+      /servers:\n\s*-\s*url:\s*.+\n\s*description:.+/m,
+      `servers:\n  - url: ${appUrl}\n    description: This deployment`,
+    );
     return new NextResponse(body, {
       headers: {
         "Content-Type": "application/yaml; charset=utf-8",

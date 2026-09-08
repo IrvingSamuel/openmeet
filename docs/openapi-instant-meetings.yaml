@@ -35,8 +35,8 @@ info:
     como owner por omissão. Caso contrário envie `owner_identity_id` ou
     `external_id`.
 servers:
-  - url: https://openmeet.chronos.com.pt
-    description: Production
+  - url: https://meet.example.com
+    description: This deployment (rewritten at runtime from NEXT_PUBLIC_APP_URL)
 paths:
   /api/v1/rooms:
     post:

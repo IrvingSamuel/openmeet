@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const ROOT = "/home/chronos-meet/htdocs/openmeet.chronos.com.pt";
+const ROOT = process.env.OPENMEET_ROOT || __dirname;
 
 /** Minimal .env parser — no dotenv dependency required for PM2. */
 function loadEnvFile(filePath) {
@@ -26,6 +26,24 @@ function loadEnvFile(filePath) {
 }
 
 const fileEnv = loadEnvFile(path.join(ROOT, ".env"));
+const appPort = fileEnv.PORT || process.env.PORT || "3332";
+
+/** Agent must talk to LiveKit + Next on loopback (Cloudflare denies /twirp). */
+const agentEnv = {
+  ...fileEnv,
+  PYTHONUNBUFFERED: "1",
+  LIVEKIT_HTTP_URL:
+    fileEnv.LIVEKIT_HTTP_URL || "http://127.0.0.1:7880",
+  LIVEKIT_AGENT_URL:
+    fileEnv.LIVEKIT_AGENT_URL || "ws://127.0.0.1:7880",
+  // livekit-agents CLI reads LIVEKIT_URL from the environment.
+  LIVEKIT_URL: fileEnv.LIVEKIT_AGENT_URL || "ws://127.0.0.1:7880",
+  MEET_API_URL:
+    fileEnv.MEET_API_URL?.startsWith("http://127.0.0.1") ||
+    fileEnv.MEET_API_URL?.startsWith("http://localhost")
+      ? fileEnv.MEET_API_URL
+      : `http://127.0.0.1:${appPort}`,
+};
 
 module.exports = {
   apps: [
@@ -33,11 +51,13 @@ module.exports = {
       name: "openmeet",
       cwd: ROOT,
       script: "node_modules/next/dist/bin/next",
-      args: "start -H 127.0.0.1 -p 3332",
+      args: `start -H 127.0.0.1 -p ${appPort}`,
       env: {
         ...fileEnv,
         NODE_ENV: "production",
-        PORT: "3332",
+        PORT: String(appPort),
+        LIVEKIT_HTTP_URL:
+          fileEnv.LIVEKIT_HTTP_URL || "http://127.0.0.1:7880",
       },
       instances: 1,
       exec_mode: "fork",
@@ -53,11 +73,7 @@ module.exports = {
       exec_mode: "fork",
       max_memory_restart: "512M",
       autorestart: true,
-      // Job subprocesses inherit this env — critical for DEEPGRAM_API_KEY.
-      env: {
-        ...fileEnv,
-        PYTHONUNBUFFERED: "1",
-      },
+      env: agentEnv,
     },
   ],
 };

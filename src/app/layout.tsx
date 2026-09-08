@@ -4,6 +4,8 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { resolveSystemUiTheme } from "@/lib/system-theme";
 
+export const dynamic = "force-dynamic";
+
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -21,11 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const name = theme.wordmark;
   const logo = theme.logoUrl || "/OpenMeet_Logo.png";
   const favicon = theme.faviconUrl;
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    "http://localhost:3332";
 
   return {
-    metadataBase: new URL(
-      process.env.NEXT_PUBLIC_APP_URL || "https://openmeet.chronos.com.pt",
-    ),
+    metadataBase: new URL(appUrl),
     title: {
       default: `${name} — Smart white-label videoconferencing`,
       template: `%s · ${name}`,

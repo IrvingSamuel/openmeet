@@ -8,6 +8,8 @@ import { HtmlLang } from "@/components/layout/HtmlLang";
 import { SystemThemeProvider } from "@/components/layout/SystemThemeProvider";
 import { resolveSystemUiTheme } from "@/lib/system-theme";
 
+export const dynamic = "force-dynamic";
+
 const OG_LOCALE: Record<AppLocale, string> = {
   en: "en_US",
   pt: "pt_BR",

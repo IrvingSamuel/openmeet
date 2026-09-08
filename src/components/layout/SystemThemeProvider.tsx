@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   PlatformBrandProvider,
   usePlatformBrand,
 } from "@/components/layout/PlatformBrandContext";
-import type { SystemUiTheme } from "@/lib/system-theme";
+import {
+  DEFAULT_SYSTEM_UI,
+  type SystemUiTheme,
+} from "@/lib/system-ui";
 
-function ThemeCssAndFavicon({ children }: { children: React.ReactNode }) {
+function ThemeCssAndFavicon({ children }: { children: ReactNode }) {
   const theme = usePlatformBrand();
 
   useEffect(() => {
@@ -40,13 +43,48 @@ function ThemeCssAndFavicon({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function mergeTheme(partial: Partial<SystemUiTheme> | undefined): SystemUiTheme {
+  if (!partial) return DEFAULT_SYSTEM_UI;
+  return {
+    primary: partial.primary || DEFAULT_SYSTEM_UI.primary,
+    secondary: partial.secondary || DEFAULT_SYSTEM_UI.secondary,
+    tertiary: partial.tertiary || DEFAULT_SYSTEM_UI.tertiary,
+    background: partial.background || DEFAULT_SYSTEM_UI.background,
+    ink: partial.ink || DEFAULT_SYSTEM_UI.ink,
+    wordmark: partial.wordmark || DEFAULT_SYSTEM_UI.wordmark,
+    logoUrl: partial.logoUrl ?? DEFAULT_SYSTEM_UI.logoUrl,
+    faviconUrl: partial.faviconUrl ?? DEFAULT_SYSTEM_UI.faviconUrl,
+    fontFamily: partial.fontFamily || DEFAULT_SYSTEM_UI.fontFamily,
+  };
+}
+
 export function SystemThemeProvider({
-  theme,
+  theme: initialTheme,
   children,
 }: {
   theme: SystemUiTheme;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
+  const [theme, setTheme] = useState<SystemUiTheme>(initialTheme);
+
+  useEffect(() => {
+    setTheme(initialTheme);
+  }, [initialTheme]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/system/theme", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { theme?: Partial<SystemUiTheme> }) => {
+        if (cancelled || !data.theme) return;
+        setTheme(mergeTheme(data.theme));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <PlatformBrandProvider theme={theme}>
       <ThemeCssAndFavicon>{children}</ThemeCssAndFavicon>

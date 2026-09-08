@@ -52,7 +52,7 @@ function paintOf(
 }
 
 type BrandPanelProps = {
-  /** Room brand editor  when set, defaults APIs to `/api/rooms/{slug}/brand`. */
+  /** Room brand editor â€¦ when set, defaults APIs to `/api/rooms/{slug}/brand`. */
   slug?: string;
   brandUrl?: string;
   uploadUrl?: string;
@@ -247,7 +247,7 @@ export function BrandPanel({
                 onChange={(logoUrl) => patch({ logoUrl: logoUrl || null })}
                 uploadUrl={resolvedUploadUrl}
                 kind="logo"
-                placeholder="https:///logo.svg"
+                placeholder="https://â€¦/logo.svg"
               />
               <Input
                 label={tFields("wordmark")}
@@ -338,7 +338,7 @@ export function BrandPanel({
                 onChange={(patternUrl) => patch({ patternUrl: patternUrl || null })}
                 uploadUrl={resolvedUploadUrl}
                 kind="pattern"
-                placeholder="https:///pattern.png"
+                placeholder="https://â€¦/pattern.png"
               />
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -450,7 +450,7 @@ export function BrandPanel({
                 label={tFields("faviconUrl")}
                 value={brand.faviconUrl || ""}
                 onChange={(e) => patch({ faviconUrl: e.target.value })}
-                placeholder="https:///favicon.png"
+                placeholder="https://â€¦/favicon.png"
               />
               <Textarea
                 label={tFields("customCss")}

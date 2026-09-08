@@ -127,6 +127,71 @@ async def resolve_deepgram_api_key() -> Optional[str]:
     return None
 
 
+def slug_from_room_name(room_name: str | None) -> Optional[str]:
+    if not room_name:
+        return None
+    if room_name.startswith("meet_"):
+        return room_name[len("meet_") :] or None
+    return room_name or None
+
+
+def hostname_of(raw: str | None) -> Optional[str]:
+    if not raw or not raw.strip():
+        return None
+    try:
+        from urllib.parse import urlparse
+
+        normalized = raw.strip()
+        if normalized.startswith("ws"):
+            normalized = "http" + normalized[2:]
+        host = urlparse(normalized).hostname
+        return host.lower() if host else None
+    except Exception:
+        return None
+
+
+def resolve_livekit_ws_url() -> str:
+    """Prefer LIVEKIT_AGENT_URL; rewrite same-host public WSS to local loopback."""
+    agent = (os.getenv("LIVEKIT_AGENT_URL") or "").strip()
+    livekit = (os.getenv("LIVEKIT_URL") or "").strip()
+    app_host = hostname_of(os.getenv("NEXT_PUBLIC_APP_URL"))
+    candidate = agent or livekit or "ws://127.0.0.1:7880"
+
+    host = hostname_of(candidate)
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return candidate.replace("wss://", "ws://").replace("https://", "http://")
+    if app_host and host and host == app_host:
+        return "ws://127.0.0.1:7880"
+    return candidate
+
+
+def apply_livekit_ws_env(ws_url: str) -> None:
+    os.environ["LIVEKIT_URL"] = ws_url
+    os.environ["LIVEKIT_AGENT_URL"] = ws_url
+
+
+async def fetch_meeting_id_by_slug(slug: str) -> Optional[str]:
+    headers = {}
+    if AGENT_SECRET:
+        headers["x-agent-secret"] = AGENT_SECRET
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{MEET_API_URL.rstrip('/')}/api/meetings/by-slug/{slug}",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=8),
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                meeting = data.get("meeting") or {}
+                mid = meeting.get("id")
+                return mid if isinstance(mid, str) and mid else None
+    except Exception as exc:
+        logger.warning("meeting id by slug failed slug=%s err=%s", slug, exc)
+        return None
+
+
 def parse_meeting_id(metadata: str | None) -> Optional[str]:
     if not metadata:
         return None
@@ -207,15 +272,7 @@ async def entrypoint(ctx: JobContext) -> None:
         AGENT_IDENTITY,
     )
 
-    # Wait briefly for meeting metadata before starting STT persistence.
-    if not meeting_id:
-        for _ in range(15):
-            await asyncio.sleep(1)
-            meeting_id = parse_meeting_id(ctx.room.metadata)
-            if meeting_id:
-                logger.info("meeting_id resolved: %s", meeting_id)
-                break
-
+    # Do NOT wait for metadata before STT — mic may already be publishing.
     stt = deepgram.STT(
         model="nova-3",
         language="multi",
@@ -275,7 +332,11 @@ async def entrypoint(ctx: JobContext) -> None:
                 speaker,
             )
             return
-        if active_speaker_identities and livekit_identity not in active_speaker_identities:
+        # Only filter active speakers when multiple speakers are tracked.
+        if (
+            len(active_speaker_identities) >= 2
+            and livekit_identity not in active_speaker_identities
+        ):
             logger.info(
                 "skip caption: %s not in active speakers %s",
                 livekit_identity,
@@ -356,7 +417,6 @@ async def entrypoint(ctx: JobContext) -> None:
                         asyncio.create_task(
                             try_wake_copilot(to_publish, speaker, identity)
                         )
-                # Ignore INTERIM_TRANSCRIPT and other event types
 
         await asyncio.gather(pump_audio(), read_transcripts())
 
@@ -373,6 +433,7 @@ async def entrypoint(ctx: JobContext) -> None:
         prev = transcription_tasks.get(identity)
         if prev and not prev.done():
             prev.cancel()
+        logger.info("stt start identity=%s", identity)
         task = asyncio.create_task(transcribe_track(track, participant, publication))
         transcription_tasks[identity] = task
         tasks.add(task)
@@ -443,7 +504,18 @@ async def entrypoint(ctx: JobContext) -> None:
             ctx.shutdown(reason="last_human_left")
             shutdown_event.set()
 
-    # Also exit if room already empty at connect time (edge race)
+    # Attach mics already subscribed at connect time (missed track_subscribed).
+    for participant in list(room.remote_participants.values()):
+        if not is_human(participant):
+            continue
+        for publication in participant.track_publications.values():
+            if publication.source != rtc.TrackSource.SOURCE_MICROPHONE:
+                continue
+            track = publication.track
+            if track is None:
+                continue
+            start_mic_transcription(track, participant, publication)
+
     async def watch_empty() -> None:
         while not shutdown_event.is_set():
             await asyncio.sleep(5)
@@ -453,40 +525,45 @@ async def entrypoint(ctx: JobContext) -> None:
                 shutdown_event.set()
                 return
 
-    # Re-read metadata if it arrives after join
-    async def watch_metadata() -> None:
+    async def resolve_meeting_id_background() -> None:
         nonlocal meeting_id
-        for _ in range(30):
+        slug = slug_from_room_name(room.name)
+        for _ in range(60):
             if shutdown_event.is_set():
                 return
-            await asyncio.sleep(2)
             mid = parse_meeting_id(room.metadata)
-            if mid and mid != meeting_id:
-                meeting_id = mid
-                logger.info("meeting_id updated from metadata: %s", meeting_id)
+            if mid:
+                if mid != meeting_id:
+                    meeting_id = mid
+                    logger.info("meeting_id from metadata: %s", meeting_id)
                 return
-            if meeting_id:
-                return
+            if slug and not meeting_id:
+                mid = await fetch_meeting_id_by_slug(slug)
+                if mid:
+                    meeting_id = mid
+                    logger.info("meeting_id from api slug=%s id=%s", slug, meeting_id)
+                    return
+            await asyncio.sleep(1)
 
-    tasks.add(asyncio.create_task(watch_metadata()))
+    tasks.add(asyncio.create_task(resolve_meeting_id_background()))
     tasks.add(asyncio.create_task(watch_empty()))
     await shutdown_event.wait()
 
 
 if __name__ == "__main__":
     reload_env()
+    ws_url = resolve_livekit_ws_url()
+    apply_livekit_ws_env(ws_url)
     try:
         asyncio.run(resolve_deepgram_api_key())
     except Exception as exc:
         logger.warning("startup deepgram resolve skipped: %s", exc)
     logger.info(
-        "starting openmeet-agent deepgram=%s meet_api=%s",
+        "starting openmeet-agent deepgram=%s meet_api=%s livekit=%s",
         deepgram_status(),
         MEET_API_URL,
+        ws_url,
     )
-    ws_url = os.getenv("LIVEKIT_AGENT_URL") or os.getenv("LIVEKIT_URL") or "ws://127.0.0.1:7880"
-    if ws_url.startswith("wss://openmeet.chronos.com.pt"):
-        ws_url = "ws://127.0.0.1:7880"
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
