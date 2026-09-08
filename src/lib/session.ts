@@ -1,12 +1,15 @@
 import { getIronSession, SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import type { UserRole } from "@/db/schema";
 
 export type SessionData = {
+  /** Internal user UUID (legacy name kept for hostAuth / ownership checks). */
   identityId?: string;
-  chronosUserId?: string;
+  userId?: string;
   name?: string;
   email?: string;
   avatarUrl?: string;
+  role?: UserRole | string;
   isLoggedIn: boolean;
 };
 
@@ -21,7 +24,7 @@ export function sessionOptions(): SessionOptions {
   }
   return {
     password,
-    cookieName: "chronos_meet_session",
+    cookieName: "openmeet_session",
     cookieOptions: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
@@ -34,4 +37,8 @@ export function sessionOptions(): SessionOptions {
 
 export async function getSession() {
   return getIronSession<SessionData>(await cookies(), sessionOptions());
+}
+
+export function sessionUserId(session: SessionData): string | undefined {
+  return session.userId || session.identityId;
 }

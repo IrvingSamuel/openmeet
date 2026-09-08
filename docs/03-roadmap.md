@@ -29,4 +29,5 @@
 - [x] ICS, MCP Meet (`/api/mcp`), `boardId` na sala
 
 ## Fase 5 — Escala
-- [ ] Nó de mídia dedicado, Egress, carga (backlog no quadro Chronos)
+- [x] Gravação (browser MediaRecorder + LiveKit Egress), storage local/S3, admin
+- [ ] Nó de mídia dedicado / carga (backlog no quadro Chronos)

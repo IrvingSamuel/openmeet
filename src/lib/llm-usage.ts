@@ -7,8 +7,11 @@ export type LlmFeature = "insights" | "chat" | "summary";
 
 export const MAX_CHAT_PER_MEETING_PER_PARTICIPANT = 20;
 export const MAX_INSIGHTS_REGEN_PER_MEETING = 3;
-/** Reuse insights cache until this many new transcript segments arrive. */
-export const INSIGHTS_CACHE_MIN_NEW_SEGMENTS = 5;
+/**
+ * Secondary guard: skip Gemini if fewer than this many new transcript segments
+ * arrived since the last cache (even after the time window).
+ */
+export const INSIGHTS_CACHE_MIN_NEW_SEGMENTS = 1;
 
 export async function recordLlmUsage(opts: {
   meetingId?: string | null;

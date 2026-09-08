@@ -80,8 +80,8 @@ describe("DashboardPage", () => {
       await screen.findByRole("heading", { name: /entre para criar salas/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /entrar com chronos/i }),
-    ).toHaveAttribute("href", "/api/auth/login");
+      screen.getByRole("link", { name: /entrar/i }),
+    ).toHaveAttribute("href", "/login");
   });
 
   it("greets the signed-in user by first name", async () => {
@@ -162,10 +162,10 @@ describe("DashboardPage", () => {
     expect(await screen.findByText(/sala \/nova-sala criada/i)).toBeInTheDocument();
   });
 
-  it("shows Chronos account as connected when signed in", async () => {
+  it("shows account as connected when signed in", async () => {
     mockApi();
     renderDashboard();
-    expect(await screen.findByText("Conta Chronos")).toBeInTheDocument();
+    expect(await screen.findByText("Conta")).toBeInTheDocument();
     expect(screen.getByText("Conectada")).toBeInTheDocument();
   });
 });

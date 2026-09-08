@@ -1,38 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildAuthorizeUrl } from "@/lib/chronos-oauth";
+import { z } from "zod";
+import { fillSessionFromUser, findUserByEmail } from "@/lib/auth-users";
+import { verifyPassword } from "@/lib/password";
 import { sanitizeReturnTo } from "@/lib/safe-return-to";
 import { getSession } from "@/lib/session";
-import { nanoid } from "nanoid";
+import { needsSetup } from "@/lib/deployment-mode";
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getSession();
-    const state = nanoid(24);
-    session.isLoggedIn = session.isLoggedIn || false;
-    const returnTo = sanitizeReturnTo(req.nextUrl.searchParams.get("returnTo"));
-    const res = NextResponse.redirect(buildAuthorizeUrl(state));
-    res.cookies.set("oauth_state", state, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 600,
-    });
-    if (returnTo) {
-      res.cookies.set("oauth_return_to", returnTo, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 600,
-      });
-    } else {
-      res.cookies.set("oauth_return_to", "", { maxAge: 0, path: "/" });
-    }
-    await session.save();
-    return res;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "oauth config missing";
-    return NextResponse.json({ error: msg }, { status: 500 });
+const bodySchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  returnTo: z.string().optional(),
+});
+
+export async function POST(req: NextRequest) {
+  if (await needsSetup()) {
+    return NextResponse.json({ error: "setup_required" }, { status: 403 });
   }
+
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
+  const email = parsed.data.email.trim().toLowerCase();
+  const user = await findUserByEmail(email);
+  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
+  }
+
+  const session = await getSession();
+  await fillSessionFromUser(session, user);
+
+  const returnTo = sanitizeReturnTo(parsed.data.returnTo) || "/dashboard";
+  return NextResponse.json({
+    ok: true,
+    returnTo,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+  });
 }

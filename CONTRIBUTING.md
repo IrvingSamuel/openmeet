@@ -15,12 +15,17 @@ Flow: feature branch → PR into `dev` → PR into `main` → promote to `releas
 ## Setup
 
 ```bash
-git clone https://github.com/IrvingSamuel/chronos-meet.git
-cd chronos-meet
+git clone https://github.com/IrvingSamuel/openmeet.git
+cd openmeet
 cp .env.example .env   # fill secrets locally — never commit .env
+cp infra/livekit.yaml.example infra/livekit.yaml
+cp infra/egress.yaml.example infra/egress.yaml
+# Set LIVEKIT_API_KEY / LIVEKIT_API_SECRET in .env, then copy the same values into livekit.yaml (keys + webhook.api_key) and egress.yaml
 npm install
 npm run verify
 ```
+
+**Secrets policy:** never commit `.env`, `infra/livekit.yaml`, or `infra/egress.yaml`. Only the `*.example` templates belong in git. Generate LiveKit credentials with `openssl rand -hex 16` (key) and `openssl rand -hex 32` (secret).
 
 Optional Python agent:
 

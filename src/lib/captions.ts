@@ -5,6 +5,34 @@ export type Caption = {
   participantId?: string;
 };
 
+function normalizeCaptionText(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, "");
+}
+
+/** True when two caption bodies are near-duplicates (mic bleed on another track). */
+export function captionsSimilar(
+  a: string,
+  b: string,
+  threshold = 0.85,
+): boolean {
+  const na = normalizeCaptionText(a);
+  const nb = normalizeCaptionText(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const maxLen = Math.max(na.length, nb.length);
+  let matches = 0;
+  const shorter = na.length <= nb.length ? na : nb;
+  const longer = na.length <= nb.length ? nb : na;
+  for (let i = 0; i < shorter.length; i++) {
+    if (shorter[i] === longer[i]) matches += 1;
+  }
+  return matches / maxLen >= threshold;
+}
+
 /** Decodes a `captions` data-channel payload, tolerating malformed frames. */
 export function parseCaption(payload: Uint8Array): Caption | null {
   try {

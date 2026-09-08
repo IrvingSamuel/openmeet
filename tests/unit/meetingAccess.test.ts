@@ -36,6 +36,7 @@ describe("assertMeetingSummaryAccess", () => {
     meetingsFindFirst.mockResolvedValue({
       id: meetingId,
       roomId: "room-1",
+      ownerIdentityId: "identity-owner",
       status: "active",
       summaryStatus: "pending",
     });

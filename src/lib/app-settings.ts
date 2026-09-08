@@ -4,6 +4,9 @@ import {
   APP_SETTINGS_ROW_ID,
   DEFAULT_WEBHOOK_EVENTS,
   appSettings,
+  type RecordingControlMode,
+  type RecordingEngine,
+  type RecordingStorageBackend,
   type WebhookEventsConfig,
 } from "@/db/schema";
 
@@ -20,6 +23,100 @@ export type ResolvedAiConfig = {
     geminiModel: "db" | "env" | "default";
     geminiSummaryModel: "db" | "env" | "default";
     deepgramApiKey: "db" | "env" | "none";
+  };
+};
+
+export type ResolvedOpenAiLlmConfig = {
+  enabled: boolean;
+  baseUrl: string;
+  apiKey: string | undefined;
+  model: string;
+  summaryModel: string;
+  sources: {
+    enabled: "db" | "env" | "default";
+    apiKey: "db" | "env" | "none";
+    baseUrl: "db" | "env" | "default";
+    model: "db" | "env" | "default";
+    summaryModel: "db" | "env" | "default";
+  };
+};
+
+function resolveOpenAiLlmConfigFrom(
+  row?: AppSettingsRow | null,
+): ResolvedOpenAiLlmConfig {
+  const enabledDb = row?.aiFallbackEnabled;
+  const baseUrlDb = row?.aiFallbackBaseUrl?.trim() || "";
+  const apiKeyDb = row?.aiFallbackApiKey?.trim() || "";
+  const modelDb = row?.aiFallbackModel?.trim() || "";
+  const summaryModelDb = row?.aiFallbackSummaryModel?.trim() || "";
+
+  const envEnabled = process.env.AI_FALLBACK_ENABLED?.trim() === "true";
+  const envBaseUrl = process.env.AI_FALLBACK_BASE_URL?.trim() || "";
+  const envApiKey = process.env.AI_FALLBACK_API_KEY?.trim() || "";
+  const envModel = process.env.AI_FALLBACK_MODEL?.trim() || "";
+  const envSummaryModel = process.env.AI_FALLBACK_SUMMARY_MODEL?.trim() || "";
+
+  const model = modelDb || envModel || "openai/gpt-oss-120b";
+  const summaryModel = summaryModelDb || envSummaryModel || model;
+  const enabled =
+    enabledDb !== null && enabledDb !== undefined ? enabledDb : envEnabled;
+
+  return {
+    enabled,
+    baseUrl:
+      baseUrlDb || envBaseUrl || "https://api.groq.com/openai/v1",
+    apiKey: apiKeyDb || envApiKey || undefined,
+    model,
+    summaryModel,
+    sources: {
+      enabled:
+        enabledDb !== null && enabledDb !== undefined
+          ? "db"
+          : envEnabled
+            ? "env"
+            : "default",
+      apiKey: apiKeyDb ? "db" : envApiKey ? "env" : "none",
+      baseUrl: baseUrlDb ? "db" : envBaseUrl ? "env" : "default",
+      model: modelDb ? "db" : envModel ? "env" : "default",
+      summaryModel: summaryModelDb
+        ? "db"
+        : envSummaryModel
+          ? "env"
+          : "default",
+    },
+  };
+}
+
+/** OpenAI-compatible LLM provider (Groq, Ollama, LiteLLM). Env-only sync fallback for tests. */
+export function resolveOpenAiLlmConfig(
+  row?: AppSettingsRow | null,
+): ResolvedOpenAiLlmConfig {
+  return resolveOpenAiLlmConfigFrom(row);
+}
+
+export async function resolveOpenAiLlmConfigAsync(): Promise<ResolvedOpenAiLlmConfig> {
+  const row = await getAppSettings();
+  return resolveOpenAiLlmConfigFrom(row);
+}
+
+export type ResolvedRecordingConfig = {
+  enabled: boolean;
+  engine: RecordingEngine;
+  controlMode: RecordingControlMode;
+  storage: RecordingStorageBackend;
+  localDir: string;
+  s3: {
+    endpoint: string | undefined;
+    bucket: string | undefined;
+    region: string;
+    accessKey: string | undefined;
+    secretKey: string | undefined;
+  };
+  sources: {
+    s3AccessKey: "db" | "env" | "none";
+    s3SecretKey: "db" | "env" | "none";
+    s3Bucket: "db" | "env" | "none";
+    s3Endpoint: "db" | "env" | "none";
   };
 };
 
@@ -42,7 +139,7 @@ export async function getAppSettings(): Promise<AppSettingsRow | null> {
     cache = { at: now, row: row ?? null };
     return row ?? null;
   } catch (err) {
-    console.error("[chronos-meet] getAppSettings failed; using env fallbacks", err);
+    console.error("[openmeet] getAppSettings failed; using env fallbacks", err);
     return null;
   }
 }
@@ -59,6 +156,10 @@ export async function ensureAppSettings(): Promise<AppSettingsRow> {
       locale: "pt-BR",
       webhookEnabled: false,
       webhookEvents: DEFAULT_WEBHOOK_EVENTS,
+      recordingEnabled: false,
+      recordingEngine: "browser",
+      recordingControlMode: "manual",
+      recordingStorage: "local",
     })
     .onConflictDoNothing()
     .returning();
@@ -81,6 +182,7 @@ export function webhookEventsOrDefault(
     chat: events?.chat ?? DEFAULT_WEBHOOK_EVENTS.chat,
     summary: events?.summary ?? DEFAULT_WEBHOOK_EVENTS.summary,
     tasks: events?.tasks ?? DEFAULT_WEBHOOK_EVENTS.tasks,
+    recording: events?.recording ?? DEFAULT_WEBHOOK_EVENTS.recording,
   };
 }
 
@@ -117,13 +219,10 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
 
   const geminiApiKey = geminiApiKeyDb || envGeminiKey || undefined;
   const geminiModel =
-    geminiModelDb || envGeminiModel || "gemini-2.5-flash-lite";
+    geminiModelDb || envGeminiModel || "gemini-3.5-flash-lite";
+  // Summary uses a stronger default; do not fall back to the lite insights model.
   const geminiSummaryModel =
-    geminiSummaryModelDb ||
-    envSummaryModel ||
-    geminiModelDb ||
-    envGeminiModel ||
-    "gemini-2.5-flash";
+    geminiSummaryModelDb || envSummaryModel || "gemini-3.5-flash";
   const deepgramApiKey = deepgramApiKeyDb || envDeepgram || undefined;
 
   return {
@@ -148,6 +247,56 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
         : envDeepgram
           ? "env"
           : "none",
+    },
+  };
+}
+
+function asEngine(value: string | null | undefined): RecordingEngine {
+  return value === "egress" ? "egress" : "browser";
+}
+
+function asControlMode(value: string | null | undefined): RecordingControlMode {
+  return value === "auto" ? "auto" : "manual";
+}
+
+function asStorage(value: string | null | undefined): RecordingStorageBackend {
+  return value === "s3" ? "s3" : "local";
+}
+
+export async function resolveRecordingConfig(): Promise<ResolvedRecordingConfig> {
+  const row = await getAppSettings();
+
+  const endpointDb = row?.recordingS3Endpoint?.trim() || "";
+  const bucketDb = row?.recordingS3Bucket?.trim() || "";
+  const regionDb = row?.recordingS3Region?.trim() || "";
+  const accessDb = row?.recordingS3AccessKey?.trim() || "";
+  const secretDb = row?.recordingS3SecretKey?.trim() || "";
+
+  const endpointEnv = process.env.RECORDING_S3_ENDPOINT?.trim() || "";
+  const bucketEnv = process.env.RECORDING_S3_BUCKET?.trim() || "";
+  const regionEnv = process.env.RECORDING_S3_REGION?.trim() || "";
+  const accessEnv = process.env.RECORDING_S3_ACCESS_KEY?.trim() || "";
+  const secretEnv = process.env.RECORDING_S3_SECRET_KEY?.trim() || "";
+
+  return {
+    enabled: Boolean(row?.recordingEnabled),
+    engine: asEngine(row?.recordingEngine),
+    controlMode: asControlMode(row?.recordingControlMode),
+    storage: asStorage(row?.recordingStorage),
+    localDir:
+      process.env.RECORDINGS_DIR?.trim() || "/var/openmeet/recordings",
+    s3: {
+      endpoint: endpointDb || endpointEnv || undefined,
+      bucket: bucketDb || bucketEnv || undefined,
+      region: regionDb || regionEnv || "us-east-1",
+      accessKey: accessDb || accessEnv || undefined,
+      secretKey: secretDb || secretEnv || undefined,
+    },
+    sources: {
+      s3AccessKey: accessDb ? "db" : accessEnv ? "env" : "none",
+      s3SecretKey: secretDb ? "db" : secretEnv ? "env" : "none",
+      s3Bucket: bucketDb ? "db" : bucketEnv ? "env" : "none",
+      s3Endpoint: endpointDb ? "db" : endpointEnv ? "env" : "none",
     },
   };
 }

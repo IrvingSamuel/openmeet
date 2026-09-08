@@ -40,7 +40,7 @@ export async function POST(
     if (message === "cannot_moderate_agent") {
       return NextResponse.json({ error: message }, { status: 400 });
     }
-    console.error("[chronos-meet] moderate", err);
+    console.error("[openmeet] moderate", err);
     return NextResponse.json({ error: "moderate_failed" }, { status: 502 });
   }
 }

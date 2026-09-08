@@ -26,10 +26,12 @@ export function Stage({
   layout,
   pinnedKey,
   onPin,
+  raisedIdentities = new Set<string>(),
 }: {
   layout: StageLayout;
   pinnedKey: string | null;
   onPin: (key: string | null) => void;
+  raisedIdentities?: ReadonlySet<string>;
 }) {
   const t = useTranslations("room");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -111,7 +113,7 @@ export function Stage({
     return (
       <div
         ref={rootRef}
-        className="grid h-full place-items-center text-sm text-ink-faint"
+        className="relative z-0 grid h-full place-items-center text-sm text-ink-faint"
       >
         {t("waitingForParticipants")}
       </div>
@@ -124,12 +126,13 @@ export function Stage({
         ref={rootRef}
         layout
         transition={morphTransition}
-        className="flex h-full flex-col gap-3 lg:flex-row"
+        className="relative z-0 flex h-full flex-col gap-3 lg:flex-row"
       >
         <ParticipantTile
           trackRef={featured}
           micRef={micByIdentity.get(featured.participant.identity)}
           pinned={pinnedKey === trackKey(featured)}
+          handRaised={raisedIdentities.has(featured.participant.identity)}
           onPin={() =>
             onPin(pinnedKey === trackKey(featured) ? null : trackKey(featured))
           }
@@ -148,6 +151,7 @@ export function Stage({
                 micRef={micByIdentity.get(ref.participant.identity)}
                 compact
                 pinned={pinnedKey === trackKey(ref)}
+                handRaised={raisedIdentities.has(ref.participant.identity)}
                 onPin={() => onPin(trackKey(ref))}
                 className="aspect-video h-24 shrink-0 lg:h-auto lg:w-full"
               />
@@ -165,7 +169,7 @@ export function Stage({
       ref={rootRef}
       layout
       transition={morphTransition}
-      className={cn("grid h-full auto-rows-fr gap-2 sm:gap-3")}
+      className={cn("relative z-0 grid h-full auto-rows-fr gap-2 sm:gap-3")}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
       {tracks.map((ref) => (
@@ -174,6 +178,7 @@ export function Stage({
           trackRef={ref}
           micRef={micByIdentity.get(ref.participant.identity)}
           pinned={pinnedKey === trackKey(ref)}
+          handRaised={raisedIdentities.has(ref.participant.identity)}
           onPin={() => onPin(trackKey(ref))}
         />
       ))}

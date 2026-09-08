@@ -1,0 +1,144 @@
+openapi: 3.0.3
+info:
+  title: Chronos Meet — Instant Meetings API
+  version: 2.0.0
+  description: |
+    Create an independent meeting (no room row). Optionally apply a brand template
+    via `room_id`, request `ui`, or the owner's personal default UI.
+
+    Authentication (either):
+    - Session cookie from Chronos OAuth (`chronos_meet_session`)
+    - Bearer token (`MEET_MCP_TOKEN` or `AGENT_SHARED_SECRET`)
+
+    When using Bearer auth, provide `owner_identity_id` or `chronos_user_id`.
+servers:
+  - url: https://meet.chronos.com.pt
+    description: Production
+paths:
+  /api/v1/instant-meetings:
+    post:
+      operationId: createInstantMeeting
+      summary: Create an instant meeting
+      description: |
+        Creates a meeting with its own join URL (`/m/{slug}`). Does **not** create a room.
+        Brand is snapshotted from `ui`, else `room_id` template, else owner identity defaults.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInstantMeetingRequest"
+            examples:
+              minimal:
+                summary: Minimal (owner default UI)
+                value:
+                  title: Quick sync
+                  chronos_user_id: "chronos-user-123"
+              withRoomBrand:
+                summary: Reuse a brand template room
+                value:
+                  title: Weekly partner sync
+                  room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  chronos_user_id: "chronos-user-123"
+              fullUi:
+                summary: Full UI override
+                value:
+                  title: Partner kickoff
+                  access_policy: public
+                  chronos_user_id: "chronos-user-123"
+                  ui:
+                    lobbyTitle: Acme Kickoff
+                    themePreset: emerald
+                    primaryColor: "#10b981"
+      responses:
+        "201":
+          description: Instant meeting created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateInstantMeetingResponse"
+              example:
+                meeting_id: "8c3e2a1b-5717-4562-b3fc-2c963f66afa6"
+                slug: "x7k9m2pqab"
+                url: "https://meet.chronos.com.pt/m/x7k9m2pqab"
+                join_path: "/m/x7k9m2pqab"
+                access_policy: public
+                title: Quick sync
+                brand_room_id: null
+                empty_timeout_sec: 300
+        "400":
+          description: Invalid body or owner resolve failed
+        "401":
+          description: Missing or invalid authentication
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: chronos_meet_session
+  schemas:
+    BrandUi:
+      type: object
+      additionalProperties: true
+    CreateInstantMeetingRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        access_policy:
+          type: string
+          enum: [public, members, invite]
+        board_id:
+          type: string
+        room_id:
+          type: string
+          format: uuid
+          description: Optional brand template room (visual only)
+        owner_identity_id:
+          type: string
+          format: uuid
+        chronos_user_id:
+          type: string
+        empty_timeout_sec:
+          type: integer
+          minimum: 60
+          maximum: 86400
+          description: |
+            Seconds after the last participant leaves before the LiveKit room
+            auto-ends. Omit to use server default (LIVEKIT_EMPTY_TIMEOUT_SEC,
+            typically 300). Scheduled meetings that never get a join remain
+            joinable until MEETING_SCHEDULED_MAX_AGE_SEC (default 7 days).
+        ui:
+          $ref: "#/components/schemas/BrandUi"
+    CreateInstantMeetingResponse:
+      type: object
+      required: [meeting_id, slug, url, join_path]
+      properties:
+        meeting_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        url:
+          type: string
+          format: uri
+        join_path:
+          type: string
+          example: /m/x7k9m2pqab
+        access_policy:
+          type: string
+        title:
+          type: string
+        brand_room_id:
+          type: string
+          format: uuid
+          nullable: true
+        empty_timeout_sec:
+          type: integer
+          description: Effective empty-room timeout in seconds for this meeting

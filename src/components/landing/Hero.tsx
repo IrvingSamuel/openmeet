@@ -14,8 +14,9 @@ import {
 } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Surface";
-import { IconArrowRight, IconSparkles } from "@/components/ui/icons";
+import { IconArrowRight, IconGithub, IconSparkles } from "@/components/ui/icons";
 import { RoomPreview } from "@/components/landing/RoomPreview";
+import { GITHUB_REPO_URL } from "@/lib/site";
 
 export function Hero() {
   const t = useTranslations("landing.hero");
@@ -120,7 +121,26 @@ export function Hero() {
                 {t("ctaHow")}
               </Button>
             </Link>
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t("ctaOpenSourceAria")}
+            >
+              <Button size="lg" variant="secondary" icon={<IconGithub />}>
+                {t("ctaOpenSource")}
+              </Button>
+            </a>
           </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.72, ease: EASE_OUT_EXPO }}
+            className="mt-4 max-w-lg text-sm leading-relaxed text-ink-faint"
+          >
+            {t("ctaOpenSourceHint")}
+          </motion.p>
 
           <motion.dl
             initial={{ opacity: 0 }}
@@ -131,7 +151,11 @@ export function Hero() {
             {stats.map((stat) => (
               <div key={stat.label}>
                 <dt className="text-2xl font-semibold tracking-tight text-ink">
-                  <AnimatedNumber value={stat.value} suffix={stat.suffix} />
+                  <AnimatedNumber
+                    value={stat.value}
+                    suffix={stat.suffix}
+                    startOnMount
+                  />
                 </dt>
                 <dd className="mt-1 text-xs leading-snug text-ink-faint">
                   {stat.label}

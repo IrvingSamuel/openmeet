@@ -1,0 +1,50 @@
+# LiveKit server config — OpenMeet
+# Docs: https://docs.livekit.io/transport/self-hosting/deployment/
+#
+# Copy to livekit.yaml and fill secrets from .env (never commit livekit.yaml):
+#   cp infra/livekit.yaml.example infra/livekit.yaml
+#   # set keys + webhook.api_key to match LIVEKIT_API_KEY / LIVEKIT_API_SECRET
+
+port: 7880
+bind_addresses:
+  - ""
+log_level: info
+prometheus_port: 6789
+
+# Required for livekit-client >= 2.18 which always opens the `_data_track` DC.
+enable_data_tracks: true
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: true
+  ips:
+    includes:
+      - YOUR_PUBLIC_IP/32
+    excludes:
+      - 172.16.0.0/12
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+
+redis:
+  address: 127.0.0.1:6379
+  db: 5
+
+keys:
+  YOUR_LIVEKIT_API_KEY: YOUR_LIVEKIT_API_SECRET
+
+turn:
+  enabled: true
+  domain: meet.example.com
+  tls_port: 5361
+  udp_port: 5361
+  relay_range_start: 30000
+  relay_range_end: 40000
+  cert_file: /etc/livekit/certs/meet.example.com.crt
+  key_file: /etc/livekit/certs/meet.example.com.key
+
+webhook:
+  api_key: YOUR_LIVEKIT_API_KEY
+  urls:
+    - http://127.0.0.1:3331/api/livekit/webhook

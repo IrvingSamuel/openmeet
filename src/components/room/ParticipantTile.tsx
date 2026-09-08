@@ -13,7 +13,15 @@ import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { cn, hueFromString, initials } from "@/lib/utils";
 import { shouldRenderVideoTrack } from "@/lib/videoTrack";
-import { IconMicOff, IconPin, IconScreen } from "@/components/ui/icons";
+import { useElementFullscreen } from "@/hooks/useElementFullscreen";
+import {
+  IconHand,
+  IconMaximize,
+  IconMicOff,
+  IconMinimize,
+  IconPin,
+  IconScreen,
+} from "@/components/ui/icons";
 
 export { shouldRenderVideoTrack } from "@/lib/videoTrack";
 
@@ -23,6 +31,7 @@ export function ParticipantTile({
   compact,
   pinned,
   onPin,
+  handRaised,
   className,
 }: {
   trackRef: TrackReferenceOrPlaceholder;
@@ -30,6 +39,7 @@ export function ParticipantTile({
   compact?: boolean;
   pinned?: boolean;
   onPin?: () => void;
+  handRaised?: boolean;
   className?: string;
 }) {
   const t = useTranslations("room.participantTile");
@@ -52,18 +62,33 @@ export function ParticipantTile({
 
   const name = info.name || participant.identity;
   const hue = hueFromString(participant.identity);
+  const { ref: tileRef, active: fullscreen, toggle: toggleFullscreen } =
+    useElementFullscreen<HTMLDivElement>();
+
+  function handleDoubleClick() {
+    if (isScreenShare) {
+      void toggleFullscreen();
+      return;
+    }
+    onPin?.();
+  }
 
   return (
     // No layoutId here — morphing remounts the <video> and kills adaptiveStream.
     <div
-      onDoubleClick={onPin}
+      ref={tileRef}
+      onDoubleClick={handleDoubleClick}
       data-testid="participant-tile"
       data-has-video={showVideo ? "true" : "false"}
+      data-fullscreen={fullscreen ? "true" : "false"}
       className={cn(
-        "group relative min-h-0 min-w-0 overflow-hidden rounded-2xl border bg-black",
-        speaking && !isScreenShare
-          ? "border-brand-secondary/80 shadow-[0_0_0_1px_var(--brand-secondary),0_0_50px_-14px_var(--brand-secondary)]"
-          : "border-line",
+        "group relative z-0 min-h-0 min-w-0 overflow-hidden rounded-2xl border bg-black",
+        "[&:fullscreen]:rounded-none [&:fullscreen]:border-0 [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:bg-black",
+        handRaised && !isScreenShare
+          ? "border-amber-400/85 shadow-[0_0_0_1px_rgb(251_191_36/0.7),0_0_48px_-12px_rgb(251_191_36/0.55)]"
+          : speaking && !isScreenShare
+            ? "border-brand-secondary/80 shadow-[0_0_0_1px_var(--brand-secondary),0_0_50px_-14px_var(--brand-secondary)]"
+            : "border-line",
         className,
       )}
       style={
@@ -123,7 +148,16 @@ export function ParticipantTile({
         </span>
       </div>
 
-      {onPin ? (
+      {handRaised && !isScreenShare ? (
+        <span
+          className="pointer-events-none absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-amber-400/50 bg-amber-500/25 text-amber-200 backdrop-blur"
+          title={t("handRaised")}
+        >
+          <IconHand className="h-4 w-4" />
+        </span>
+      ) : null}
+
+      {onPin && !isScreenShare ? (
         <button
           onClick={onPin}
           aria-label={pinned ? t("unpin") : t("pin")}
@@ -134,6 +168,28 @@ export function ParticipantTile({
           )}
         >
           <IconPin className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+
+      {isScreenShare && showVideo ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            void toggleFullscreen();
+          }}
+          aria-label={fullscreen ? t("exitFullscreen") : t("fullscreen")}
+          className={cn(
+            "absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
+            "opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 focus-visible:opacity-100",
+            fullscreen && "border-brand-secondary/60 text-brand-secondary opacity-100",
+          )}
+        >
+          {fullscreen ? (
+            <IconMinimize className="h-3.5 w-3.5" />
+          ) : (
+            <IconMaximize className="h-3.5 w-3.5" />
+          )}
         </button>
       ) : null}
     </div>

@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       ...result,
     });
   } catch (err) {
-    console.error("[chronos-meet] summary failed", err);
+    console.error("[openmeet] summary failed", err);
     await db
       .update(meetings)
       .set({ summaryStatus: "failed" })
@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
     offline: summary?.model === "offline-fallback",
     billingDepleted:
       typeof summary?.summaryMarkdown === "string" &&
-      summary.summaryMarkdown.includes("créditos Gemini esgotados"),
+      (summary.summaryMarkdown.includes("limite de API atingido") ||
+        summary.summaryMarkdown.includes("créditos Gemini esgotados")),
   });
 }
