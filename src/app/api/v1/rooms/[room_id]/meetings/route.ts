@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { rooms } from "@/db/schema";
+import { parseRedirectAfterMeet } from "@/lib/host-entry";
 import { createMeetingWithBrand } from "@/lib/meetings";
 import {
   clampEmptyTimeoutSec,
@@ -16,6 +17,8 @@ const schema = z.object({
   access_policy: z.enum(["public", "members", "invite"]).optional(),
   empty_timeout_sec: z.number().int().optional(),
   board_id: z.string().optional(),
+  redirect_after_meet: z.string().max(2000).nullable().optional(),
+  wait_for_host: z.boolean().optional(),
 });
 
 /**
@@ -64,6 +67,14 @@ export async function POST(
     );
   }
 
+  let redirectAfterMeet: string | null = null;
+  try {
+    redirectAfterMeet = parseRedirectAfterMeet(body.redirect_after_meet);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "redirect_after_meet_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   const room = await db.query.rooms.findFirst({
     where: eq(rooms.id, roomId),
   });
@@ -72,17 +83,27 @@ export async function POST(
   }
 
   try {
-    const { meeting, url, joinPath } = await createMeetingWithBrand({
-      title: body.title.trim(),
-      ownerIdentityId: room.ownerIdentityId,
-      roomId: room.id,
-      boardId: body.board_id ?? room.boardId,
-      accessPolicy:
-        body.access_policy ||
-        (room.accessPolicy as "public" | "members" | "invite"),
-      useIdentityBrand: false,
-      emptyTimeoutSec,
-    });
+    const accessPolicy =
+      body.access_policy ||
+      (room.accessPolicy as "public" | "members" | "invite");
+    const waitForHost =
+      body.wait_for_host !== undefined
+        ? body.wait_for_host
+        : accessPolicy === "invite";
+
+    const { meeting, url, joinPath, hostUrl, hostPath } =
+      await createMeetingWithBrand({
+        title: body.title.trim(),
+        ownerIdentityId: room.ownerIdentityId,
+        roomId: room.id,
+        boardId: body.board_id ?? room.boardId,
+        accessPolicy,
+        useIdentityBrand: false,
+        emptyTimeoutSec,
+        redirectAfterMeet,
+        waitForHost,
+        issueHostEntry: true,
+      });
 
     return NextResponse.json(
       {
@@ -90,10 +111,14 @@ export async function POST(
         slug: meeting.slug,
         url,
         join_path: joinPath,
+        host_url: hostUrl,
+        host_path: hostPath,
         access_policy: meeting.accessPolicy,
         title: meeting.title,
         brand_room_id: meeting.roomId,
         empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+        redirect_after_meet: meeting.redirectAfterMeet ?? null,
+        wait_for_host: meeting.waitForHost,
       },
       { status: 201 },
     );

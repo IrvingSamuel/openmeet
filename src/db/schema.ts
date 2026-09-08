@@ -171,6 +171,15 @@ export const meetings = pgTable(
      * LIVEKIT_EMPTY_TIMEOUT_SEC / MEETING_EMPTY_TIMEOUT_SEC.
      */
     emptyTimeoutSec: integer("empty_timeout_sec"),
+    /** Absolute http(s) URL to send participants after leave/end. */
+    redirectAfterMeet: text("redirect_after_meet"),
+    /**
+     * When true (typical for API invite meetings), guests stay in the lobby
+     * until a host participant is present — no manual approval queue.
+     */
+    waitForHost: boolean("wait_for_host").notNull().default(false),
+    /** SHA-256 hex of the one-time host entry token (API host_url). */
+    hostEntryTokenHash: text("host_entry_token_hash"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */
     status: text("status").notNull().default("scheduled"),
     summaryStatus: text("summary_status").notNull().default("pending"),

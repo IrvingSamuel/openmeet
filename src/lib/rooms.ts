@@ -17,6 +17,7 @@ import {
   brandFieldsToPatch,
   type BrandFieldsInput,
 } from "@/lib/brand-schema";
+import { platformPoweredBySubtitle } from "@/lib/platform-defaults";
 import {
   BRAND_ASSETS_ROOT,
   LEGACY_BRAND_ASSETS_ROOT,
@@ -54,10 +55,11 @@ export function roomJoinUrl(slug: string): { url: string; joinPath: string } {
   return { joinPath, url: `${publicOrigin()}${joinPath}` };
 }
 
-function defaultBrandValues(title: string, themePreset?: string) {
+async function defaultBrandValues(title: string, themePreset?: string) {
   const preset =
     themePreset && BOARD_THEMES[themePreset] ? themePreset : "sky";
   const colors = BOARD_THEMES[preset];
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     themePreset: preset,
     primaryColor: colors.primary,
@@ -65,14 +67,15 @@ function defaultBrandValues(title: string, themePreset?: string) {
     tertiaryColor: colors.tertiary,
     wordmark: title,
     lobbyTitle: title,
-    lobbySubtitle: "Powered by OpenMeet",
+    lobbySubtitle: poweredBy,
   };
 }
 
-function identityBrandToRoomValues(
+async function identityBrandToRoomValues(
   row: typeof identityBrands.$inferSelect,
   title: string,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     logoUrl: row.logoUrl,
     wordmark: row.wordmark || title,
@@ -83,7 +86,7 @@ function identityBrandToRoomValues(
     fontFamily: row.fontFamily,
     background: row.background,
     lobbyTitle: row.lobbyTitle || title,
-    lobbySubtitle: row.lobbySubtitle || "Powered by OpenMeet",
+    lobbySubtitle: row.lobbySubtitle || poweredBy,
     faviconUrl: row.faviconUrl,
     customCss: row.customCss,
     primaryPaint: row.primaryPaint,
@@ -122,7 +125,7 @@ export async function createRoomWithBrand(
     })
     .returning();
 
-  let brandValues: Record<string, unknown> = defaultBrandValues(
+  let brandValues: Record<string, unknown> = await defaultBrandValues(
     input.title,
     input.themePreset,
   );
@@ -156,7 +159,7 @@ export async function createRoomWithBrand(
       where: eq(identityBrands.identityId, input.ownerIdentityId),
     });
     if (identityBrand) {
-      brandValues = identityBrandToRoomValues(identityBrand, input.title);
+      brandValues = await identityBrandToRoomValues(identityBrand, input.title);
     }
   }
 

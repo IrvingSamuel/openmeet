@@ -11,6 +11,7 @@ import {
   brandRowToPublic,
   resolveApiBrandUi,
 } from "@/lib/api-brand";
+import { parseRedirectAfterMeet } from "@/lib/host-entry";
 import { createMeetingWithBrand } from "@/lib/meetings";
 import {
   clampEmptyTimeoutSec,
@@ -105,6 +106,8 @@ async function meetCreateMeetingFromRoom(args: {
   access_policy?: "public" | "members" | "invite";
   empty_timeout_sec?: number;
   board_id?: string;
+  redirect_after_meet?: string | null;
+  wait_for_host?: boolean;
 }) {
   const room = await db.query.rooms.findFirst({
     where: eq(rooms.id, args.room_id),
@@ -112,26 +115,40 @@ async function meetCreateMeetingFromRoom(args: {
   if (!room) throw new Error("room_not_found");
 
   const emptyTimeoutSec = clampEmptyTimeoutSec(args.empty_timeout_sec);
-  const { meeting, url, joinPath } = await createMeetingWithBrand({
-    title: args.title.trim(),
-    ownerIdentityId: room.ownerIdentityId,
-    roomId: room.id,
-    boardId: args.board_id ?? room.boardId,
-    accessPolicy:
-      args.access_policy ||
-      (room.accessPolicy as "public" | "members" | "invite"),
-    useIdentityBrand: false,
-    emptyTimeoutSec,
-  });
+  const redirectAfterMeet = parseRedirectAfterMeet(args.redirect_after_meet);
+  const accessPolicy =
+    args.access_policy ||
+    (room.accessPolicy as "public" | "members" | "invite");
+  const waitForHost =
+    args.wait_for_host !== undefined
+      ? args.wait_for_host
+      : accessPolicy === "invite";
+  const { meeting, url, joinPath, hostUrl, hostPath } =
+    await createMeetingWithBrand({
+      title: args.title.trim(),
+      ownerIdentityId: room.ownerIdentityId,
+      roomId: room.id,
+      boardId: args.board_id ?? room.boardId,
+      accessPolicy,
+      useIdentityBrand: false,
+      emptyTimeoutSec,
+      redirectAfterMeet,
+      waitForHost,
+      issueHostEntry: true,
+    });
   return {
     meeting_id: meeting.id,
     slug: meeting.slug,
     url,
     join_path: joinPath,
+    host_url: hostUrl,
+    host_path: hostPath,
     access_policy: meeting.accessPolicy,
     title: meeting.title,
     brand_room_id: meeting.roomId,
     empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+    redirect_after_meet: meeting.redirectAfterMeet ?? null,
+    wait_for_host: meeting.waitForHost,
   };
 }
 
@@ -145,6 +162,8 @@ async function meetCreateInstantMeeting(
     external_id?: string;
     access_policy?: "public" | "members" | "invite";
     empty_timeout_sec?: number;
+    redirect_after_meet?: string | null;
+    wait_for_host?: boolean;
     identity?: z.infer<typeof brandIdentitySchema>;
     palette?: z.infer<typeof brandPaletteSchema>;
     advanced?: z.infer<typeof brandAdvancedSchema>;
@@ -161,25 +180,39 @@ async function meetCreateInstantMeeting(
     args.title?.trim() ||
     `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
   const emptyTimeoutSec = clampEmptyTimeoutSec(args.empty_timeout_sec);
-  const { meeting, url, joinPath } = await createMeetingWithBrand({
-    title,
-    ownerIdentityId,
-    boardId: args.board_id,
-    accessPolicy: args.access_policy || "public",
-    roomId: args.room_id ?? null,
-    ui,
-    useIdentityBrand: !ui,
-    emptyTimeoutSec,
-  });
+  const redirectAfterMeet = parseRedirectAfterMeet(args.redirect_after_meet);
+  const accessPolicy = args.access_policy || "public";
+  const waitForHost =
+    args.wait_for_host !== undefined
+      ? args.wait_for_host
+      : accessPolicy === "invite";
+  const { meeting, url, joinPath, hostUrl, hostPath } =
+    await createMeetingWithBrand({
+      title,
+      ownerIdentityId,
+      boardId: args.board_id,
+      accessPolicy,
+      roomId: args.room_id ?? null,
+      ui,
+      useIdentityBrand: !ui,
+      emptyTimeoutSec,
+      redirectAfterMeet,
+      waitForHost,
+      issueHostEntry: true,
+    });
   return {
     meeting_id: meeting.id,
     slug: meeting.slug,
     url,
     join_path: joinPath,
+    host_url: hostUrl,
+    host_path: hostPath,
     access_policy: meeting.accessPolicy,
     title: meeting.title,
     brand_room_id: meeting.roomId,
     empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+    redirect_after_meet: meeting.redirectAfterMeet ?? null,
+    wait_for_host: meeting.waitForHost,
   };
 }
 
@@ -287,6 +320,15 @@ export async function POST(req: NextRequest) {
                 },
                 empty_timeout_sec: { type: "integer" },
                 board_id: { type: "string" },
+                redirect_after_meet: {
+                  type: "string",
+                  description: "Absolute http(s) URL after leave/end",
+                },
+                wait_for_host: {
+                  type: "boolean",
+                  description:
+                    "Keep guests in lobby until a host joins (default true for invite)",
+                },
               },
               required: ["room_id", "title"],
             },
@@ -308,6 +350,8 @@ export async function POST(req: NextRequest) {
                   enum: ["public", "members", "invite"],
                 },
                 empty_timeout_sec: { type: "integer" },
+                redirect_after_meet: { type: "string" },
+                wait_for_host: { type: "boolean" },
                 identity: { type: "object" },
                 palette: { type: "object" },
                 advanced: { type: "object" },

@@ -1,9 +1,9 @@
 {
   "meta": {
-    "title": "OpenMeet — Smart white-label videoconferencing",
-    "titleTemplate": "%s · OpenMeet",
+    "title": "{name} — Smart white-label videoconferencing",
+    "titleTemplate": "%s · {name}",
     "description": "Open-source videoconferencing with your own visual identity, live captions, and an AI copilot that turns meetings into actionable summaries and webhooks.",
-    "ogTitle": "OpenMeet — Smart white-label videoconferencing",
+    "ogTitle": "{name} — Smart white-label videoconferencing",
     "ogDescription": "Rooms with your company brand, live captions, and automatic minutes you can send to external tools via webhooks.",
     "loadingSummary": "Loading summary…",
     "verifyingSession": "Verifying your session…",
@@ -346,7 +346,9 @@
       "joinFailed": "Could not join the room.",
       "networkFailed": "Network error requesting access.",
       "cancelFailed": "Could not cancel the request. Try again."
-    }
+    },
+    "waitingForHostTitle": "Waiting for the host…",
+    "waitingForHostBody": "You'll join automatically once the host enters the meeting."
   },
   "offline": {
     "title": "No network connection",
@@ -463,7 +465,7 @@
       "save": "Save brand",
       "livePreview": "Live preview",
       "yourRoom": "Your room",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Could not load the brand.",
       "saveFailed": "Could not save.",
       "saveNetworkFailed": "Network error saving the brand.",
@@ -871,13 +873,15 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Platform name",
+      "logoUrl": "Platform logo URL",
+      "faviconUrl": "Platform favicon URL",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Upload logo",
+      "uploadFavicon": "Upload favicon"
     }
   },
   "roomTemplate": {
@@ -893,9 +897,9 @@
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Use your email and password to access {name}.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Create the first admin account for this {name} instance.",
     "name": "Name",
     "email": "Email",
     "password": "Password",

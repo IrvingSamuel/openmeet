@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
+import { resolveSystemUiTheme } from "@/lib/system-theme";
 
 /**
- * Redoc UI for the public OpenMeet API (rooms + meetings).
+ * Redoc UI for the public meetings API (rooms + meetings).
  * Spec YAML: GET /api/openapi/instant-meetings
- *
- * Light theme + column borders. Avoid blanket color !important on
- * li/span/div — that made selected tabs (dark bg) and Prism tokens
- * unreadable / unstyled.
  */
 export async function GET() {
+  const theme = await resolveSystemUiTheme();
+  const name = theme.wordmark;
   const html = `<!DOCTYPE html>
 <html lang="pt">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OpenMeet API — Salas e reuniões</title>
+  <title>${name} API — Salas e reuniões</title>
   <meta name="robots" content="noindex" />
   <style>
     html, body {
@@ -22,8 +21,6 @@ export async function GET() {
       background: #ffffff;
       color: #0f172a;
     }
-
-    /* Column separation */
     .menu-content {
       background: #f8fafc !important;
       border-right: 2px solid #64748b !important;
@@ -33,8 +30,6 @@ export async function GET() {
       background: #e2e8f0 !important;
       border-left: 2px solid #64748b !important;
     }
-
-    /* Sample tabs — selected is dark; text must be white */
     .react-tabs__tab {
       color: #0f172a !important;
       background: transparent !important;
@@ -44,8 +39,6 @@ export async function GET() {
       background: #0f172a !important;
       border-color: #0f172a !important;
     }
-
-    /* Code sample panel: white card, keep Prism token colors */
     .react-tabs__tab-panel {
       background: #ffffff !important;
       color: #0f172a !important;
@@ -58,7 +51,6 @@ export async function GET() {
       border: 1px solid #cbd5e1;
       overflow-x: auto;
     }
-    /* Restore Prism-ish colors (overrides were flattening all tokens) */
     .token.comment,
     .token.prolog,
     .token.doctype,
@@ -83,8 +75,6 @@ export async function GET() {
     .token.keyword { color: #7c3aed !important; }
     .token.function,
     .token.class-name { color: #c026d3 !important; }
-
-    /* Dropdown / labels in sample panel */
     .react-tabs__tab-panel select,
     .react-tabs__tab-panel label {
       color: #0f172a !important;

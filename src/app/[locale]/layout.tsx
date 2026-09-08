@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { HtmlLang } from "@/components/layout/HtmlLang";
 import { SystemThemeProvider } from "@/components/layout/SystemThemeProvider";
+import { resolveSystemUiTheme } from "@/lib/system-theme";
 
 const OG_LOCALE: Record<AppLocale, string> = {
   en: "en_US",
@@ -29,31 +30,35 @@ export async function generateMetadata({
     ? (raw as AppLocale)
     : routing.defaultLocale;
   const t = await getTranslations({ locale, namespace: "meta" });
+  const theme = await resolveSystemUiTheme();
+  const name = theme.wordmark;
+  const logo = theme.logoUrl || "/OpenMeet_Logo.png";
 
   return {
     title: {
-      default: t("title"),
-      template: t("titleTemplate"),
+      default: t("title", { name }),
+      template: t("titleTemplate", { name }),
     },
-    description: t("description"),
+    description: t("description", { name }),
+    applicationName: name,
     openGraph: {
-      title: t("ogTitle"),
-      description: t("ogDescription"),
+      title: t("ogTitle", { name }),
+      description: t("ogDescription", { name }),
       locale: OG_LOCALE[locale],
-      siteName: "OpenMeet",
+      siteName: name,
       type: "website",
       images: [
         {
-          url: "/OpenMeet_Logo.png",
+          url: logo,
           width: 1000,
           height: 1000,
-          alt: "OpenMeet",
+          alt: name,
         },
       ],
     },
     twitter: {
       card: "summary",
-      images: ["/OpenMeet_Logo.png"],
+      images: [logo],
     },
   };
 }
@@ -72,11 +77,12 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
   const messages = await getMessages();
+  const theme = await resolveSystemUiTheme();
 
   return (
     <NextIntlClientProvider messages={messages}>
       <HtmlLang locale={locale} />
-      <SystemThemeProvider>{children}</SystemThemeProvider>
+      <SystemThemeProvider theme={theme}>{children}</SystemThemeProvider>
     </NextIntlClientProvider>
   );
 }

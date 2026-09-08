@@ -6,10 +6,12 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
+import { usePlatformBrand } from "@/components/layout/PlatformBrandContext";
 import { Aurora, PageTransition } from "@/components/motion/primitives";
 
 export default function SetupPage() {
   const t = useTranslations("auth");
+  const brand = usePlatformBrand();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,7 +67,9 @@ export default function SetupPage() {
             <Wordmark className="text-xl" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("setupTitle")}</h1>
-          <p className="mt-2 text-sm text-ink-muted">{t("setupSubtitle")}</p>
+          <p className="mt-2 text-sm text-ink-muted">
+            {t("setupSubtitle", { name: brand.wordmark })}
+          </p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-4">
             <Input

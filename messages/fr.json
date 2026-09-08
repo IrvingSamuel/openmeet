@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "OpenMeet — Visioconférence intelligente white-label",
-    "titleTemplate": "%s · OpenMeet",
-    "description": "Visioconférence open-source avec votre identité visuelle, sous-titres en direct et un copilote qui transforme les réunions en résumés et webhooks actionnables.",
-    "ogTitle": "OpenMeet — Visioconférence intelligente white-label",
-    "ogDescription": "Salles à l'image de votre entreprise, sous-titres en direct et compte rendu automatique envoyable vers des outils externes via webhooks.",
+    "title": "{name} — Visioconférence white-label intelligente",
+    "titleTemplate": "%s · {name}",
+    "description": "Visioconférence open source avec votre identité visuelle, sous-titres en direct et un copilote IA qui transforme les réunions en résumés et webhooks.",
+    "ogTitle": "{name} — Visioconférence white-label intelligente",
+    "ogDescription": "Salles à l'image de votre entreprise, sous-titres en direct et comptes rendus automatiques pour vos outils via webhooks.",
     "loadingSummary": "Chargement du résumé…",
     "verifyingSession": "Vérification de votre session…",
     "establishingConnection": "Établissement d'une connexion sécurisée…",
@@ -346,7 +346,9 @@
       "joinFailed": "Impossible de rejoindre la salle.",
       "networkFailed": "Erreur réseau lors de la demande d'accès.",
       "cancelFailed": "Impossible d'annuler la demande. Réessayez."
-    }
+    },
+    "waitingForHostTitle": "En attente de l'hôte…",
+    "waitingForHostBody": "Vous rejoindrez automatiquement dès que l'hôte entrera dans la réunion."
   },
   "offline": {
     "title": "Pas de connexion réseau",
@@ -453,7 +455,7 @@
       "save": "Enregistrer la marque",
       "livePreview": "Aperçu en direct",
       "yourRoom": "Votre salle",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Impossible de charger la marque.",
       "saveFailed": "Impossible d'enregistrer.",
       "saveNetworkFailed": "Erreur réseau lors de l'enregistrement de la marque.",
@@ -861,13 +863,15 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Nom de la plateforme",
+      "logoUrl": "URL du logo de la plateforme",
+      "faviconUrl": "URL du favicon de la plateforme",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Téléverser le logo",
+      "uploadFavicon": "Téléverser le favicon"
     }
   },
   "settings": {
@@ -893,9 +897,9 @@
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Utilisez votre e-mail et mot de passe pour accéder à {name}.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Créez le premier compte administrateur de cette instance {name}.",
     "name": "Name",
     "email": "Email",
     "password": "Password",

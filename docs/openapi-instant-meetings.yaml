@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
-  title: OpenMeet — API pública (salas e reuniões)
-  version: 3.0.0
+  title: API pública — Salas e reuniões
+  version: 3.1.0
   description: |
     API para plataformas terceirizadas criarem **salas-template** (personalização reutilizável)
     e **reuniões** (sessões com URL de entrada `/m/{slug}`).
@@ -19,6 +19,12 @@ info:
     3. **Reunião instantânea** — `POST /api/v1/instant-meetings`  
        Cria uma reunião sem sala. Campos de identidade/paleta/avançado são
        opcionais (default = UI predefinida do owner ou tema da plataforma).
+
+    4. **Integração LMS/CRM (privada + retorno)**  
+       - Crie com `access_policy: invite` (ativa `wait_for_host` por omissão).  
+       - Partilhe `url` com participantes (ficam na sala de espera até o anfitrião).  
+       - Redirecione o anfitrião para `host_url` (concede privilégios de host sem login).  
+       - Após leave/end, participantes regressam a `redirect_after_meet`.
 
     ## Autenticação
 
@@ -167,10 +173,14 @@ paths:
                 slug: "m7k9m2pqab"
                 url: "https://openmeet.chronos.com.pt/m/m7k9m2pqab"
                 join_path: "/m/m7k9m2pqab"
+                host_url: "https://openmeet.chronos.com.pt/api/v1/meetings/8c3e2a1b-5717-4562-b3fc-2c963f66afa6/enter?token=…"
+                host_path: "/api/v1/meetings/8c3e2a1b-5717-4562-b3fc-2c963f66afa6/enter?token=…"
                 access_policy: public
                 title: Comercial 8 set
                 brand_room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
                 empty_timeout_sec: 300
+                redirect_after_meet: null
+                wait_for_host: false
         "400":
           description: Corpo inválido (ex. title em falta)
         "401":
@@ -229,6 +239,14 @@ paths:
                   ui:
                     lobbyTitle: Acme Kickoff
                     themePreset: emerald
+              privateWithReturn:
+                summary: Privada com espera do host e redirect pós-meet
+                value:
+                  title: Aula 12
+                  access_policy: invite
+                  external_id: "teacher-42"
+                  redirect_after_meet: "https://lms.example.com/classes/12"
+                  wait_for_host: true
       responses:
         "201":
           description: Reunião instantânea criada
@@ -241,16 +259,60 @@ paths:
                 slug: "x7k9m2pqab"
                 url: "https://openmeet.chronos.com.pt/m/x7k9m2pqab"
                 join_path: "/m/x7k9m2pqab"
-                access_policy: public
-                title: Quick sync
+                host_url: "https://openmeet.chronos.com.pt/api/v1/meetings/8c3e2a1b-5717-4562-b3fc-2c963f66afa6/enter?token=…"
+                host_path: "/api/v1/meetings/8c3e2a1b-5717-4562-b3fc-2c963f66afa6/enter?token=…"
+                access_policy: invite
+                title: Aula 12
                 brand_room_id: null
                 empty_timeout_sec: 300
+                redirect_after_meet: "https://lms.example.com/classes/12"
+                wait_for_host: true
         "400":
           description: Corpo inválido ou falha ao resolver owner
         "401":
           description: Autenticação em falta ou inválida
         "404":
           description: room_id (legado) não encontrado
+
+  /api/v1/meetings/{meeting_id}/enter:
+    get:
+      operationId: enterMeetingAsHost
+      summary: Entrada pré-redirect do anfitrião
+      description: |
+        Endpoint de browser (sem Bearer). Valida o `token` emitido em `host_url`
+        na criação da reunião, grava um cookie httpOnly de anfitrião e redireciona
+        (302) para `/m/{slug}` com privilégios de host (encerrar reunião, etc.).
+
+        Use este link para o utilizador que deve entrar como anfitrião a partir
+        da plataforma terceirizada.
+      parameters:
+        - name: meeting_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Token secreto devolvido apenas via host_url na criação
+        - name: display_name
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        "302":
+          description: Cookie de host definido; redirect para a lobby `/m/{slug}`
+        "403":
+          description: Token inválido
+        "404":
+          description: Reunião não encontrada
+        "410":
+          description: Reunião já encerrada
 
 components:
   securitySchemes:
@@ -525,6 +587,16 @@ components:
           description: |
             Segundos após o último participante sair até a sala LiveKit terminar.
             Omitir para usar o default do servidor (LIVEKIT_EMPTY_TIMEOUT_SEC).
+        redirect_after_meet:
+          type: string
+          format: uri
+          nullable: true
+          description: URL http(s) absoluta para onde enviar o utilizador após leave/end
+        wait_for_host:
+          type: boolean
+          description: |
+            Se true, participantes ficam na lobby até existir um anfitrião na sala.
+            Por omissão true quando access_policy=invite.
 
     CreateInstantMeetingRequest:
       type: object
@@ -561,6 +633,16 @@ components:
             Segundos após o último participante sair até a sala LiveKit terminar.
             Omitir para usar o default do servidor (LIVEKIT_EMPTY_TIMEOUT_SEC,
             tipicamente 300).
+        redirect_after_meet:
+          type: string
+          format: uri
+          nullable: true
+          description: URL http(s) absoluta para retorno pós-reunião
+        wait_for_host:
+          type: boolean
+          description: |
+            Manter participantes na sala de espera até o anfitrião entrar.
+            Default true quando access_policy=invite.
         identity:
           $ref: "#/components/schemas/BrandIdentity"
         palette:
@@ -582,10 +664,21 @@ components:
         url:
           type: string
           format: uri
-          description: URL de entrada (/m/{slug})
+          description: URL de entrada dos participantes (/m/{slug})
         join_path:
           type: string
           example: /m/x7k9m2pqab
+        host_url:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            URL de entrada do anfitrião (GET …/enter?token=…). Concede host
+            sem conta na plataforma de videoconferência.
+        host_path:
+          type: string
+          nullable: true
+          example: /api/v1/meetings/{id}/enter?token=…
         access_policy:
           type: string
         title:
@@ -598,3 +691,10 @@ components:
         empty_timeout_sec:
           type: integer
           description: Timeout efetivo de sala vazia em segundos
+        redirect_after_meet:
+          type: string
+          format: uri
+          nullable: true
+        wait_for_host:
+          type: boolean
+          description: Participantes aguardam o anfitrião na lobby

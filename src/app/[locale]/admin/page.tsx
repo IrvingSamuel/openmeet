@@ -234,6 +234,37 @@ export default function AdminPage() {
     });
   }
 
+  async function uploadBrandAsset(kind: "logo" | "favicon", file: File) {
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.set("kind", kind);
+      form.set("file", file);
+      const res = await fetch("/api/admin/settings/brand-upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        url?: string;
+      };
+      if (!res.ok || !data.url) {
+        toast.error(data.error || t("saveFailed"));
+        return;
+      }
+      if (kind === "logo") {
+        setSettings((s) => (s ? { ...s, uiLogoUrl: data.url! } : s));
+      } else {
+        setSettings((s) => (s ? { ...s, uiFaviconUrl: data.url! } : s));
+      }
+      toast.success(t("saved"));
+    } catch {
+      toast.error(t("networkFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveAi() {
     if (!settings) return;
     const patch: Record<string, unknown> = {
@@ -609,6 +640,31 @@ export default function AdminPage() {
                     setSettings({ ...settings, uiLogoUrl: e.target.value })
                   }
                 />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                    <span className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-white/5">
+                      {t("ui.uploadLogo")}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void uploadBrandAsset("logo", file);
+                      }}
+                    />
+                  </label>
+                  {settings.uiLogoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={settings.uiLogoUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  ) : null}
+                </div>
                 <Input
                   label={t("ui.faviconUrl")}
                   value={settings.uiFaviconUrl || ""}
@@ -616,6 +672,31 @@ export default function AdminPage() {
                     setSettings({ ...settings, uiFaviconUrl: e.target.value })
                   }
                 />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                    <span className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-white/5">
+                      {t("ui.uploadFavicon")}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void uploadBrandAsset("favicon", file);
+                      }}
+                    />
+                  </label>
+                  {settings.uiFaviconUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={settings.uiFaviconUrl}
+                      alt=""
+                      className="h-8 w-8 rounded object-cover"
+                    />
+                  ) : null}
+                </div>
                 <Input
                   label={t("ui.fontFamily")}
                   value={settings.uiFontFamily || ""}

@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "OpenMeet — Videoconferência inteligente white-label",
-    "titleTemplate": "%s · OpenMeet",
-    "description": "Videoconferência open-source com identidade visual própria, transcrição ao vivo e copiloto que transforma reuniões em resumos e webhooks acionáveis.",
-    "ogTitle": "OpenMeet — Videoconferência inteligente white-label",
-    "ogDescription": "Salas com a marca da sua empresa, legendas ao vivo e ata automática enviável a ferramentas externas via webhooks.",
+    "title": "{name} — Videoconferência white-label inteligente",
+    "titleTemplate": "%s · {name}",
+    "description": "Videoconferência open-source com a sua identidade visual, legendas ao vivo e um copiloto de IA que transforma reuniões em resumos e webhooks.",
+    "ogTitle": "{name} — Videoconferência white-label inteligente",
+    "ogDescription": "Salas com a marca da sua empresa, legendas ao vivo e atas automáticas para ferramentas externas via webhooks.",
     "loadingSummary": "A carregar o resumo…",
     "verifyingSession": "Verificando sua sessão…",
     "establishingConnection": "Estabelecendo conexão segura…",
@@ -346,7 +346,9 @@
       "joinFailed": "Não foi possível entrar na sala.",
       "networkFailed": "Falha de rede ao solicitar acesso.",
       "cancelFailed": "Não foi possível cancelar o pedido. Tente novamente."
-    }
+    },
+    "waitingForHostTitle": "A aguardar o anfitrião…",
+    "waitingForHostBody": "Entra automaticamente quando o anfitrião entrar na reunião."
   },
   "offline": {
     "title": "Sem ligação à rede",
@@ -453,7 +455,7 @@
       "save": "Salvar marca",
       "livePreview": "Pré-visualização ao vivo",
       "yourRoom": "Sua sala",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Não foi possível carregar a marca.",
       "saveFailed": "Não foi possível salvar.",
       "saveNetworkFailed": "Falha de rede ao salvar a marca.",
@@ -861,13 +863,15 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Nome da plataforma",
+      "logoUrl": "URL do logo da plataforma",
+      "faviconUrl": "URL do favicon da plataforma",
       "fontFamily": "Font family",
       "deploymentMode": "Modo de implantação",
       "allowSignup": "Permitir registo público",
-      "preview": "Pré-visualização"
+      "preview": "Pré-visualização",
+      "uploadLogo": "Carregar logo",
+      "uploadFavicon": "Carregar favicon"
     }
   },
   "settings": {
@@ -893,9 +897,9 @@
   "auth": {
     "loginTitle": "Entrar",
     "registerTitle": "Criar conta",
-    "loginSubtitle": "Use o seu email e palavra-passe para aceder ao OpenMeet.",
+    "loginSubtitle": "Use o seu e-mail e palavra-passe para aceder ao {name}.",
     "setupTitle": "Configuração inicial",
-    "setupSubtitle": "Crie a primeira conta de administrador desta instância OpenMeet.",
+    "setupSubtitle": "Crie a primeira conta de administrador desta instância {name}.",
     "name": "Nome",
     "email": "Email",
     "password": "Palavra-passe",

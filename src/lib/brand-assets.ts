@@ -44,6 +44,8 @@ export function mimeFromFilename(filename: string): string {
       return "image/webp";
     case "svg":
       return "image/svg+xml";
+    case "ico":
+      return "image/x-icon";
     default:
       return "application/octet-stream";
   }

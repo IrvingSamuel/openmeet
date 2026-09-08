@@ -7,6 +7,7 @@ import {
   resolveApiBrandUi,
 } from "@/lib/api-brand";
 import { brandFieldsSchema } from "@/lib/brand-schema";
+import { parseRedirectAfterMeet } from "@/lib/host-entry";
 import { createMeetingWithBrand } from "@/lib/meetings";
 import {
   clampEmptyTimeoutSec,
@@ -33,7 +34,32 @@ const schema = z.object({
   advanced: brandAdvancedSchema.optional(),
   /** Seconds after last participant leaves before the room auto-ends (60–86400). */
   empty_timeout_sec: z.number().int().optional(),
+  /** Absolute http(s) URL to return to after leave/end. */
+  redirect_after_meet: z.string().max(2000).nullable().optional(),
+  /**
+   * Keep guests in lobby until a host joins. Defaults to true when
+   * access_policy is "invite".
+   */
+  wait_for_host: z.boolean().optional(),
 });
+
+function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWithBrand>>) {
+  const { meeting, url, joinPath, hostUrl, hostPath } = result;
+  return {
+    meeting_id: meeting.id,
+    slug: meeting.slug,
+    url,
+    join_path: joinPath,
+    host_url: hostUrl,
+    host_path: hostPath,
+    access_policy: meeting.accessPolicy,
+    title: meeting.title,
+    brand_room_id: meeting.roomId,
+    empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+    redirect_after_meet: meeting.redirectAfterMeet ?? null,
+    wait_for_host: meeting.waitForHost,
+  };
+}
 
 export async function POST(req: NextRequest) {
   let body: z.infer<typeof schema>;
@@ -68,6 +94,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let redirectAfterMeet: string | null = null;
+  try {
+    redirectAfterMeet = parseRedirectAfterMeet(body.redirect_after_meet);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "redirect_after_meet_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   const ui = resolveApiBrandUi({
     ui: body.ui,
     identity: body.identity,
@@ -79,31 +113,28 @@ export async function POST(req: NextRequest) {
     body.title?.trim() ||
     `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
 
+  const accessPolicy = body.access_policy || "public";
+  const waitForHost =
+    body.wait_for_host !== undefined
+      ? body.wait_for_host
+      : accessPolicy === "invite";
+
   try {
-    const { meeting, url, joinPath } = await createMeetingWithBrand({
+    const result = await createMeetingWithBrand({
       title,
       ownerIdentityId: owner.ownerIdentityId,
       boardId: body.board_id,
-      accessPolicy: body.access_policy || "public",
+      accessPolicy,
       roomId: body.room_id ?? null,
       ui,
       useIdentityBrand: !ui,
       emptyTimeoutSec,
+      redirectAfterMeet,
+      waitForHost,
+      issueHostEntry: true,
     });
 
-    return NextResponse.json(
-      {
-        meeting_id: meeting.id,
-        slug: meeting.slug,
-        url,
-        join_path: joinPath,
-        access_policy: meeting.accessPolicy,
-        title: meeting.title,
-        brand_room_id: meeting.roomId,
-        empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
-      },
-      { status: 201 },
-    );
+    return NextResponse.json(meetingCreateResponse(result), { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message === "room_template_not_found") {
