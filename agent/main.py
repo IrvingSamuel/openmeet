@@ -31,6 +31,14 @@ from livekit.agents import (
 from livekit.agents.stt import SpeechEventType
 from livekit.plugins import deepgram
 
+from agent_config import (
+    agent_http_port,
+    agent_load_fnc,
+    agent_load_threshold,
+    agent_name,
+    agent_num_idle_processes,
+    caption_active_speaker_filter_enabled,
+)
 from caption_guards import CrossCaptionDeduper, participant_mic_muted
 from copilot_voice import handle_voice_copilot
 from wake_word import WakeDebouncer, extract_wake_command, parse_wake_phrases
@@ -319,35 +327,44 @@ async def entrypoint(ctx: JobContext) -> None:
         )
 
     async def publish_caption(
-        speaker: str, text: str, livekit_identity: str
+        speaker: str,
+        text: str,
+        livekit_identity: str,
+        *,
+        source: str,
+        stt_delay_ms: int | None = None,
     ) -> None:
         cleaned = text.strip()
         if not cleaned:
             return
+        publish_started = time.monotonic()
         participant = room.remote_participants.get(livekit_identity)
         if participant and participant_mic_muted(participant):
             logger.info(
-                "skip caption: mic muted identity=%s speaker=%s",
+                "caption_skip reason=mic_muted identity=%s speaker=%s room=%s",
                 livekit_identity,
                 speaker,
+                room.name,
             )
             return
-        # Only filter active speakers when multiple speakers are tracked.
-        if (
+        if caption_active_speaker_filter_enabled() and (
             len(active_speaker_identities) >= 2
             and livekit_identity not in active_speaker_identities
         ):
             logger.info(
-                "skip caption: %s not in active speakers %s",
+                "caption_skip reason=not_active_speaker identity=%s speaker=%s room=%s active=%s",
                 livekit_identity,
-                active_speaker_identities,
+                speaker,
+                room.name,
+                sorted(active_speaker_identities),
             )
             return
         if not cross_deduper.should_publish(livekit_identity, cleaned):
             logger.info(
-                "cross_talk_suppressed speaker=%s identity=%s text=%s",
+                "caption_skip reason=cross_talk speaker=%s identity=%s room=%s text=%s",
                 speaker,
                 livekit_identity,
+                room.name,
                 cleaned[:80],
             )
             return
@@ -366,7 +383,20 @@ async def entrypoint(ctx: JobContext) -> None:
         await room.local_participant.publish_data(
             payload, reliable=True, topic="captions"
         )
-        await persist_segment(meeting_id, speaker, cleaned, livekit_identity)
+        publish_ms = int((time.monotonic() - publish_started) * 1000)
+        logger.info(
+            "caption_published identity=%s speaker=%s room=%s source=%s publish_ms=%d stt_delay_ms=%s text_len=%d",
+            livekit_identity,
+            speaker,
+            room.name,
+            source,
+            publish_ms,
+            stt_delay_ms if stt_delay_ms is not None else "-",
+            len(cleaned),
+        )
+        asyncio.create_task(
+            persist_segment(meeting_id, speaker, cleaned, livekit_identity)
+        )
 
     async def transcribe_track(
         track: rtc.Track,
@@ -407,13 +437,29 @@ async def entrypoint(ctx: JobContext) -> None:
 
                 if ev_type == SpeechEventType.FINAL_TRANSCRIPT and text:
                     pending_final = text
+                    final_at = time.monotonic()
+                    if live and participant_mic_muted(live):
+                        pending_final = ""
+                        continue
+                    await publish_caption(
+                        speaker,
+                        text,
+                        identity,
+                        source="final_transcript",
+                        stt_delay_ms=int((time.monotonic() - final_at) * 1000),
+                    )
                 elif ev_type == SpeechEventType.END_OF_SPEECH:
                     to_publish = pending_final or text
                     pending_final = ""
                     if to_publish:
                         if live and participant_mic_muted(live):
                             continue
-                        await publish_caption(speaker, to_publish, identity)
+                        await publish_caption(
+                            speaker,
+                            to_publish,
+                            identity,
+                            source="end_of_speech",
+                        )
                         asyncio.create_task(
                             try_wake_copilot(to_publish, speaker, identity)
                         )
@@ -558,21 +604,32 @@ if __name__ == "__main__":
         asyncio.run(resolve_deepgram_api_key())
     except Exception as exc:
         logger.warning("startup deepgram resolve skipped: %s", exc)
+    load_threshold = agent_load_threshold()
+    idle_processes = agent_num_idle_processes()
+    http_port = agent_http_port()
+    registered_agent_name = agent_name()
     logger.info(
-        "starting openmeet-agent deepgram=%s meet_api=%s livekit=%s",
+        "starting openmeet-agent deepgram=%s meet_api=%s livekit=%s load_threshold=%s load_mode=%s idle=%s port=%s agent_name=%r",
         deepgram_status(),
         MEET_API_URL,
         ws_url,
+        load_threshold,
+        os.getenv("AGENT_LOAD_MODE", "hybrid"),
+        idle_processes,
+        http_port,
+        registered_agent_name,
     )
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             request_fnc=request_fnc,
-            agent_name="",
-            port=8095,
+            agent_name=registered_agent_name,
+            port=http_port,
             ws_url=ws_url,
             api_key=os.getenv("LIVEKIT_API_KEY"),
             api_secret=os.getenv("LIVEKIT_API_SECRET"),
-            num_idle_processes=1,
+            num_idle_processes=idle_processes,
+            load_threshold=load_threshold,
+            load_fnc=agent_load_fnc,
         )
     )
