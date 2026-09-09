@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "OpenMeet — Intelligente White-Label-Videokonferenz",
-    "titleTemplate": "%s · OpenMeet",
-    "description": "Open-Source-Videokonferenz mit eigener visueller Identität, Live-Untertiteln und einem Copiloten, der Meetings in Zusammenfassungen und Webhooks verwandelt.",
-    "ogTitle": "OpenMeet — Intelligente White-Label-Videokonferenz",
-    "ogDescription": "Räume mit Ihrer Unternehmensmarke, Live-Untertitel und automatisches Protokoll für externe Tools per Webhooks.",
+    "title": "{name} — Intelligente White-Label-Videokonferenz",
+    "titleTemplate": "%s · {name}",
+    "description": "Open-Source-Videokonferenz mit Ihrer visuellen Identität, Live-Untertiteln und einem KI-Copiloten, der Meetings in Zusammenfassungen und Webhooks verwandelt.",
+    "ogTitle": "{name} — Intelligente White-Label-Videokonferenz",
+    "ogDescription": "Räume mit Ihrem Unternehmensbranding, Live-Untertitel und automatische Protokolle für externe Tools per Webhook.",
     "loadingSummary": "Zusammenfassung wird geladen…",
     "verifyingSession": "Sitzung wird überprüft…",
     "establishingConnection": "Sichere Verbindung wird hergestellt…",
@@ -346,7 +346,9 @@
       "joinFailed": "Beitritt zum Raum fehlgeschlagen.",
       "networkFailed": "Netzwerkfehler bei der Zugriffsanfrage.",
       "cancelFailed": "Anfrage konnte nicht storniert werden. Bitte erneut versuchen."
-    }
+    },
+    "waitingForHostTitle": "Warten auf den Host…",
+    "waitingForHostBody": "Sie treten automatisch bei, sobald der Host dem Meeting beitritt."
   },
   "offline": {
     "title": "Keine Netzwerkverbindung",
@@ -453,7 +455,7 @@
       "save": "Marke speichern",
       "livePreview": "Live-Vorschau",
       "yourRoom": "Ihr Raum",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Marke konnte nicht geladen werden.",
       "saveFailed": "Speichern fehlgeschlagen.",
       "saveNetworkFailed": "Netzwerkfehler beim Speichern der Marke.",
@@ -705,7 +707,29 @@
       "ai": "KI",
       "webhooks": "Webhooks",
       "recording": "Aufnahme",
-      "ui": "UI"
+      "ui": "UI",
+      "api": "API"
+    },
+    "api": {
+      "heading": "Öffentliches API-Token",
+      "body": "Erzeugen Sie ein Bearer-Token für Drittplattformen für POST /api/v1/*. Das Token gewährt vollen Zugriff auf die öffentliche API.",
+      "statusLabel": "Status",
+      "notConfigured": "Nicht konfiguriert",
+      "configured": "Konfiguriert: {preview}",
+      "createdAt": "Erstellt am {date}",
+      "generate": "Token erzeugen",
+      "rotate": "Token rotieren",
+      "revoke": "Widerrufen",
+      "revokeConfirm": "Aktuelles Token widerrufen? Clients scheitern an der Auth, bis Sie ein neues erzeugen.",
+      "generatedHeading": "Token erzeugt — jetzt kopieren",
+      "generatedWarning": "Dieser Wert wird nur einmal angezeigt. Bewahren Sie ihn sicher auf.",
+      "copy": "Token kopieren",
+      "copied": "Token kopiert.",
+      "docsLink": "API-Dokumentation öffnen",
+      "generateFailed": "Token konnte nicht erzeugt werden.",
+      "revokeFailed": "Token konnte nicht widerrufen werden.",
+      "revoked": "Token widerrufen.",
+      "generated": "Token erzeugt. Jetzt kopieren."
     },
     "loadFailed": "Administration konnte nicht geladen werden.",
     "saveFailed": "Speichern fehlgeschlagen.",
@@ -761,7 +785,7 @@
       "modelSummary": "Modell (Zusammenfassung)",
       "modelSummaryHint": "Eine Generierung nach dem Meeting — stärkeres Modell nutzen (z. B. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
-      "deepgramKeyHint": "Der Python-Worker liest DEEPGRAM_API_KEY weiterhin aus der .env.",
+      "deepgramKeyHint": "Zuerst aus Admin (Datenbank), sonst DEEPGRAM_API_KEY in der .env. Der Python-Worker nutzt dieselbe Reihenfolge.",
       "save": "KI speichern",
       "clearGemini": "Gemini-Override löschen",
       "clearDeepgram": "Deepgram-Override löschen"
@@ -839,13 +863,15 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Plattformname",
+      "logoUrl": "Logo-URL der Plattform",
+      "faviconUrl": "Favicon-URL der Plattform",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Logo hochladen",
+      "uploadFavicon": "Favicon hochladen"
     }
   },
   "settings": {
@@ -871,9 +897,9 @@
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Melden Sie sich mit E-Mail und Passwort bei {name} an.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Erstellen Sie das erste Admin-Konto für diese {name}-Instanz.",
     "name": "Name",
     "email": "Email",
     "password": "Password",

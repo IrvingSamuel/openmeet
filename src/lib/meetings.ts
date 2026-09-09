@@ -13,6 +13,12 @@ import {
   brandFieldsToPatch,
   type BrandFieldsInput,
 } from "@/lib/brand-schema";
+import { platformPoweredBySubtitle } from "@/lib/platform-defaults";
+import {
+  generateHostEntryToken,
+  hashHostEntryToken,
+  meetingHostEnterUrl,
+} from "@/lib/host-entry";
 
 export type CreateMeetingInput = {
   title: string;
@@ -27,6 +33,15 @@ export type CreateMeetingInput = {
   useIdentityBrand?: boolean;
   /** Per-meeting empty timeout (seconds); null/undefined = env default. */
   emptyTimeoutSec?: number | null;
+  /** Absolute http(s) URL after leave/end. */
+  redirectAfterMeet?: string | null;
+  /**
+   * Wait in lobby until a host is present. Defaults to false;
+   * public API sets true for invite when omitted.
+   */
+  waitForHost?: boolean;
+  /** Issue a host entry token / host_url (default false — enable for public API). */
+  issueHostEntry?: boolean;
 };
 
 export type CreatedMeetingResult = {
@@ -34,6 +49,10 @@ export type CreatedMeetingResult = {
   brand: typeof meetingBrands.$inferSelect;
   url: string;
   joinPath: string;
+  hostUrl: string | null;
+  hostPath: string | null;
+  /** Raw token only available at creation time (never stored plaintext). */
+  hostEntryToken: string | null;
 };
 
 function publicOrigin(): string {
@@ -52,10 +71,11 @@ export function meetingJoinUrl(slug: string): {
   return { joinPath, url: `${publicOrigin()}${joinPath}` };
 }
 
-function defaultBrandValues(title: string, themePreset?: string) {
+async function defaultBrandValues(title: string, themePreset?: string) {
   const preset =
     themePreset && BOARD_THEMES[themePreset] ? themePreset : "sky";
   const colors = BOARD_THEMES[preset];
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     themePreset: preset,
     primaryColor: colors.primary,
@@ -63,14 +83,15 @@ function defaultBrandValues(title: string, themePreset?: string) {
     tertiaryColor: colors.tertiary,
     wordmark: title,
     lobbyTitle: title,
-    lobbySubtitle: "Powered by OpenMeet",
+    lobbySubtitle: poweredBy,
   };
 }
 
-function brandRowToValues(
+async function brandRowToValues(
   row: Record<string, unknown>,
   title: string,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     logoUrl: row.logoUrl ?? null,
     wordmark: (row.wordmark as string) || title,
@@ -81,8 +102,7 @@ function brandRowToValues(
     fontFamily: row.fontFamily,
     background: row.background,
     lobbyTitle: (row.lobbyTitle as string) || title,
-    lobbySubtitle:
-      (row.lobbySubtitle as string) || "Powered by OpenMeet",
+    lobbySubtitle: (row.lobbySubtitle as string) || poweredBy,
     faviconUrl: row.faviconUrl ?? null,
     customCss: row.customCss ?? null,
     primaryPaint: row.primaryPaint ?? null,
@@ -101,7 +121,7 @@ function brandRowToValues(
 }
 
 async function resolveBrandValues(input: CreateMeetingInput) {
-  let brandValues: Record<string, unknown> = defaultBrandValues(
+  let brandValues: Record<string, unknown> = await defaultBrandValues(
     input.title,
     input.themePreset,
   );
@@ -138,7 +158,10 @@ async function resolveBrandValues(input: CreateMeetingInput) {
       where: eq(roomBrands.roomId, input.roomId),
     });
     if (roomBrand) {
-      return brandRowToValues(roomBrand as unknown as Record<string, unknown>, input.title);
+      return brandRowToValues(
+        roomBrand as unknown as Record<string, unknown>,
+        input.title,
+      );
     }
   }
 
@@ -179,6 +202,14 @@ export async function createMeetingWithBrand(
     roomId,
   });
 
+  const waitForHost = input.waitForHost === true;
+
+  const issueHostEntry = input.issueHostEntry === true;
+  const hostEntryToken = issueHostEntry ? generateHostEntryToken() : null;
+  const hostEntryTokenHash = hostEntryToken
+    ? hashHostEntryToken(hostEntryToken)
+    : null;
+
   const [meeting] = await db
     .insert(meetings)
     .values({
@@ -191,6 +222,9 @@ export async function createMeetingWithBrand(
       roomId,
       status: "scheduled",
       emptyTimeoutSec: input.emptyTimeoutSec ?? null,
+      redirectAfterMeet: input.redirectAfterMeet ?? null,
+      waitForHost,
+      hostEntryTokenHash,
     })
     .returning();
 
@@ -203,5 +237,17 @@ export async function createMeetingWithBrand(
     .returning();
 
   const links = meetingJoinUrl(meeting.slug);
-  return { meeting, brand, ...links };
+  const hostLinks =
+    hostEntryToken && meeting.id
+      ? meetingHostEnterUrl(meeting.id, hostEntryToken)
+      : { hostUrl: null, hostPath: null };
+
+  return {
+    meeting,
+    brand,
+    ...links,
+    hostUrl: hostLinks.hostUrl,
+    hostPath: hostLinks.hostPath,
+    hostEntryToken,
+  };
 }

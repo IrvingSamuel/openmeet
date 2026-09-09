@@ -18,17 +18,45 @@ export function getLiveKitCreds() {
   return { apiKey, apiSecret, url };
 }
 
-/** HTTP base for RoomService (twirp) — prefers loopback on this VPS. */
+function hostnameOf(raw: string | undefined | null): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    const normalized = raw.trim().replace(/^ws/i, "http");
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isLoopbackHost(host: string | null): boolean {
+  return (
+    host === "127.0.0.1" ||
+    host === "localhost" ||
+    host === "::1" ||
+    host === "[::1]"
+  );
+}
+
+/**
+ * HTTP base for RoomService (twirp).
+ * Prefer LIVEKIT_HTTP_URL, else loopback when LiveKit URL targets this same
+ * public host (Cloudflare/nginx usually deny /twirp from the edge).
+ */
 export function getLiveKitHttpHost() {
-  if (process.env.LIVEKIT_HTTP_URL) return process.env.LIVEKIT_HTTP_URL;
+  if (process.env.LIVEKIT_HTTP_URL?.trim()) {
+    return process.env.LIVEKIT_HTTP_URL.trim().replace(/\/$/, "");
+  }
   const { url } = getLiveKitCreds();
-  if (
-    url.includes("openmeet.chronos.com.pt") ||
-    url.includes("127.0.0.1")
-  ) {
+  const lkHost = hostnameOf(url);
+  const appHost = hostnameOf(process.env.NEXT_PUBLIC_APP_URL);
+
+  if (isLoopbackHost(lkHost)) {
     return "http://127.0.0.1:7880";
   }
-  return url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+  if (lkHost && appHost && lkHost === appHost) {
+    return "http://127.0.0.1:7880";
+  }
+  return url.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
 }
 
 export function getRoomServiceClient() {
@@ -49,6 +77,7 @@ export async function syncRoomMetadata(
   meta: RoomMetadataPayload,
   opts?: { emptyTimeout?: number },
 ) {
+  const httpHost = getLiveKitHttpHost();
   const client = getRoomServiceClient();
   const metadata = JSON.stringify(meta);
   const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
@@ -58,9 +87,29 @@ export async function syncRoomMetadata(
       metadata,
       emptyTimeout,
     });
-  } catch {
-    // Room may already exist — update metadata instead.
-    await client.updateRoomMetadata(livekitRoomName, metadata);
+    console.info(
+      "[openmeet] syncRoomMetadata createRoom ok host=%s room=%s",
+      httpHost,
+      livekitRoomName,
+    );
+  } catch (err) {
+    try {
+      await client.updateRoomMetadata(livekitRoomName, metadata);
+      console.info(
+        "[openmeet] syncRoomMetadata update ok host=%s room=%s",
+        httpHost,
+        livekitRoomName,
+      );
+    } catch (updateErr) {
+      console.error(
+        "[openmeet] syncRoomMetadata failed host=%s room=%s create=%s update=%s",
+        httpHost,
+        livekitRoomName,
+        err instanceof Error ? err.message : String(err),
+        updateErr instanceof Error ? updateErr.message : String(updateErr),
+      );
+      throw updateErr;
+    }
   }
 }
 

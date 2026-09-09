@@ -25,6 +25,8 @@ export async function GET(
       status: meeting.status,
       boardId: meeting.boardId,
       roomId: meeting.roomId,
+      redirectAfterMeet: meeting.redirectAfterMeet ?? null,
+      waitForHost: meeting.waitForHost,
     },
     brand,
   });

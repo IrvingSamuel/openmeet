@@ -17,7 +17,7 @@ export async function GET(
   });
 
   const origin = (
-    process.env.NEXT_PUBLIC_APP_URL || "https://openmeet.chronos.com.pt"
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3332"
   ).replace(/\/$/, "");
   const host = new URL(origin).host;
 

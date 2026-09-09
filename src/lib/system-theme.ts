@@ -1,29 +1,14 @@
 import { getAppSettings } from "@/lib/app-settings";
+import {
+  DEFAULT_SYSTEM_UI,
+  systemUiToCssVars,
+  type SystemUiTheme,
+} from "@/lib/system-ui";
 
-export type SystemUiTheme = {
-  primary: string;
-  secondary: string;
-  tertiary: string;
-  background: string;
-  ink: string;
-  wordmark: string;
-  logoUrl: string | null;
-  faviconUrl: string | null;
-  fontFamily: string;
-};
+export type { SystemUiTheme };
+export { DEFAULT_SYSTEM_UI, systemUiToCssVars };
 
-export const DEFAULT_SYSTEM_UI: SystemUiTheme = {
-  primary: "#0ea5e9",
-  secondary: "#38bdf8",
-  tertiary: "#818cf8",
-  background: "#0b1020",
-  ink: "#f8fafc",
-  wordmark: "OpenMeet",
-  logoUrl: null,
-  faviconUrl: null,
-  fontFamily: "Inter, system-ui, sans-serif",
-};
-
+/** Server-only: reads app_settings. Do not import from client components. */
 export async function resolveSystemUiTheme(): Promise<SystemUiTheme> {
   const row = await getAppSettings();
   if (!row) return DEFAULT_SYSTEM_UI;
@@ -37,16 +22,5 @@ export async function resolveSystemUiTheme(): Promise<SystemUiTheme> {
     logoUrl: row.uiLogoUrl || null,
     faviconUrl: row.uiFaviconUrl || null,
     fontFamily: row.uiFontFamily || DEFAULT_SYSTEM_UI.fontFamily,
-  };
-}
-
-export function systemUiToCssVars(theme: SystemUiTheme): Record<string, string> {
-  return {
-    "--brand-primary": theme.primary,
-    "--brand-secondary": theme.secondary,
-    "--brand-tertiary": theme.tertiary,
-    "--surface-0": theme.background,
-    "--ink": theme.ink,
-    "--brand-font": theme.fontFamily,
   };
 }

@@ -5,9 +5,14 @@ const session = { isLoggedIn: false, identityId: undefined as string | undefined
 const identityBrandsFindFirst = vi.fn();
 const insertReturning = vi.fn();
 const usersFindFirst = vi.fn();
+const getAppSettings = vi.fn();
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
+}));
+
+vi.mock("@/lib/app-settings", () => ({
+  getAppSettings: (...args: unknown[]) => getAppSettings(...args),
 }));
 
 vi.mock("@/db", () => ({
@@ -50,6 +55,8 @@ beforeEach(() => {
   identityBrandsFindFirst.mockReset();
   insertReturning.mockReset();
   usersFindFirst.mockReset();
+  getAppSettings.mockReset();
+  getAppSettings.mockResolvedValue(null);
   identityBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
   delete process.env.AGENT_SHARED_SECRET;
@@ -96,7 +103,7 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(res.status).toBe(401);
   });
 
-  it("creates via bearer + chronos_user_id", async () => {
+  it("creates via bearer + external_id", async () => {
     process.env.MEET_MCP_TOKEN = "secret-token";
     usersFindFirst.mockResolvedValue({ id: "owner-1" });
     insertReturning
@@ -116,7 +123,7 @@ describe("POST /api/v1/instant-meetings", () => {
         "http://localhost/api/v1/instant-meetings",
         {
           title: "Partner",
-          chronos_user_id: "cu-1",
+          external_id: "cu-1",
           ui: { lobbyTitle: "Acme", themePreset: "emerald" },
         },
         { Authorization: "Bearer secret-token" },
@@ -151,7 +158,7 @@ describe("POST /api/v1/instant-meetings", () => {
         "http://localhost/api/v1/instant-meetings",
         {
           title: "Hold",
-          chronos_user_id: "cu-1",
+          external_id: "cu-1",
           empty_timeout_sec: 1800,
         },
         { Authorization: "Bearer secret-token" },
@@ -171,7 +178,7 @@ describe("POST /api/v1/instant-meetings", () => {
         "http://localhost/api/v1/instant-meetings",
         {
           title: "Bad",
-          chronos_user_id: "cu-1",
+          external_id: "cu-1",
           empty_timeout_sec: 10,
         },
         { Authorization: "Bearer secret-token" },
@@ -182,27 +189,139 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(body.error).toBe("empty_timeout_sec_out_of_range");
   });
 
-  it("creates via session cookie", async () => {
+  it("rejects session cookie alone", async () => {
     session.isLoggedIn = true;
     session.identityId = "id-1";
-    insertReturning
-      .mockResolvedValueOnce([
-        {
-          id: "m3",
-          slug: "sessroom01",
-          title: "Quick",
-          accessPolicy: "public",
-          roomId: null,
-        },
-      ])
-      .mockResolvedValueOnce([{ meetingId: "m3" }]);
 
     const res = await postV1(
       jsonRequest("http://localhost/api/v1/instant-meetings", { title: "Quick" }),
     );
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts identity/palette/advanced snake_case groups", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m5",
+          slug: "branded01",
+          title: "Partner kickoff",
+          accessPolicy: "public",
+          roomId: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m5" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Partner kickoff",
+          external_id: "cu-1",
+          identity: { lobby_title: "Acme Kickoff", wordmark: "Acme" },
+          palette: { theme_preset: "emerald", bg_animation: "wave" },
+          advanced: { font_family: "Inter, system-ui, sans-serif" },
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.slug).toBe("sessroom01");
-    expect(body.join_path).toBe("/m/sessroom01");
+    expect(body.meeting_id).toBe("m5");
+    expect(body.slug).toBe("branded01");
+  });
+
+  it("keeps legacy ui camelCase working", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m6",
+          slug: "legacyui01",
+          title: "Legacy",
+          accessPolicy: "public",
+          roomId: null,
+          waitForHost: false,
+          redirectAfterMeet: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m6" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Legacy",
+          external_id: "cu-1",
+          ui: { lobbyTitle: "Legacy Lobby", themePreset: "violet" },
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.meeting_id).toBe("m6");
+  });
+
+  it("returns host_url and redirect_after_meet for private meetings", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          slug: "private01",
+          title: "Aula",
+          accessPolicy: "invite",
+          roomId: null,
+          waitForHost: true,
+          redirectAfterMeet: "https://lms.example.com/back",
+          emptyTimeoutSec: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Aula",
+          external_id: "cu-1",
+          access_policy: "invite",
+          redirect_after_meet: "https://lms.example.com/back",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.wait_for_host).toBe(true);
+    expect(body.redirect_after_meet).toBe("https://lms.example.com/back");
+    expect(body.host_url).toContain("/api/v1/meetings/");
+    expect(body.host_url).toContain("/enter?token=");
+    expect(body.host_path).toContain("/enter?token=");
+  });
+
+  it("rejects invalid redirect_after_meet", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Bad redirect",
+          external_id: "cu-1",
+          redirect_after_meet: "javascript:alert(1)",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("redirect_after_meet_invalid");
   });
 });

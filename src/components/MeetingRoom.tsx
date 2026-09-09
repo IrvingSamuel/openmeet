@@ -91,6 +91,7 @@ export function MeetingRoom({
   meetingId,
   role = "participant",
   recordingConfig = null,
+  redirectAfterMeet = null,
   onLeave,
   onEndForAll,
   initialVideo = false,
@@ -110,6 +111,7 @@ export function MeetingRoom({
   meetingId?: string;
   role?: RoomRole;
   recordingConfig?: RecordingClientConfig | null;
+  redirectAfterMeet?: string | null;
   onLeave?: () => void;
   onEndForAll?: () => void | Promise<void>;
   initialVideo?: boolean;
@@ -373,6 +375,7 @@ export function MeetingRoom({
           meetingId={meetingId}
           isHost={role === "host"}
           recordingConfig={recordingConfig}
+          redirectAfterMeet={redirectAfterMeet}
           forcedExit={forcedExit}
           onLeave={requestLeave}
           onEndForAll={requestEndForAll}
@@ -405,6 +408,7 @@ function RoomShell({
   meetingId,
   isHost,
   recordingConfig,
+  redirectAfterMeet,
   forcedExit,
   onLeave,
   onEndForAll,
@@ -423,6 +427,7 @@ function RoomShell({
   meetingId?: string;
   isHost: boolean;
   recordingConfig: RecordingClientConfig | null;
+  redirectAfterMeet?: string | null;
   forcedExit: "ended" | "removed" | null;
   onLeave: () => void;
   onEndForAll: () => void | Promise<void>;
@@ -851,6 +856,7 @@ function RoomShell({
         kind={forcedExit}
         roomSlug={roomSlug}
         meetingId={meetingId}
+        redirectAfterMeet={redirectAfterMeet}
         onLeave={onConfirmLeave}
       />
       <DisconnectRecovery
@@ -1145,20 +1151,30 @@ function ForcedExitOverlay({
   kind,
   roomSlug,
   meetingId,
+  redirectAfterMeet,
   onLeave,
 }: {
   kind: "ended" | "removed" | null;
   roomSlug: string;
   meetingId?: string;
+  redirectAfterMeet?: string | null;
   onLeave: () => void;
 }) {
   const t = useTranslations("room.forcedExit");
   const tActions = useTranslations("common.actions");
   const router = useRouter();
   const summaryHref =
-    kind === "ended" && meetingId
+    !redirectAfterMeet && kind === "ended" && meetingId
       ? `/m/${roomSlug}/summary?meetingId=${meetingId}`
       : null;
+
+  useEffect(() => {
+    if (!kind || !redirectAfterMeet) return;
+    const timer = window.setTimeout(() => {
+      window.location.assign(redirectAfterMeet);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [kind, redirectAfterMeet]);
 
   return (
     <AnimatePresence>
@@ -1190,7 +1206,13 @@ function ForcedExitOverlay({
               <Button
                 size="lg"
                 variant={summaryHref ? "outline" : undefined}
-                onClick={onLeave}
+                onClick={() => {
+                  if (redirectAfterMeet) {
+                    window.location.assign(redirectAfterMeet);
+                    return;
+                  }
+                  onLeave();
+                }}
               >
                 {tActions("leave")}
               </Button>

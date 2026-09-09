@@ -105,6 +105,8 @@ docker compose -f docker-compose.egress.yml down
 
 Quotas: máx. 20 chats Gemini / participante / reunião; máx. 3 regenerações forçadas de insights / reunião. Deepgram STT continua a ser o maior custo em escala (VAD Silero = backlog).
 
+Legendas: triagem remota e checklist de deploy em [`04-caption-troubleshooting.md`](04-caption-troubleshooting.md).
+
 ## Branding
 
 `room_brands` → CSS variables no `<html>`:

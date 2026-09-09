@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getLiveKitCreds, mintRoomToken } from "@/lib/livekit";
+import {
+  getLiveKitCreds,
+  getLiveKitHttpHost,
+  mintRoomToken,
+} from "@/lib/livekit";
 
 type Grants = {
   video?: {
@@ -18,7 +22,7 @@ type Grants = {
 
 function decode(jwt: string): Grants {
   const [, payload] = jwt.split(".");
-  return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+  return JSON.parse(Buffer.from(payload!, "base64url").toString("utf8"));
 }
 
 const ENV = { ...process.env };
@@ -27,6 +31,9 @@ beforeEach(() => {
   process.env.LIVEKIT_API_KEY = "APItestkey";
   process.env.LIVEKIT_API_SECRET = "supersecretsupersecretsupersecret";
   process.env.LIVEKIT_URL = "ws://127.0.0.1:7880";
+  delete process.env.LIVEKIT_HTTP_URL;
+  delete process.env.NEXT_PUBLIC_APP_URL;
+  delete process.env.NEXT_PUBLIC_LIVEKIT_URL;
 });
 
 afterEach(() => {
@@ -45,6 +52,31 @@ describe("getLiveKitCreds", () => {
   it("fails loudly when a variable is missing", () => {
     delete process.env.LIVEKIT_API_SECRET;
     expect(() => getLiveKitCreds()).toThrow(/LIVEKIT/);
+  });
+});
+
+describe("getLiveKitHttpHost", () => {
+  it("prefers LIVEKIT_HTTP_URL", () => {
+    process.env.LIVEKIT_HTTP_URL = "http://127.0.0.1:7880/";
+    process.env.LIVEKIT_URL = "wss://meet.example.com";
+    expect(getLiveKitHttpHost()).toBe("http://127.0.0.1:7880");
+  });
+
+  it("uses loopback when LiveKit URL is loopback", () => {
+    process.env.LIVEKIT_URL = "ws://127.0.0.1:7880";
+    expect(getLiveKitHttpHost()).toBe("http://127.0.0.1:7880");
+  });
+
+  it("uses loopback when LiveKit host matches app host", () => {
+    process.env.LIVEKIT_URL = "wss://meet.example.com";
+    process.env.NEXT_PUBLIC_APP_URL = "https://meet.example.com";
+    expect(getLiveKitHttpHost()).toBe("http://127.0.0.1:7880");
+  });
+
+  it("rewrites remote wss to https when hosts differ", () => {
+    process.env.LIVEKIT_URL = "wss://livekit.cloud.example";
+    process.env.NEXT_PUBLIC_APP_URL = "https://meet.example.com";
+    expect(getLiveKitHttpHost()).toBe("https://livekit.cloud.example");
   });
 });
 

@@ -89,6 +89,10 @@ type AdminSettings = {
   recordingS3Region: string;
   recordingS3AccessKey: SecretMask;
   recordingS3SecretKey: SecretMask;
+  publicApiToken: SecretMask & {
+    createdAt?: string | null;
+    ownerIdentityId?: string | null;
+  };
 };
 
 type Me = {
@@ -104,6 +108,7 @@ const TABS = [
   { key: "ai", icon: IconSparkles },
   { key: "recording", icon: IconVideo },
   { key: "webhooks", icon: IconBolt },
+  { key: "api", icon: IconShield },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -140,6 +145,8 @@ export default function AdminPage() {
   const [s3SecretDraft, setS3SecretDraft] = useState("");
   const [exampleEvent, setExampleEvent] =
     useState<OutboundWebhookEvent>("summary.ready");
+  const [apiTokenOnce, setApiTokenOnce] = useState<string | null>(null);
+  const [apiBusy, setApiBusy] = useState(false);
 
   const load = useCallback(async () => {
     const meData: Me = await fetch("/api/auth/me").then((r) => r.json());
@@ -227,6 +234,37 @@ export default function AdminPage() {
     });
   }
 
+  async function uploadBrandAsset(kind: "logo" | "favicon", file: File) {
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.set("kind", kind);
+      form.set("file", file);
+      const res = await fetch("/api/admin/settings/brand-upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        url?: string;
+      };
+      if (!res.ok || !data.url) {
+        toast.error(data.error || t("saveFailed"));
+        return;
+      }
+      if (kind === "logo") {
+        setSettings((s) => (s ? { ...s, uiLogoUrl: data.url! } : s));
+      } else {
+        setSettings((s) => (s ? { ...s, uiFaviconUrl: data.url! } : s));
+      }
+      toast.success(t("saved"));
+    } catch {
+      toast.error(t("networkFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveAi() {
     if (!settings) return;
     const patch: Record<string, unknown> = {
@@ -296,6 +334,75 @@ export default function AdminPage() {
 
   async function clearWebhookSecret() {
     await save({ webhookSecret: null });
+  }
+
+  async function generateApiToken() {
+    setApiBusy(true);
+    try {
+      const res = await fetch("/api/admin/settings/api-token", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || t("api.generateFailed"));
+        return;
+      }
+      setApiTokenOnce(data.token as string);
+      setSettings({
+        ...settings!,
+        publicApiToken: {
+          configured: true,
+          preview: (data.preview as string) ?? null,
+          createdAt: (data.created_at as string) ?? null,
+          ownerIdentityId: (data.owner_identity_id as string) ?? null,
+        },
+      });
+      toast.success(t("api.generated"));
+    } catch {
+      toast.error(t("api.generateFailed"));
+    } finally {
+      setApiBusy(false);
+    }
+  }
+
+  async function revokeApiToken() {
+    if (!window.confirm(t("api.revokeConfirm"))) return;
+    setApiBusy(true);
+    try {
+      const res = await fetch("/api/admin/settings/api-token", {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || t("api.revokeFailed"));
+        return;
+      }
+      setApiTokenOnce(null);
+      setSettings({
+        ...settings!,
+        publicApiToken: {
+          configured: false,
+          preview: null,
+          createdAt: null,
+          ownerIdentityId: null,
+        },
+      });
+      toast.success(t("api.revoked"));
+    } catch {
+      toast.error(t("api.revokeFailed"));
+    } finally {
+      setApiBusy(false);
+    }
+  }
+
+  async function copyApiToken() {
+    if (!apiTokenOnce) return;
+    try {
+      await navigator.clipboard.writeText(apiTokenOnce);
+      toast.success(t("api.copied"));
+    } catch {
+      toast.error(t("copyFailed"));
+    }
   }
 
   async function runTest(event: OutboundWebhookEvent) {
@@ -533,6 +640,31 @@ export default function AdminPage() {
                     setSettings({ ...settings, uiLogoUrl: e.target.value })
                   }
                 />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                    <span className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-white/5">
+                      {t("ui.uploadLogo")}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void uploadBrandAsset("logo", file);
+                      }}
+                    />
+                  </label>
+                  {settings.uiLogoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={settings.uiLogoUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  ) : null}
+                </div>
                 <Input
                   label={t("ui.faviconUrl")}
                   value={settings.uiFaviconUrl || ""}
@@ -540,6 +672,31 @@ export default function AdminPage() {
                     setSettings({ ...settings, uiFaviconUrl: e.target.value })
                   }
                 />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                    <span className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-white/5">
+                      {t("ui.uploadFavicon")}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void uploadBrandAsset("favicon", file);
+                      }}
+                    />
+                  </label>
+                  {settings.uiFaviconUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={settings.uiFaviconUrl}
+                      alt=""
+                      className="h-8 w-8 rounded object-cover"
+                    />
+                  ) : null}
+                </div>
                 <Input
                   label={t("ui.fontFamily")}
                   value={settings.uiFontFamily || ""}
@@ -1065,6 +1222,90 @@ export default function AdminPage() {
                       : t("webhooks.sendTest")}
                   </Button>
                 </div>
+              </div>
+            ) : null}
+
+            {tab === "api" ? (
+              <div className="mx-auto max-w-xl space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    {t("api.heading")}
+                  </h2>
+                  <p className="mt-2 text-sm text-ink-muted">{t("api.body")}</p>
+                </div>
+
+                <div className="rounded-2xl border border-line bg-black/20 p-4 text-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                    {t("api.statusLabel")}
+                  </p>
+                  <p className="mt-2 font-medium text-ink">
+                    {settings.publicApiToken?.configured
+                      ? t("api.configured", {
+                          preview: settings.publicApiToken.preview ?? "",
+                        })
+                      : t("api.notConfigured")}
+                  </p>
+                  {settings.publicApiToken?.createdAt ? (
+                    <p className="mt-1 text-xs text-ink-faint">
+                      {t("api.createdAt", {
+                        date: new Date(
+                          settings.publicApiToken.createdAt,
+                        ).toLocaleString(),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+
+                {apiTokenOnce ? (
+                  <div className="space-y-3 rounded-2xl border border-brand-secondary/40 bg-brand-secondary/10 p-4">
+                    <p className="text-sm font-semibold text-ink">
+                      {t("api.generatedHeading")}
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      {t("api.generatedWarning")}
+                    </p>
+                    <Textarea
+                      readOnly
+                      rows={3}
+                      value={apiTokenOnce}
+                      className="font-mono text-[11px]"
+                    />
+                    <Button
+                      variant="outline"
+                      icon={<IconCopy className="h-4 w-4" />}
+                      onClick={copyApiToken}
+                    >
+                      {t("api.copy")}
+                    </Button>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={generateApiToken} disabled={apiBusy}>
+                    {settings.publicApiToken?.configured
+                      ? t("api.rotate")
+                      : t("api.generate")}
+                  </Button>
+                  {settings.publicApiToken?.configured ? (
+                    <Button
+                      variant="ghost"
+                      onClick={revokeApiToken}
+                      disabled={apiBusy}
+                    >
+                      {t("api.revoke")}
+                    </Button>
+                  ) : null}
+                </div>
+
+                <a
+                  href="/api-docs"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-brand-secondary hover:underline"
+                >
+                  <IconFileText className="h-4 w-4" />
+                  {t("api.docsLink")}
+                </a>
               </div>
             ) : null}
           </motion.div>

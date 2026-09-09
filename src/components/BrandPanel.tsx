@@ -25,6 +25,7 @@ import { IconPalette, IconSparkles } from "@/components/ui/icons";
 import { PaintField } from "@/components/brand/PaintField";
 import { AssetUrlField } from "@/components/brand/AssetUrlField";
 import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
+import { usePlatformBrand } from "@/components/layout/PlatformBrandContext";
 
 type Brand = BrandTokens & { customCss?: string | null };
 
@@ -51,7 +52,7 @@ function paintOf(
 }
 
 type BrandPanelProps = {
-  /** Room brand editor — when set, defaults APIs to `/api/rooms/{slug}/brand`. */
+  /** Room brand editor … when set, defaults APIs to `/api/rooms/{slug}/brand`. */
   slug?: string;
   brandUrl?: string;
   uploadUrl?: string;
@@ -66,6 +67,7 @@ export function BrandPanel({
 }: BrandPanelProps) {
   const toast = useToast();
   const t = useTranslations("brand.panel");
+  const platform = usePlatformBrand();
   const tTabs = useTranslations("brand.tabs");
   const tFields = useTranslations("brand.fields");
   const tThemes = useTranslations("brand.themes");
@@ -236,7 +238,7 @@ export function BrandPanel({
                 label={tFields("lobbySubtitle")}
                 value={brand.lobbySubtitle || ""}
                 onChange={(e) => patch({ lobbySubtitle: e.target.value })}
-                placeholder={t("defaultSubtitle")}
+                placeholder={t("defaultSubtitle", { name: platform.wordmark })}
               />
               <AssetUrlField
                 label={tFields("logoUrl")}
@@ -524,7 +526,8 @@ export function BrandPanel({
                     fontFamily: brand.fontFamily || undefined,
                   }}
                 >
-                  {brand.lobbySubtitle || t("defaultSubtitle")}
+                  {brand.lobbySubtitle ||
+                    t("defaultSubtitle", { name: platform.wordmark })}
                 </p>
               </div>
             </div>
