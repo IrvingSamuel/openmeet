@@ -871,7 +871,9 @@
       "allowSignup": "Allow public signup",
       "preview": "Preview",
       "uploadLogo": "Logo hochladen",
-      "uploadFavicon": "Favicon hochladen"
+      "uploadFavicon": "Favicon hochladen",
+      "copyHex": "Hex kopieren",
+      "hexCopied": "Hex kopiert"
     }
   },
   "settings": {

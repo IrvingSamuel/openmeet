@@ -11,7 +11,8 @@ import {
   morphTransition,
 } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/Button";
-import { Input, Select, Textarea } from "@/components/ui/Field";
+import { ColorField, Input, Select, Textarea } from "@/components/ui/Field";
+import { DEFAULT_SYSTEM_UI } from "@/lib/system-ui";
 import { Badge, Skeleton } from "@/components/ui/Surface";
 import { useToast } from "@/components/ui/Toast";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
@@ -608,21 +609,22 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {(
                     [
-                      ["uiPrimary", "primary"],
-                      ["uiSecondary", "secondary"],
-                      ["uiTertiary", "tertiary"],
-                      ["uiBackground", "background"],
-                      ["uiInk", "ink"],
+                      ["uiPrimary", "primary", DEFAULT_SYSTEM_UI.primary],
+                      ["uiSecondary", "secondary", DEFAULT_SYSTEM_UI.secondary],
+                      ["uiTertiary", "tertiary", DEFAULT_SYSTEM_UI.tertiary],
+                      ["uiBackground", "background", DEFAULT_SYSTEM_UI.background],
+                      ["uiInk", "ink", DEFAULT_SYSTEM_UI.ink],
                     ] as const
-                  ).map(([field, labelKey]) => (
-                    <Input
+                  ).map(([field, labelKey, fallback]) => (
+                    <ColorField
                       key={field}
                       label={t(`ui.${labelKey}`)}
-                      type="color"
-                      value={settings[field] || "#0ea5e9"}
-                      onChange={(e) =>
-                        setSettings({ ...settings, [field]: e.target.value })
+                      value={settings[field] || fallback}
+                      onChange={(value) =>
+                        setSettings({ ...settings, [field]: value })
                       }
+                      copyLabel={t("ui.copyHex")}
+                      copiedLabel={t("ui.hexCopied")}
                     />
                   ))}
                 </div>

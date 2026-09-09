@@ -858,20 +858,22 @@
     },
     "ui": {
       "title": "Aparência do sistema",
-      "primary": "Primary",
-      "secondary": "Secondary",
-      "tertiary": "Tertiary",
-      "background": "Background",
-      "ink": "Text",
+      "primary": "Primária",
+      "secondary": "Secundária",
+      "tertiary": "Terciária",
+      "background": "Fundo",
+      "ink": "Texto",
       "wordmark": "Nome da plataforma",
       "logoUrl": "URL do logo da plataforma",
       "faviconUrl": "URL do favicon da plataforma",
-      "fontFamily": "Font family",
+      "fontFamily": "Família tipográfica",
       "deploymentMode": "Modo de implantação",
       "allowSignup": "Permitir registo público",
       "preview": "Pré-visualização",
       "uploadLogo": "Carregar logo",
-      "uploadFavicon": "Carregar favicon"
+      "uploadFavicon": "Carregar favicon",
+      "copyHex": "Copiar hexadecimal",
+      "hexCopied": "Hexadecimal copiado"
     }
   },
   "settings": {

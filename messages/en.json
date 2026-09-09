@@ -881,7 +881,9 @@
       "allowSignup": "Allow public signup",
       "preview": "Preview",
       "uploadLogo": "Upload logo",
-      "uploadFavicon": "Upload favicon"
+      "uploadFavicon": "Upload favicon",
+      "copyHex": "Copy hex",
+      "hexCopied": "Hex copied"
     }
   },
   "roomTemplate": {

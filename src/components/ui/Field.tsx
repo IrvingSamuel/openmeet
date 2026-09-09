@@ -3,13 +3,29 @@
 import {
   forwardRef,
   useId,
+  useState,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { IconCheck, IconCopy } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+
+/** Normalize to #rrggbb for `<input type="color">`; keep typing flexible in the hex field. */
+export function toColorInputValue(raw: string, fallback = "#000000"): string {
+  const v = raw.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
+  if (/^[0-9a-fA-F]{6}$/.test(v)) return `#${v.toLowerCase()}`;
+  if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+    const r = v[1]!;
+    const g = v[2]!;
+    const b = v[3]!;
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return fallback;
+}
 
 const CONTROL =
   "w-full rounded-xl border border-line bg-black/30 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint " +
@@ -200,44 +216,80 @@ export function ColorField({
   value,
   onChange,
   className,
+  copyLabel = "Copy hex",
+  copiedLabel = "Copied",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  copyLabel?: string;
+  copiedLabel?: string;
 }) {
   const id = useId();
+  const hexId = `${id}-hex`;
+  const [copied, setCopied] = useState(false);
+  const pickerValue = toColorInputValue(value, "#000000");
+  const displayHex = value?.trim() ? value.trim() : pickerValue;
+
+  async function copyHex() {
+    try {
+      await navigator.clipboard.writeText(displayHex);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* ignore — clipboard may be denied */
+    }
+  }
+
   return (
     <div className={cn("space-y-1.5", className)}>
       <label
-        htmlFor={id}
+        htmlFor={hexId}
         className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint"
       >
         {label}
       </label>
       <div className="flex items-center gap-2 rounded-xl border border-line bg-black/30 p-1.5 transition-colors hover:border-line-strong focus-within:border-brand-primary">
-        <motion.span
-          layout
-          className="h-8 w-8 shrink-0 rounded-lg border border-white/20 shadow-inner"
-          style={{ background: value }}
-          animate={{ background: value }}
-          transition={{ duration: 0.35 }}
-        />
+        <label
+          htmlFor={id}
+          className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/20 shadow-inner"
+          title={label}
+        >
+          <motion.span
+            className="absolute inset-0"
+            style={{ background: pickerValue }}
+            animate={{ background: pickerValue }}
+            transition={{ duration: 0.25 }}
+          />
+          <input
+            id={id}
+            type="color"
+            value={pickerValue}
+            onChange={(e) => onChange(e.target.value.toLowerCase())}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            aria-label={`${label} picker`}
+          />
+        </label>
         <input
-          id={id}
-          type="color"
-          value={value}
+          id={hexId}
+          value={displayHex}
           onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
-          aria-label={`${label} seletor`}
-        />
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => onChange(toColorInputValue(displayHex, pickerValue))}
           spellCheck={false}
-          className="w-full bg-transparent font-mono text-xs uppercase text-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent font-mono text-xs uppercase tracking-wide text-ink outline-none"
           aria-label={`${label} hex`}
+          placeholder="#000000"
         />
+        <button
+          type="button"
+          onClick={() => void copyHex()}
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-white/5 hover:text-ink"
+          aria-label={copied ? copiedLabel : copyLabel}
+          title={copied ? copiedLabel : copyLabel}
+        >
+          {copied ? <IconCheck width={16} height={16} /> : <IconCopy width={16} height={16} />}
+        </button>
       </div>
     </div>
   );
