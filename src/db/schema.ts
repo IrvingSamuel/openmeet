@@ -411,6 +411,12 @@ export const appSettings = pgTable("app_settings", {
    */
   tabReturnMic: text("tab_return_mic").notNull().default("closed"),
   tabReturnCamera: text("tab_return_camera").notNull().default("closed"),
+  /**
+   * Page shell access: which of home/dashboard/settings are public,
+   * redirect targets when disabled, and optional unlock request key.
+   * Shape: { requestKey, pages: { home, dashboard, settings } }
+   */
+  pageAccess: jsonb("page_access"),
   geminiApiKey: text("gemini_api_key"),
   geminiModel: text("gemini_model"),
   geminiSummaryModel: text("gemini_summary_model"),

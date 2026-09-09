@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -29,6 +29,7 @@ import {
   IconVideo,
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { PAGE_ACCESS_IDS } from "@/lib/page-access-types";
 import {
   exampleWebhookHeaders,
   exampleWebhookPayload,
@@ -55,6 +56,14 @@ type AdminSettings = {
   allowSignup?: boolean;
   tabReturnMic?: "open" | "closed" | "restore";
   tabReturnCamera?: "open" | "closed" | "restore";
+  pageAccess?: {
+    requestKey: SecretMask;
+    pages: {
+      home: { enabled: boolean; redirectTo: string };
+      dashboard: { enabled: boolean; redirectTo: string };
+      settings: { enabled: boolean; redirectTo: string };
+    };
+  };
   uiPrimary?: string;
   uiSecondary?: string;
   uiTertiary?: string;
@@ -107,6 +116,7 @@ type Me = {
 
 const TABS = [
   { key: "general", icon: IconSettings },
+  { key: "access", icon: IconShield },
   { key: "ui", icon: IconSparkles },
   { key: "ai", icon: IconSparkles },
   { key: "recording", icon: IconVideo },
@@ -132,6 +142,7 @@ const AI_LOCALES = ["pt-BR", "en", "es", "fr", "de"] as const;
 export default function AdminPage() {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const toast = useToast();
   const [me, setMe] = useState<Me | null>(null);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
@@ -146,6 +157,7 @@ export default function AdminPage() {
   const [webhookSecretDraft, setWebhookSecretDraft] = useState("");
   const [s3AccessDraft, setS3AccessDraft] = useState("");
   const [s3SecretDraft, setS3SecretDraft] = useState("");
+  const [pageAccessKeyDraft, setPageAccessKeyDraft] = useState("");
   const [exampleEvent, setExampleEvent] =
     useState<OutboundWebhookEvent>("summary.ready");
   const [apiTokenOnce, setApiTokenOnce] = useState<string | null>(null);
@@ -205,6 +217,7 @@ export default function AdminPage() {
       setWebhookSecretDraft("");
       setS3AccessDraft("");
       setS3SecretDraft("");
+      setPageAccessKeyDraft("");
       toast.success(t("saved"));
     } catch {
       toast.error(t("networkFailed"));
@@ -236,6 +249,51 @@ export default function AdminPage() {
       uiLogoUrl: settings.uiLogoUrl || null,
       uiFaviconUrl: settings.uiFaviconUrl || null,
       uiFontFamily: settings.uiFontFamily,
+    });
+  }
+
+  async function saveAccess() {
+    if (!settings) return;
+    const pages = settings.pageAccess?.pages ?? {
+      home: { enabled: true, redirectTo: "/login" },
+      dashboard: { enabled: true, redirectTo: "/login" },
+      settings: { enabled: true, redirectTo: "/login" },
+    };
+    const patch: Record<string, unknown> = {
+      pageAccess: {
+        pages,
+        requestKey: pageAccessKeyDraft.trim()
+          ? pageAccessKeyDraft.trim()
+          : undefined,
+      },
+    };
+    await save(patch);
+  }
+
+  function updatePageAccessRule(
+    id: (typeof PAGE_ACCESS_IDS)[number],
+    patch: Partial<{ enabled: boolean; redirectTo: string }>,
+  ) {
+    setSettings((s) => {
+      if (!s) return s;
+      const pages = s.pageAccess?.pages ?? {
+        home: { enabled: true, redirectTo: "/login" },
+        dashboard: { enabled: true, redirectTo: "/login" },
+        settings: { enabled: true, redirectTo: "/login" },
+      };
+      return {
+        ...s,
+        pageAccess: {
+          requestKey: s.pageAccess?.requestKey ?? {
+            configured: false,
+            preview: null,
+          },
+          pages: {
+            ...pages,
+            [id]: { ...pages[id], ...patch },
+          },
+        },
+      };
     });
   }
 
@@ -662,6 +720,106 @@ export default function AdminPage() {
                 <Button onClick={saveGeneral} disabled={saving}>
                   {saving ? t("saving") : t("general.save")}
                 </Button>
+              </div>
+            ) : null}
+
+            {tab === "access" ? (
+              <div className="max-w-xl space-y-5">
+                <p className="text-sm text-ink-muted">{t("access.body")}</p>
+                <Input
+                  label={t("access.requestKey")}
+                  type="password"
+                  autoComplete="new-password"
+                  value={pageAccessKeyDraft}
+                  onChange={(e) => setPageAccessKeyDraft(e.target.value)}
+                  hint={
+                    settings.pageAccess?.requestKey?.configured
+                      ? t("access.requestKeyConfigured", {
+                          preview:
+                            settings.pageAccess.requestKey.preview || "••••",
+                        })
+                      : t("access.requestKeyHint")
+                  }
+                  placeholder={t("access.requestKeyPlaceholder")}
+                />
+                <div className="space-y-4">
+                  {PAGE_ACCESS_IDS.map((id) => {
+                    const rule = settings.pageAccess?.pages?.[id] ?? {
+                      enabled: true,
+                      redirectTo: "/login",
+                    };
+                    return (
+                      <div
+                        key={id}
+                        className="space-y-3 rounded-2xl border border-line bg-black/20 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-ink">
+                            {t(`access.pages.${id}`)}
+                          </p>
+                          <label className="flex items-center gap-2 text-sm text-ink-muted">
+                            <input
+                              type="checkbox"
+                              checked={rule.enabled}
+                              onChange={(e) =>
+                                updatePageAccessRule(id, {
+                                  enabled: e.target.checked,
+                                })
+                              }
+                            />
+                            {t("access.enabled")}
+                          </label>
+                        </div>
+                        <Input
+                          label={t("access.redirectTo")}
+                          value={rule.redirectTo}
+                          onChange={(e) =>
+                            updatePageAccessRule(id, {
+                              redirectTo: e.target.value,
+                            })
+                          }
+                          hint={t("access.redirectHint")}
+                          disabled={rule.enabled}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-ink-faint">
+                  {t("access.unlockHint", { path: `/${locale}/unlock` })}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={saveAccess} disabled={saving}>
+                    {saving ? t("saving") : t("access.save")}
+                  </Button>
+                  {settings.pageAccess?.requestKey?.configured ? (
+                    <Button
+                      variant="outline"
+                      disabled={saving}
+                      onClick={() =>
+                        void save({
+                          pageAccess: {
+                            pages:
+                              settings.pageAccess?.pages ?? {
+                                home: { enabled: true, redirectTo: "/login" },
+                                dashboard: {
+                                  enabled: true,
+                                  redirectTo: "/login",
+                                },
+                                settings: {
+                                  enabled: true,
+                                  redirectTo: "/login",
+                                },
+                              },
+                            requestKey: null,
+                          },
+                        })
+                      }
+                    >
+                      {t("access.clearKey")}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
 

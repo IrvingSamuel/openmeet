@@ -707,6 +707,7 @@
     "description": "Configurez la langue, les clés IA, l'enregistrement des réunions et les webhooks sortants pour intégrer Meet à des plateformes tierces.",
     "tabs": {
       "general": "Général",
+      "access": "Accès",
       "ai": "IA",
       "webhooks": "Webhooks",
       "recording": "Enregistrement",
@@ -777,6 +778,24 @@
         "restore": "Comme avant"
       },
       "save": "Enregistrer"
+    },
+    "access": {
+      "body": "Définissez si l’accueil, le tableau de bord et les paramètres sont accessibles. S’ils sont désactivés, les visiteurs sont redirigés. Avec une clé de requête, ils peuvent déverrouiller via /unlock.",
+      "requestKey": "Clé de requête (déverrouillage)",
+      "requestKeyHint": "Facultatif. Quiconque saisit cette clé sur /unlock accède aux pages désactivées.",
+      "requestKeyConfigured": "Clé configurée : {preview}. Laissez vide pour la conserver.",
+      "requestKeyPlaceholder": "Nouvelle clé…",
+      "enabled": "Accessible",
+      "redirectTo": "Rediriger vers",
+      "redirectHint": "Chemin relatif (ex. /login ou /unlock) ou URL absolue.",
+      "unlockHint": "Page de déverrouillage : {path}",
+      "pages": {
+        "home": "Accueil (landing)",
+        "dashboard": "Tableau de bord",
+        "settings": "Paramètres / marque"
+      },
+      "save": "Enregistrer l’accès",
+      "clearKey": "Supprimer la clé"
     },
     "ai": {
       "groqEnabled": "Utiliser Groq / API compatible OpenAI (remplace Gemini si actif)",
@@ -907,6 +926,18 @@
     "notFound": "Modèle introuvable",
     "startFailed": "Impossible de démarrer la réunion.",
     "startNetworkFailed": "Erreur réseau lors du démarrage de la réunion."
+  },
+  "accessUnlock": {
+    "title": "Déverrouiller l’accès",
+    "body": "Saisissez la clé de requête fournie par l’administration pour ouvrir les pages restreintes.",
+    "keyLabel": "Clé de requête",
+    "keyPlaceholder": "Clé…",
+    "submit": "Déverrouiller",
+    "submitting": "Vérification…",
+    "success": "Accès déverrouillé.",
+    "invalidKey": "Clé invalide.",
+    "notConfigured": "Aucune clé de déverrouillage n’est configurée.",
+    "failed": "Impossible de déverrouiller."
   },
   "auth": {
     "loginTitle": "Sign in",

@@ -707,6 +707,7 @@
     "description": "Configure idioma, claves de IA, grabación de reuniones y webhooks de salida para integrar Meet con plataformas de terceros.",
     "tabs": {
       "general": "General",
+      "access": "Acceso",
       "ai": "IA",
       "webhooks": "Webhooks",
       "recording": "Grabación",
@@ -777,6 +778,24 @@
         "restore": "Como estaba"
       },
       "save": "Guardar"
+    },
+    "access": {
+      "body": "Defina si la home, el dashboard y la configuración son accesibles. Si están desactivadas, los visitantes se redirigen. Con una clave de petición, pueden desbloquear en /unlock.",
+      "requestKey": "Clave de petición (desbloqueo)",
+      "requestKeyHint": "Opcional. Quien escriba esta clave en /unlock accede a las páginas desactivadas.",
+      "requestKeyConfigured": "Clave configurada: {preview}. Déjelo vacío para mantenerla.",
+      "requestKeyPlaceholder": "Nueva clave…",
+      "enabled": "Accesible",
+      "redirectTo": "Redirigir a",
+      "redirectHint": "Ruta relativa (p. ej. /login o /unlock) o URL absoluta.",
+      "unlockHint": "Página de desbloqueo: {path}",
+      "pages": {
+        "home": "Home (landing)",
+        "dashboard": "Dashboard",
+        "settings": "Configuración / marca"
+      },
+      "save": "Guardar acceso",
+      "clearKey": "Quitar clave"
     },
     "ai": {
       "groqEnabled": "Usar Groq / API compatible con OpenAI (reemplaza Gemini cuando está activo)",
@@ -907,6 +926,18 @@
     "notFound": "Plantilla no encontrada",
     "startFailed": "No se pudo iniciar la reunión.",
     "startNetworkFailed": "Error de red al iniciar la reunión."
+  },
+  "accessUnlock": {
+    "title": "Desbloquear acceso",
+    "body": "Introduzca la clave de petición proporcionada por la administración para abrir páginas restringidas.",
+    "keyLabel": "Clave de petición",
+    "keyPlaceholder": "Clave…",
+    "submit": "Desbloquear",
+    "submitting": "Comprobando…",
+    "success": "Acceso desbloqueado.",
+    "invalidKey": "Clave no válida.",
+    "notConfigured": "No hay clave de desbloqueo configurada.",
+    "failed": "No se pudo desbloquear."
   },
   "auth": {
     "loginTitle": "Sign in",

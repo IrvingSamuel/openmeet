@@ -17,6 +17,10 @@ import {
   shouldSkipSecretUpdate,
   webhookEventsOrDefault,
 } from "@/lib/app-settings";
+import {
+  DEFAULT_PAGE_ACCESS,
+  normalizePageAccessSettings,
+} from "@/lib/page-access";
 import { getSession } from "@/lib/session";
 
 const webhookEventsSchema = z.object({
@@ -33,6 +37,25 @@ const putSchema = z.object({
   allowSignup: z.boolean().optional(),
   tabReturnMic: z.enum(["open", "closed", "restore"]).optional(),
   tabReturnCamera: z.enum(["open", "closed", "restore"]).optional(),
+  pageAccess: z
+    .object({
+      requestKey: z.string().max(200).nullable().optional(),
+      pages: z.object({
+        home: z.object({
+          enabled: z.boolean(),
+          redirectTo: z.string().max(500),
+        }),
+        dashboard: z.object({
+          enabled: z.boolean(),
+          redirectTo: z.string().max(500),
+        }),
+        settings: z.object({
+          enabled: z.boolean(),
+          redirectTo: z.string().max(500),
+        }),
+      }),
+    })
+    .optional(),
   geminiApiKey: z.string().nullable().optional(),
   geminiModel: z.string().max(120).nullable().optional(),
   geminiSummaryModel: z.string().max(120).nullable().optional(),
@@ -136,6 +159,17 @@ function publicSettingsPayload(
     allowSignup: row.allowSignup !== false,
     tabReturnMic: row.tabReturnMic || "closed",
     tabReturnCamera: row.tabReturnCamera || "closed",
+    pageAccess: (() => {
+      const access = normalizePageAccessSettings(
+        row.pageAccess ?? DEFAULT_PAGE_ACCESS,
+      );
+      return {
+        pages: access.pages,
+        requestKey: access.requestKey
+          ? maskSecret(access.requestKey)
+          : { configured: false, preview: null, source: "none" as const },
+      };
+    })(),
     uiPrimary: row.uiPrimary || "#0ea5e9",
     uiSecondary: row.uiSecondary || "#38bdf8",
     uiTertiary: row.uiTertiary || "#818cf8",
@@ -236,6 +270,24 @@ export async function PUT(req: NextRequest) {
   if (body.tabReturnMic !== undefined) patch.tabReturnMic = body.tabReturnMic;
   if (body.tabReturnCamera !== undefined) {
     patch.tabReturnCamera = body.tabReturnCamera;
+  }
+
+  if (body.pageAccess !== undefined) {
+    const current = normalizePageAccessSettings(
+      (await ensureAppSettings()).pageAccess ?? DEFAULT_PAGE_ACCESS,
+    );
+    let nextKey = current.requestKey;
+    if (body.pageAccess.requestKey !== undefined) {
+      if (body.pageAccess.requestKey === null) {
+        nextKey = null;
+      } else if (!shouldSkipSecretUpdate(body.pageAccess.requestKey)) {
+        nextKey = body.pageAccess.requestKey.trim() || null;
+      }
+    }
+    patch.pageAccess = {
+      requestKey: nextKey,
+      pages: body.pageAccess.pages,
+    };
   }
 
   if (body.uiPrimary !== undefined) patch.uiPrimary = body.uiPrimary?.trim() || null;

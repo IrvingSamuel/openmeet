@@ -707,6 +707,7 @@
     "description": "Konfigurieren Sie Sprache, KI-Schlüssel, Meeting-Aufzeichnung und ausgehende Webhooks zur Integration von Meet mit Drittplattformen.",
     "tabs": {
       "general": "Allgemein",
+      "access": "Zugang",
       "ai": "KI",
       "webhooks": "Webhooks",
       "recording": "Aufnahme",
@@ -777,6 +778,24 @@
         "restore": "Wie zuvor"
       },
       "save": "Speichern"
+    },
+    "access": {
+      "body": "Legen Sie fest, ob Home, Dashboard und Einstellungen erreichbar sind. Wenn deaktiviert, werden Besucher umgeleitet. Mit einem Anforderungsschlüssel können sie unter /unlock freischalten.",
+      "requestKey": "Anforderungsschlüssel (Freischaltung)",
+      "requestKeyHint": "Optional. Wer diesen Schlüssel unter /unlock eingibt, kann deaktivierte Seiten öffnen.",
+      "requestKeyConfigured": "Schlüssel konfiguriert: {preview}. Leer lassen zum Behalten.",
+      "requestKeyPlaceholder": "Neuer Schlüssel…",
+      "enabled": "Erreichbar",
+      "redirectTo": "Umleiten nach",
+      "redirectHint": "Relativer Pfad (z. B. /login oder /unlock) oder absolute URL.",
+      "unlockHint": "Freischaltseite: {path}",
+      "pages": {
+        "home": "Home (Landing)",
+        "dashboard": "Dashboard",
+        "settings": "Einstellungen / Marke"
+      },
+      "save": "Zugang speichern",
+      "clearKey": "Schlüssel entfernen"
     },
     "ai": {
       "groqEnabled": "Groq / OpenAI-kompatible API nutzen (ersetzt Gemini wenn aktiv)",
@@ -907,6 +926,18 @@
     "notFound": "Vorlage nicht gefunden",
     "startFailed": "Meeting konnte nicht gestartet werden.",
     "startNetworkFailed": "Netzwerkfehler beim Starten des Meetings."
+  },
+  "accessUnlock": {
+    "title": "Zugang freischalten",
+    "body": "Geben Sie den von der Administration bereitgestellten Anforderungsschlüssel ein, um eingeschränkte Seiten zu öffnen.",
+    "keyLabel": "Anforderungsschlüssel",
+    "keyPlaceholder": "Schlüssel…",
+    "submit": "Freischalten",
+    "submitting": "Prüfen…",
+    "success": "Zugang freigeschaltet.",
+    "invalidKey": "Ungültiger Schlüssel.",
+    "notConfigured": "Kein Freischaltschlüssel konfiguriert.",
+    "failed": "Freischalten fehlgeschlagen."
   },
   "auth": {
     "loginTitle": "Sign in",

@@ -75,6 +75,7 @@ const baseRow = {
   allowSignup: true,
   tabReturnMic: "closed",
   tabReturnCamera: "closed",
+  pageAccess: null,
   geminiApiKey: null,
   geminiModel: null,
   geminiSummaryModel: null,

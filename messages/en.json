@@ -717,6 +717,7 @@
     "description": "Configure locale, AI keys, meeting recording, and outbound webhooks to integrate Meet with third-party platforms.",
     "tabs": {
       "general": "General",
+      "access": "Access",
       "ai": "AI",
       "webhooks": "Webhooks",
       "recording": "Recording",
@@ -787,6 +788,24 @@
         "restore": "As it was"
       },
       "save": "Save"
+    },
+    "access": {
+      "body": "Choose whether home, dashboard, and settings are publicly reachable. When disabled, visitors are redirected. With a request key, they can unlock at /unlock.",
+      "requestKey": "Request key (unlock)",
+      "requestKeyHint": "Optional. Anyone who enters this key at /unlock can open disabled pages.",
+      "requestKeyConfigured": "Key configured: {preview}. Leave empty to keep it.",
+      "requestKeyPlaceholder": "New key…",
+      "enabled": "Accessible",
+      "redirectTo": "Redirect to",
+      "redirectHint": "Relative path (e.g. /login or /unlock) or absolute URL.",
+      "unlockHint": "Unlock page: {path}",
+      "pages": {
+        "home": "Home (landing)",
+        "dashboard": "Dashboard",
+        "settings": "Settings / brand"
+      },
+      "save": "Save access",
+      "clearKey": "Remove key"
     },
     "ai": {
       "groqEnabled": "Use Groq / OpenAI-compatible API (replaces Gemini when active)",
@@ -907,6 +926,18 @@
     "notFound": "Template not found",
     "startFailed": "Could not start the meeting.",
     "startNetworkFailed": "Network error starting the meeting."
+  },
+  "accessUnlock": {
+    "title": "Unlock access",
+    "body": "Enter the request key provided by your administrator to open restricted pages.",
+    "keyLabel": "Request key",
+    "keyPlaceholder": "Key…",
+    "submit": "Unlock",
+    "submitting": "Checking…",
+    "success": "Access unlocked.",
+    "invalidKey": "Invalid key.",
+    "notConfigured": "No unlock key is configured.",
+    "failed": "Could not unlock."
   },
   "auth": {
     "loginTitle": "Sign in",
