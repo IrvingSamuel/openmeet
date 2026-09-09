@@ -547,7 +547,10 @@
     "enableAudio": "Click to enable audio",
     "reconnectBanner": "Reconnecting… controls stay active",
     "disconnectNotice": "Connection interrupted — trying to reconnect.",
-    "backToMeeting": "You're back in the meeting. Microphone and camera were turned off for privacy.",
+    "backToMeeting": "You're back in the meeting.",
+    "backToMeetingClosed": "You're back in the meeting. Microphone and camera were turned off for privacy.",
+    "backToMeetingRestored": "You're back in the meeting. Microphone and camera were restored.",
+    "backToMeetingOpened": "You're back in the meeting. Microphone and camera were turned on.",
     "mediaDeviceError": "Could not access camera/microphone ({label}). Check permissions and whether another app is using the device.",
     "mediaUnavailable": "media device unavailable",
     "endForAllFailed": "Could not end the meeting for everyone. Please try again.",
@@ -773,6 +776,15 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "tabReturnTitle": "When leaving the tab",
+      "tabReturnHint": "Leaving the tab turns mic and camera off for privacy. On return, the policy below is applied.",
+      "tabReturnMic": "Microphone on return",
+      "tabReturnCamera": "Camera on return",
+      "tabReturnOptions": {
+        "open": "Open",
+        "closed": "Closed",
+        "restore": "As it was"
       },
       "save": "Save"
     },

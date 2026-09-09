@@ -71,6 +71,10 @@ function jsonRequest(body: unknown, method = "PUT") {
 const baseRow = {
   id: "00000000-0000-0000-0000-000000000001",
   locale: "pt-BR",
+  deploymentMode: "platform",
+  allowSignup: true,
+  tabReturnMic: "closed",
+  tabReturnCamera: "closed",
   geminiApiKey: null,
   geminiModel: null,
   geminiSummaryModel: null,

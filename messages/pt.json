@@ -537,7 +537,10 @@
     "enableAudio": "Clique para habilitar o áudio",
     "reconnectBanner": "Reconectando… os controles continuam ativos",
     "disconnectNotice": "Conexão interrompida — tentando reconectar.",
-    "backToMeeting": "Você voltou à reunião. Microfone e câmera desligados por privacidade.",
+    "backToMeeting": "Você voltou à reunião.",
+    "backToMeetingClosed": "Você voltou à reunião. Microfone e câmara desligados por privacidade.",
+    "backToMeetingRestored": "Você voltou à reunião. Microfone e câmara restaurados.",
+    "backToMeetingOpened": "Você voltou à reunião. Microfone e câmara ligados.",
     "mediaDeviceError": "Não foi possível acessar câmera/microfone ({label}). Verifique permissões e se outro app está usando o device.",
     "mediaUnavailable": "dispositivo de mídia indisponível",
     "endForAllFailed": "Não foi possível encerrar a reunião para todos. Tente novamente.",
@@ -763,6 +766,15 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "tabReturnTitle": "Ao ausentar da guia",
+      "tabReturnHint": "Ao sair da aba, microfone e câmara são desligados por privacidade. Ao voltar, aplica-se a política abaixo.",
+      "tabReturnMic": "Microfone ao voltar",
+      "tabReturnCamera": "Câmara ao voltar",
+      "tabReturnOptions": {
+        "open": "Aberto",
+        "closed": "Fechado",
+        "restore": "Como estava"
       },
       "save": "Guardar"
     },

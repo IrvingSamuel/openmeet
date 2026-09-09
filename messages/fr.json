@@ -537,7 +537,10 @@
     "enableAudio": "Cliquez pour activer l'audio",
     "reconnectBanner": "Reconnexion… les contrôles restent actifs",
     "disconnectNotice": "Connexion interrompue — reconnexion en cours.",
-    "backToMeeting": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
+    "backToMeeting": "Vous êtes de retour dans la réunion.",
+    "backToMeetingClosed": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
+    "backToMeetingRestored": "Vous êtes de retour dans la réunion. Micro et caméra restaurés.",
+    "backToMeetingOpened": "Vous êtes de retour dans la réunion. Micro et caméra activés.",
     "mediaDeviceError": "Impossible d'accéder à la caméra/au micro ({label}). Vérifiez les permissions et si une autre app utilise l'appareil.",
     "mediaUnavailable": "périphérique média indisponible",
     "endForAllFailed": "Impossible de terminer la réunion pour tout le monde. Réessayez.",
@@ -763,6 +766,15 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "tabReturnTitle": "En quittant l’onglet",
+      "tabReturnHint": "En quittant l’onglet, le micro et la caméra sont coupés pour la confidentialité. Au retour, la politique ci-dessous s’applique.",
+      "tabReturnMic": "Micro au retour",
+      "tabReturnCamera": "Caméra au retour",
+      "tabReturnOptions": {
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "restore": "Comme avant"
       },
       "save": "Enregistrer"
     },

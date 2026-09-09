@@ -537,7 +537,10 @@
     "enableAudio": "Klicken, um Audio zu aktivieren",
     "reconnectBanner": "Wiederverbinden… Steuerelemente bleiben aktiv",
     "disconnectNotice": "Verbindung unterbrochen — Wiederverbindung wird versucht.",
-    "backToMeeting": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aus Datenschutzgründen deaktiviert.",
+    "backToMeeting": "Sie sind wieder in der Besprechung.",
+    "backToMeetingClosed": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aus Datenschutzgründen deaktiviert.",
+    "backToMeetingRestored": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden wiederhergestellt.",
+    "backToMeetingOpened": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aktiviert.",
     "mediaDeviceError": "Kamera/Mikrofon ({label}) nicht zugänglich. Prüfen Sie Berechtigungen und ob eine andere App das Gerät nutzt.",
     "mediaUnavailable": "Mediengerät nicht verfügbar",
     "endForAllFailed": "Meeting konnte nicht für alle beendet werden. Bitte erneut versuchen.",
@@ -763,6 +766,15 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "tabReturnTitle": "Beim Verlassen des Tabs",
+      "tabReturnHint": "Beim Verlassen des Tabs werden Mikrofon und Kamera aus Datenschutzgründen ausgeschaltet. Beim Zurückkehren gilt die folgende Richtlinie.",
+      "tabReturnMic": "Mikrofon bei Rückkehr",
+      "tabReturnCamera": "Kamera bei Rückkehr",
+      "tabReturnOptions": {
+        "open": "An",
+        "closed": "Aus",
+        "restore": "Wie zuvor"
       },
       "save": "Speichern"
     },

@@ -53,6 +53,8 @@ type AdminSettings = {
   locale: string;
   deploymentMode?: "server" | "platform";
   allowSignup?: boolean;
+  tabReturnMic?: "open" | "closed" | "restore";
+  tabReturnCamera?: "open" | "closed" | "restore";
   uiPrimary?: string;
   uiSecondary?: string;
   uiTertiary?: string;
@@ -217,6 +219,8 @@ export default function AdminPage() {
       locale: settings.locale,
       deploymentMode: settings.deploymentMode || "platform",
       allowSignup: settings.allowSignup !== false,
+      tabReturnMic: settings.tabReturnMic || "closed",
+      tabReturnCamera: settings.tabReturnCamera || "closed",
     });
   }
 
@@ -597,6 +601,64 @@ export default function AdminPage() {
                   />
                   {t("ui.allowSignup")}
                 </label>
+                <div className="space-y-3 rounded-2xl border border-line bg-black/20 p-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                      {t("general.tabReturnTitle")}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-faint">
+                      {t("general.tabReturnHint")}
+                    </p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Select
+                      label={t("general.tabReturnMic")}
+                      value={settings.tabReturnMic || "closed"}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          tabReturnMic: e.target.value as
+                            | "open"
+                            | "closed"
+                            | "restore",
+                        })
+                      }
+                    >
+                      <option value="closed">
+                        {t("general.tabReturnOptions.closed")}
+                      </option>
+                      <option value="open">
+                        {t("general.tabReturnOptions.open")}
+                      </option>
+                      <option value="restore">
+                        {t("general.tabReturnOptions.restore")}
+                      </option>
+                    </Select>
+                    <Select
+                      label={t("general.tabReturnCamera")}
+                      value={settings.tabReturnCamera || "closed"}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          tabReturnCamera: e.target.value as
+                            | "open"
+                            | "closed"
+                            | "restore",
+                        })
+                      }
+                    >
+                      <option value="closed">
+                        {t("general.tabReturnOptions.closed")}
+                      </option>
+                      <option value="open">
+                        {t("general.tabReturnOptions.open")}
+                      </option>
+                      <option value="restore">
+                        {t("general.tabReturnOptions.restore")}
+                      </option>
+                    </Select>
+                  </div>
+                </div>
                 <Button onClick={saveGeneral} disabled={saving}>
                   {saving ? t("saving") : t("general.save")}
                 </Button>

@@ -405,6 +405,12 @@ export const appSettings = pgTable("app_settings", {
   locale: text("locale").notNull().default("pt-BR"),
   deploymentMode: text("deployment_mode").notNull().default("platform"),
   allowSignup: boolean("allow_signup").notNull().default(true),
+  /**
+   * When the user returns to the meeting tab: open | closed | restore (pre-hide state).
+   * Applied separately to mic and camera. Default closed = current privacy mute.
+   */
+  tabReturnMic: text("tab_return_mic").notNull().default("closed"),
+  tabReturnCamera: text("tab_return_camera").notNull().default("closed"),
   geminiApiKey: text("gemini_api_key"),
   geminiModel: text("gemini_model"),
   geminiSummaryModel: text("gemini_summary_model"),

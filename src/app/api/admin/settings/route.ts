@@ -31,6 +31,8 @@ const putSchema = z.object({
   locale: z.enum(["pt-BR", "en", "es", "fr", "de"]).optional(),
   deploymentMode: z.enum(["server", "platform"]).optional(),
   allowSignup: z.boolean().optional(),
+  tabReturnMic: z.enum(["open", "closed", "restore"]).optional(),
+  tabReturnCamera: z.enum(["open", "closed", "restore"]).optional(),
   geminiApiKey: z.string().nullable().optional(),
   geminiModel: z.string().max(120).nullable().optional(),
   geminiSummaryModel: z.string().max(120).nullable().optional(),
@@ -132,6 +134,8 @@ function publicSettingsPayload(
     locale: row.locale || "pt-BR",
     deploymentMode: row.deploymentMode || "platform",
     allowSignup: row.allowSignup !== false,
+    tabReturnMic: row.tabReturnMic || "closed",
+    tabReturnCamera: row.tabReturnCamera || "closed",
     uiPrimary: row.uiPrimary || "#0ea5e9",
     uiSecondary: row.uiSecondary || "#38bdf8",
     uiTertiary: row.uiTertiary || "#818cf8",
@@ -229,6 +233,10 @@ export async function PUT(req: NextRequest) {
   if (body.locale !== undefined) patch.locale = body.locale;
   if (body.deploymentMode !== undefined) patch.deploymentMode = body.deploymentMode;
   if (body.allowSignup !== undefined) patch.allowSignup = body.allowSignup;
+  if (body.tabReturnMic !== undefined) patch.tabReturnMic = body.tabReturnMic;
+  if (body.tabReturnCamera !== undefined) {
+    patch.tabReturnCamera = body.tabReturnCamera;
+  }
 
   if (body.uiPrimary !== undefined) patch.uiPrimary = body.uiPrimary?.trim() || null;
   if (body.uiSecondary !== undefined) patch.uiSecondary = body.uiSecondary?.trim() || null;

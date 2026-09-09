@@ -54,6 +54,12 @@ import { useJoinRequests } from "@/hooks/useJoinRequests";
 import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
 import { useRoomVisibility } from "@/hooks/useRoomVisibility";
+import {
+  DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  normalizeTabReturnMediaPolicy,
+  type TabReturnMediaPrefs,
+  type TabReturnMediaPolicy,
+} from "@/lib/tab-return-media";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
@@ -768,6 +774,120 @@ function RoomShell({
     })();
   }, [room, leavingRef]);
 
+  const [tabReturnPrefs, setTabReturnPrefs] = useState<TabReturnMediaPrefs>(
+    DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  );
+  const tabMediaSnapshot = useRef<{ audio: boolean; video: boolean } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/system/room-prefs", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (data: {
+          tabReturnMedia?: { mic?: string; camera?: string };
+        } | null) => {
+          if (cancelled || !data?.tabReturnMedia) return;
+          setTabReturnPrefs({
+            mic: normalizeTabReturnMediaPolicy(data.tabReturnMedia.mic),
+            camera: normalizeTabReturnMediaPolicy(data.tabReturnMedia.camera),
+          });
+        },
+      )
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyDevicePolicy = useCallback(
+    async (
+      policy: TabReturnMediaPolicy,
+      kind: "audio" | "video",
+      snapOn: boolean,
+    ) => {
+      const lp = room.localParticipant;
+      const videoOpts = videoDeviceId ? { deviceId: videoDeviceId } : undefined;
+      const audioOpts = audioDeviceId ? { deviceId: audioDeviceId } : undefined;
+      let want = false;
+      if (policy === "open") want = true;
+      else if (policy === "restore") want = snapOn;
+      else want = false;
+
+      if (kind === "audio") {
+        await lp.setMicrophoneEnabled(want, audioOpts);
+      } else {
+        await lp.setCameraEnabled(want, videoOpts);
+      }
+      return want;
+    },
+    [room, videoDeviceId, audioDeviceId],
+  );
+
+  const onTabHidden = useCallback(() => {
+    if (leavingRef.current) return;
+    const lp = room.localParticipant;
+    tabMediaSnapshot.current = {
+      audio: lp.isMicrophoneEnabled,
+      video: lp.isCameraEnabled,
+    };
+    muteLocalMediaForPrivacy();
+  }, [room, leavingRef, muteLocalMediaForPrivacy]);
+
+  const onTabVisible = useCallback(() => {
+    if (leavingRef.current) return;
+    const snap = tabMediaSnapshot.current ?? {
+      audio: wantAudio,
+      video: wantVideo,
+    };
+    mediaEnsureGen.current += 1;
+    const gen = mediaEnsureGen.current;
+
+    void (async () => {
+      try {
+        const audioWant = await applyDevicePolicy(
+          tabReturnPrefs.mic,
+          "audio",
+          snap.audio,
+        );
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        const videoWant = await applyDevicePolicy(
+          tabReturnPrefs.camera,
+          "video",
+          snap.video,
+        );
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        setMediaWanted({ audio: audioWant, video: videoWant });
+
+        const bothClosed =
+          tabReturnPrefs.mic === "closed" && tabReturnPrefs.camera === "closed";
+        const bothOpen =
+          tabReturnPrefs.mic === "open" && tabReturnPrefs.camera === "open";
+        const bothRestore =
+          tabReturnPrefs.mic === "restore" &&
+          tabReturnPrefs.camera === "restore";
+        if (bothClosed) toast.push(t("backToMeetingClosed"));
+        else if (bothOpen) toast.push(t("backToMeetingOpened"));
+        else if (bothRestore) toast.push(t("backToMeetingRestored"));
+        else toast.push(t("backToMeeting"));
+      } catch (err) {
+        console.error("[openmeet] tab-return media policy failed", err);
+        toast.push(t("backToMeeting"));
+      }
+    })();
+  }, [
+    leavingRef,
+    wantAudio,
+    wantVideo,
+    applyDevicePolicy,
+    tabReturnPrefs.mic,
+    tabReturnPrefs.camera,
+    toast,
+    t,
+  ]);
+
   // Keep reconnect backup in sync with in-call toggles after a privacy mute.
   useEffect(() => {
     const lp = room.localParticipant;
@@ -789,10 +909,7 @@ function RoomShell({
     };
   }, [room]);
 
-  useRoomVisibility(room, () => {
-    muteLocalMediaForPrivacy();
-    toast.push(t("backToMeeting"));
-  });
+  useRoomVisibility(room, onTabVisible, onTabHidden);
 
   useEffect(() => {
     if (state === ConnectionState.Connected) hasConnectedOnce.current = true;
