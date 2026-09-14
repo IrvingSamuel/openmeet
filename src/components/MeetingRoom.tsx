@@ -466,6 +466,29 @@ function RoomShell({
     isHost,
     config: recordingConfig,
   });
+  const declineAsk = recorder.declineAsk;
+  const [recordingHint, setRecordingHint] = useState(false);
+  const recordingHintTimerRef = useRef<number | null>(null);
+
+  const declineRecordingAsk = useCallback(() => {
+    declineAsk();
+    setRecordingHint(true);
+    if (recordingHintTimerRef.current) {
+      window.clearTimeout(recordingHintTimerRef.current);
+    }
+    recordingHintTimerRef.current = window.setTimeout(() => {
+      setRecordingHint(false);
+      recordingHintTimerRef.current = null;
+    }, 5000);
+  }, [declineAsk]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingHintTimerRef.current) {
+        window.clearTimeout(recordingHintTimerRef.current);
+      }
+    };
+  }, []);
 
   const {
     requests: joinRequests,
@@ -1138,6 +1161,8 @@ function RoomShell({
             recordingActive={recorder.active}
             recordingBusy={recorder.busy}
             canToggleRecording={recorder.canToggle}
+            highlightRecording={recordingHint}
+            recordingHint={recordingHint ? t("recordingHint") : undefined}
             onToggleRecording={() => {
               if (recorder.active) void recorder.stop();
               else void recorder.start();
@@ -1152,6 +1177,40 @@ function RoomShell({
       </div>
 
       <AnimatePresence>
+        {recorder.needsAskPrompt ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[55] grid place-items-center bg-[var(--brand-bg)]/92 px-6 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md rounded-3xl glass-strong p-8 text-center shadow-lift">
+              <h2 className="text-xl font-semibold tracking-tight">
+                {t("recordingAskTitle")}
+              </h2>
+              <p className="mt-2 text-sm text-ink-muted">
+                {t("recordingAskBody")}
+              </p>
+              <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button
+                  size="lg"
+                  loading={recorder.busy}
+                  onClick={() => recorder.acceptAsk()}
+                >
+                  {t("recordingAskYes")}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  disabled={recorder.busy}
+                  onClick={declineRecordingAsk}
+                >
+                  {t("recordingAskNotNow")}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
         {recorder.needsScreenCaptureConfirm ? (
           <motion.div
             initial={{ opacity: 0 }}

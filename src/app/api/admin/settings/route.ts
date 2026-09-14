@@ -72,7 +72,7 @@ const putSchema = z.object({
   webhookEvents: webhookEventsSchema.optional(),
   recordingEnabled: z.boolean().optional(),
   recordingEngine: z.enum(["egress", "browser"]).optional(),
-  recordingControlMode: z.enum(["manual", "auto"]).optional(),
+  recordingControlMode: z.enum(["manual", "auto", "ask"]).optional(),
   recordingStorage: z.enum(["local", "s3"]).optional(),
   recordingS3Endpoint: z.string().max(500).nullable().optional(),
   recordingS3Bucket: z.string().max(200).nullable().optional(),

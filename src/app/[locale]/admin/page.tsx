@@ -94,7 +94,7 @@ type AdminSettings = {
   webhookEvents: WebhookEvents;
   recordingEnabled: boolean;
   recordingEngine: "egress" | "browser";
-  recordingControlMode: "manual" | "auto";
+  recordingControlMode: "manual" | "auto" | "ask";
   recordingStorage: "local" | "s3";
   recordingLocalDir: string;
   recordingS3Endpoint: string;
@@ -1212,12 +1212,16 @@ export default function AdminPage() {
                   onChange={(e) =>
                     setSettings({
                       ...settings,
-                      recordingControlMode: e.target.value as "manual" | "auto",
+                      recordingControlMode: e.target.value as
+                        | "manual"
+                        | "auto"
+                        | "ask",
                     })
                   }
                 >
                   <option value="manual">{t("recording.controlManual")}</option>
                   <option value="auto">{t("recording.controlAuto")}</option>
+                  <option value="ask">{t("recording.controlAsk")}</option>
                 </Select>
                 <Select
                   label={t("recording.storageLabel")}

@@ -351,7 +351,7 @@ export const copilotChatMessages = pgTable(
 
 export type RecordingEngine = "egress" | "browser";
 export type RecordingStorageBackend = "local" | "s3";
-export type RecordingControlMode = "manual" | "auto";
+export type RecordingControlMode = "manual" | "auto" | "ask";
 export type RecordingStatus =
   | "pending"
   | "recording"

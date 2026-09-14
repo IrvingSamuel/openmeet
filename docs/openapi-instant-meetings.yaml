@@ -27,7 +27,7 @@ info:
        - Após leave/end, participantes regressam a `redirect_after_meet`.  
        - Informe `webhook_url` para receber resumo, transcrição, tarefas e gravação.
 
-    ## Webhooks de saída (`webhook_url`)
+    ## Webhooks de saída (webhook_url)
 
     Campo opcional em salas e reuniões: URL **http(s) absoluta** para onde o
     OpenMeet envia os artefatos da reunião. **Não** é redirect de browser —

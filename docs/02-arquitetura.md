@@ -87,7 +87,7 @@ Agent ──► Postgres
   - Erros da API incluem `detail` (ex. timeout = worker Egress em baixo).
 - Storage **local**: `RECORDINGS_DIR` (default `/var/chronos-meet/recordings`), download autenticado.
 - Storage **s3**: endpoint compatível (MinIO, Hetzner Object Storage, AWS) via admin ou `RECORDING_S3_*`.
-- Controlo **manual**: botão REC na ControlBar (host). Controlo **auto**: inicia ao entrar o moderador; sem stop até ao fim da reunião.
+- Controlo **manual**: botão REC na ControlBar (host). Controlo **auto**: inicia ao entrar o moderador; sem stop até ao fim da reunião. Controlo **ask**: pop-up ao entrar o anfitrião; pode recusar e gravar depois.
 
 ```bash
 # Teste pontual de Egress nesta VPS (depois desligar)

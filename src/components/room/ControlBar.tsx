@@ -4,7 +4,16 @@ import { useTrackToggle } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, forwardRef, type ReactNode, type Ref } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { unlockMeetingChimes } from "@/lib/recording-beep";
 import { useIsSmUp } from "@/hooks/useMediaQuery";
@@ -48,6 +57,8 @@ export function ControlBar({
   recordingActive,
   recordingBusy,
   canToggleRecording,
+  highlightRecording,
+  recordingHint,
   onToggleRecording,
   onLeave,
   onEndForAll,
@@ -69,6 +80,8 @@ export function ControlBar({
   recordingActive?: boolean;
   recordingBusy?: boolean;
   canToggleRecording?: boolean;
+  highlightRecording?: boolean;
+  recordingHint?: string;
   onToggleRecording?: () => void;
   onLeave: () => void;
   onEndForAll?: () => void | Promise<void>;
@@ -86,6 +99,7 @@ export function ControlBar({
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
   const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
+  const recordBtnRef = useRef<HTMLButtonElement>(null);
   const chimesUnlockedRef = useRef(false);
 
   function unlockChimesOnce() {
@@ -189,15 +203,28 @@ export function ControlBar({
         ) : null}
 
         {canToggleRecording ? (
-          <ControlButton
-            active={Boolean(recordingActive)}
-            danger={Boolean(recordingActive)}
-            pending={Boolean(recordingBusy)}
-            onClick={() => onToggleRecording?.()}
-            label={recordingActive ? t("stopRecording") : t("startRecording")}
-          >
-            <IconRecord />
-          </ControlButton>
+          <div className="relative shrink-0">
+            <ControlButton
+              ref={recordBtnRef}
+              active={Boolean(recordingActive) || highlightRecording}
+              danger={Boolean(recordingActive)}
+              pending={Boolean(recordingBusy)}
+              onClick={() => onToggleRecording?.()}
+              label={recordingActive ? t("stopRecording") : t("startRecording")}
+              className={
+                highlightRecording && !recordingActive
+                  ? "ring-2 ring-brand-primary ring-offset-2 ring-offset-[var(--brand-bg)]"
+                  : undefined
+              }
+            >
+              <IconRecord />
+            </ControlButton>
+            <RecordingHintTooltip
+              anchorRef={recordBtnRef}
+              open={Boolean(highlightRecording && recordingHint)}
+              text={recordingHint ?? ""}
+            />
+          </div>
         ) : null}
 
         <Separator />
@@ -548,6 +575,57 @@ function LeaveControl({
 
 function Separator() {
   return <span aria-hidden className="mx-0.5 h-7 w-px shrink-0 bg-line" />;
+}
+
+function RecordingHintTooltip({
+  anchorRef,
+  open,
+  text,
+}: {
+  anchorRef: RefObject<HTMLButtonElement | null>;
+  open: boolean;
+  text: string;
+}) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!open || !anchorRef.current || !text) {
+      setPos(null);
+      return;
+    }
+    const update = () => {
+      const node = anchorRef.current;
+      if (!node) return;
+      const r = node.getBoundingClientRect();
+      setPos({ x: r.left + r.width / 2, y: r.top });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open, text, anchorRef]);
+
+  if (!open || !pos || !text || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      role="status"
+      className="pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-full"
+      style={{ left: pos.x, top: pos.y - 10 }}
+    >
+      <div className="whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-lift">
+        {text}
+      </div>
+      <span
+        aria-hidden
+        className="mx-auto block h-0 w-0 border-x-[6px] border-t-[6px] border-x-transparent border-t-white"
+      />
+    </div>,
+    document.body,
+  );
 }
 
 const ControlButton = forwardRef(function ControlButton(

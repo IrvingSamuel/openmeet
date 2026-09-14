@@ -256,7 +256,8 @@ function asEngine(value: string | null | undefined): RecordingEngine {
 }
 
 function asControlMode(value: string | null | undefined): RecordingControlMode {
-  return value === "auto" ? "auto" : "manual";
+  if (value === "auto" || value === "ask") return value;
+  return "manual";
 }
 
 function asStorage(value: string | null | undefined): RecordingStorageBackend {

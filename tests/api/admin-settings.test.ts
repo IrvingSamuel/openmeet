@@ -238,6 +238,33 @@ describe("GET /api/admin/settings", () => {
     expect(json.recordingEngine).toBe("egress");
     expect(json.recordingControlMode).toBe("auto");
   });
+
+  it("updates recording control mode to ask", async () => {
+    session.isLoggedIn = true;
+    session.email = "admin@chronos.com.pt";
+    updateReturning.mockResolvedValue([
+      {
+        ...baseRow,
+        recordingEnabled: true,
+        recordingControlMode: "ask",
+        updatedAt: new Date(),
+      },
+    ]);
+    resolveRecordingConfig.mockResolvedValue({
+      ...baseRecording,
+      enabled: true,
+      controlMode: "ask",
+    });
+    const res = await PUT(
+      jsonRequest({
+        recordingEnabled: true,
+        recordingControlMode: "ask",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.recordingControlMode).toBe("ask");
+  });
 });
 
 describe("PUT /api/admin/settings", () => {
