@@ -54,6 +54,7 @@ type AdminSettings = {
   locale: string;
   deploymentMode?: "server" | "platform";
   allowSignup?: boolean;
+  tabReturnEnabled?: boolean;
   tabReturnMic?: "open" | "closed" | "restore";
   tabReturnCamera?: "open" | "closed" | "restore";
   pageAccess?: {
@@ -232,6 +233,7 @@ export default function AdminPage() {
       locale: settings.locale,
       deploymentMode: settings.deploymentMode || "platform",
       allowSignup: settings.allowSignup !== false,
+      tabReturnEnabled: settings.tabReturnEnabled !== false,
       tabReturnMic: settings.tabReturnMic || "closed",
       tabReturnCamera: settings.tabReturnCamera || "closed",
     });
@@ -668,10 +670,33 @@ export default function AdminPage() {
                       {t("general.tabReturnHint")}
                     </p>
                   </div>
+                  <Select
+                    label={t("general.tabReturnEnabled")}
+                    value={settings.tabReturnEnabled === false ? "off" : "on"}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        tabReturnEnabled: e.target.value === "on",
+                      })
+                    }
+                  >
+                    <option value="on">
+                      {t("general.tabReturnEnabledOptions.on")}
+                    </option>
+                    <option value="off">
+                      {t("general.tabReturnEnabledOptions.off")}
+                    </option>
+                  </Select>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Select
                       label={t("general.tabReturnMic")}
                       value={settings.tabReturnMic || "closed"}
+                      disabled={settings.tabReturnEnabled === false}
+                      className={
+                        settings.tabReturnEnabled === false
+                          ? "opacity-50"
+                          : undefined
+                      }
                       onChange={(e) =>
                         setSettings({
                           ...settings,
@@ -695,6 +720,12 @@ export default function AdminPage() {
                     <Select
                       label={t("general.tabReturnCamera")}
                       value={settings.tabReturnCamera || "closed"}
+                      disabled={settings.tabReturnEnabled === false}
+                      className={
+                        settings.tabReturnEnabled === false
+                          ? "opacity-50"
+                          : undefined
+                      }
                       onChange={(e) =>
                         setSettings({
                           ...settings,

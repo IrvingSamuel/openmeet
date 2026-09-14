@@ -769,7 +769,12 @@
         "de": "Deutsch"
       },
       "tabReturnTitle": "Al ausentarse de la pestaña",
-      "tabReturnHint": "Al salir de la pestaña, el micrófono y la cámara se apagan por privacidad. Al volver, se aplica la política siguiente.",
+      "tabReturnHint": "Si está activa, al salir de la pestaña el micrófono y la cámara se apagan por privacidad. Al volver, se aplica la política siguiente.",
+      "tabReturnEnabled": "Protección al ausentarse",
+      "tabReturnEnabledOptions": {
+        "on": "Activado",
+        "off": "Desactivado"
+      },
       "tabReturnMic": "Micrófono al volver",
       "tabReturnCamera": "Cámara al volver",
       "tabReturnOptions": {

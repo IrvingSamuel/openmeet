@@ -10,6 +10,7 @@ const roomBrandsFindFirst = vi.fn();
 const identityBrandsFindFirst = vi.fn();
 const usersFindFirst = vi.fn();
 const insertReturning = vi.fn();
+const insertValues = vi.fn();
 const getAppSettings = vi.fn();
 
 vi.mock("@/lib/session", () => ({
@@ -37,7 +38,10 @@ vi.mock("@/db", () => ({
       },
     },
     insert: () => ({
-      values: () => ({ returning: () => insertReturning() }),
+      values: (v: unknown) => {
+        insertValues(v);
+        return { returning: () => insertReturning() };
+      },
     }),
   },
 }));
@@ -66,6 +70,7 @@ beforeEach(() => {
   identityBrandsFindFirst.mockReset();
   usersFindFirst.mockReset();
   insertReturning.mockReset();
+  insertValues.mockReset();
   getAppSettings.mockReset();
   getAppSettings.mockResolvedValue(null);
   identityBrandsFindFirst.mockResolvedValue(undefined);
@@ -255,6 +260,75 @@ describe("POST /api/v1/rooms", () => {
     const body = await res.json();
     expect(body.error).toBe("invalid_body");
   });
+
+  it("stores and echoes webhook_url", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "r-hook",
+          slug: "tmplhook01",
+          title: "Hook Room",
+          accessPolicy: "public",
+          webhookUrl: "https://lms.example.com/hooks/openmeet",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          roomId: "r-hook",
+          themePreset: "sky",
+          primaryColor: "#0ea5e9",
+          secondaryColor: "#38bdf8",
+          tertiaryColor: "#818cf8",
+          background: "#0b1020",
+          wordmark: "Hook Room",
+          lobbyTitle: "Hook Room",
+          lobbySubtitle: "Powered by OpenMeet",
+          fontFamily: "Inter, system-ui, sans-serif",
+          logoUrl: null,
+          faviconUrl: null,
+          customCss: null,
+        },
+      ]);
+
+    const res = await createRoom(
+      jsonRequest(
+        "http://localhost/api/v1/rooms",
+        {
+          name: "Hook Room",
+          external_id: "cu-1",
+          webhook_url: "https://lms.example.com/hooks/openmeet",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.webhook_url).toBe("https://lms.example.com/hooks/openmeet");
+    expect(insertValues.mock.calls[0][0]).toMatchObject({
+      webhookUrl: "https://lms.example.com/hooks/openmeet",
+    });
+  });
+
+  it("rejects invalid webhook_url", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    const res = await createRoom(
+      jsonRequest(
+        "http://localhost/api/v1/rooms",
+        {
+          name: "Bad Hook",
+          external_id: "cu-1",
+          webhook_url: "javascript:alert(1)",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("webhook_url_invalid");
+  });
 });
 
 describe("POST /api/v1/rooms/{room_id}/meetings", () => {
@@ -361,5 +435,98 @@ describe("POST /api/v1/rooms/{room_id}/meetings", () => {
     expect(body.brand_room_id).toBe(roomId);
     expect(body.url).toContain("/m/meet000001");
     expect(body.join_path).toBe("/m/meet000001");
+  });
+
+  it("inherits webhook_url from the room when omitted", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    roomsFindFirst.mockResolvedValue({
+      id: roomId,
+      title: "Template Acme",
+      ownerIdentityId: "owner-1",
+      boardId: null,
+      accessPolicy: "public",
+      webhookUrl: "https://hooks.partner/room",
+    });
+    roomBrandsFindFirst.mockResolvedValue({
+      roomId,
+      themePreset: "sky",
+      primaryColor: "#0ea5e9",
+    });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-hook",
+          slug: "meet000hook",
+          title: "Comercial",
+          accessPolicy: "public",
+          roomId,
+          emptyTimeoutSec: null,
+          webhookUrl: "https://hooks.partner/room",
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-hook" }]);
+
+    const res = await createMeetingFromRoom(
+      jsonRequest(
+        `http://localhost/api/v1/rooms/${roomId}/meetings`,
+        { title: "Comercial" },
+        { Authorization: "Bearer secret-token" },
+      ),
+      { params: Promise.resolve({ room_id: roomId }) },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.webhook_url).toBe("https://hooks.partner/room");
+    expect(insertValues.mock.calls[0][0]).toMatchObject({
+      webhookUrl: "https://hooks.partner/room",
+    });
+  });
+
+  it("overrides the room webhook_url when the body sets one", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    roomsFindFirst.mockResolvedValue({
+      id: roomId,
+      title: "Template Acme",
+      ownerIdentityId: "owner-1",
+      boardId: null,
+      accessPolicy: "public",
+      webhookUrl: "https://hooks.partner/room",
+    });
+    roomBrandsFindFirst.mockResolvedValue({
+      roomId,
+      themePreset: "sky",
+      primaryColor: "#0ea5e9",
+    });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-over",
+          slug: "meet000over",
+          title: "Comercial",
+          accessPolicy: "public",
+          roomId,
+          emptyTimeoutSec: null,
+          webhookUrl: "https://crm.example.com/meet",
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-over" }]);
+
+    const res = await createMeetingFromRoom(
+      jsonRequest(
+        `http://localhost/api/v1/rooms/${roomId}/meetings`,
+        {
+          title: "Comercial",
+          webhook_url: "https://crm.example.com/meet",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+      { params: Promise.resolve({ room_id: roomId }) },
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.webhook_url).toBe("https://crm.example.com/meet");
+    expect(insertValues.mock.calls[0][0]).toMatchObject({
+      webhookUrl: "https://crm.example.com/meet",
+    });
   });
 });

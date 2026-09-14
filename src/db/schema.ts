@@ -72,6 +72,8 @@ export const rooms = pgTable(
     accessPolicy: text("access_policy").notNull().default("members"),
     kind: text("kind").notNull().default("persistent"),
     livekitRoomName: text("livekit_room_name").notNull(),
+    /** Absolute http(s) URL for outbound meeting artifacts (inherited by meetings). */
+    webhookUrl: text("webhook_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -173,6 +175,8 @@ export const meetings = pgTable(
     emptyTimeoutSec: integer("empty_timeout_sec"),
     /** Absolute http(s) URL to send participants after leave/end. */
     redirectAfterMeet: text("redirect_after_meet"),
+    /** Absolute http(s) URL for outbound meeting artifacts (snapshot at create). */
+    webhookUrl: text("webhook_url"),
     /**
      * When true (typical for API invite meetings), guests stay in the lobby
      * until a host participant is present — no manual approval queue.
@@ -406,9 +410,11 @@ export const appSettings = pgTable("app_settings", {
   deploymentMode: text("deployment_mode").notNull().default("platform"),
   allowSignup: boolean("allow_signup").notNull().default(true),
   /**
-   * When the user returns to the meeting tab: open | closed | restore (pre-hide state).
-   * Applied separately to mic and camera. Default closed = current privacy mute.
+   * Mute local mic/camera when the meeting tab is hidden (privacy).
+   * When the user returns: open | closed | restore (pre-hide state),
+   * applied separately to mic and camera. Default closed = privacy mute.
    */
+  tabReturnEnabled: boolean("tab_return_enabled").notNull().default(true),
   tabReturnMic: text("tab_return_mic").notNull().default("closed"),
   tabReturnCamera: text("tab_return_camera").notNull().default("closed"),
   /**

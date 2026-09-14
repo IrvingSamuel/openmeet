@@ -56,6 +56,7 @@ import { useRoomReactions } from "@/hooks/useRoomReactions";
 import { useRoomVisibility } from "@/hooks/useRoomVisibility";
 import {
   DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  normalizeTabReturnEnabled,
   normalizeTabReturnMediaPolicy,
   type TabReturnMediaPrefs,
   type TabReturnMediaPolicy,
@@ -787,10 +788,15 @@ function RoomShell({
       .then((r) => (r.ok ? r.json() : null))
       .then(
         (data: {
-          tabReturnMedia?: { mic?: string; camera?: string };
+          tabReturnMedia?: {
+            enabled?: boolean;
+            mic?: string;
+            camera?: string;
+          };
         } | null) => {
           if (cancelled || !data?.tabReturnMedia) return;
           setTabReturnPrefs({
+            enabled: normalizeTabReturnEnabled(data.tabReturnMedia.enabled),
             mic: normalizeTabReturnMediaPolicy(data.tabReturnMedia.mic),
             camera: normalizeTabReturnMediaPolicy(data.tabReturnMedia.camera),
           });
@@ -828,16 +834,18 @@ function RoomShell({
 
   const onTabHidden = useCallback(() => {
     if (leavingRef.current) return;
+    if (!tabReturnPrefs.enabled) return;
     const lp = room.localParticipant;
     tabMediaSnapshot.current = {
       audio: lp.isMicrophoneEnabled,
       video: lp.isCameraEnabled,
     };
     muteLocalMediaForPrivacy();
-  }, [room, leavingRef, muteLocalMediaForPrivacy]);
+  }, [room, leavingRef, muteLocalMediaForPrivacy, tabReturnPrefs.enabled]);
 
   const onTabVisible = useCallback(() => {
     if (leavingRef.current) return;
+    if (!tabReturnPrefs.enabled) return;
     const snap = tabMediaSnapshot.current ?? {
       audio: wantAudio,
       video: wantVideo,
@@ -882,6 +890,7 @@ function RoomShell({
     wantAudio,
     wantVideo,
     applyDevicePolicy,
+    tabReturnPrefs.enabled,
     tabReturnPrefs.mic,
     tabReturnPrefs.camera,
     toast,

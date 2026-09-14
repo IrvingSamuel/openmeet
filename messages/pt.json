@@ -769,7 +769,12 @@
         "de": "Deutsch"
       },
       "tabReturnTitle": "Ao ausentar da guia",
-      "tabReturnHint": "Ao sair da aba, microfone e câmara são desligados por privacidade. Ao voltar, aplica-se a política abaixo.",
+      "tabReturnHint": "Quando ativada, ao sair da aba o microfone e a câmara são desligados por privacidade. Ao voltar, aplica-se a política abaixo.",
+      "tabReturnEnabled": "Proteção ao ausentar",
+      "tabReturnEnabledOptions": {
+        "on": "Ativado",
+        "off": "Desativado"
+      },
       "tabReturnMic": "Microfone ao voltar",
       "tabReturnCamera": "Câmara ao voltar",
       "tabReturnOptions": {

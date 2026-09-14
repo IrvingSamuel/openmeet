@@ -324,4 +324,59 @@ describe("POST /api/v1/instant-meetings", () => {
     const body = await res.json();
     expect(body.error).toBe("redirect_after_meet_invalid");
   });
+
+  it("stores and echoes webhook_url", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-hook",
+          slug: "hooked01",
+          title: "Aula",
+          accessPolicy: "public",
+          roomId: null,
+          waitForHost: false,
+          redirectAfterMeet: null,
+          webhookUrl: "https://lms.example.com/hooks/openmeet",
+          emptyTimeoutSec: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-hook" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Aula",
+          external_id: "cu-1",
+          webhook_url: "https://lms.example.com/hooks/openmeet",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.webhook_url).toBe("https://lms.example.com/hooks/openmeet");
+  });
+
+  it("rejects invalid webhook_url", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Bad hook",
+          external_id: "cu-1",
+          webhook_url: "javascript:alert(1)",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("webhook_url_invalid");
+  });
 });

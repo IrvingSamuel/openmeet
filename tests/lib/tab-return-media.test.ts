@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TAB_RETURN_MEDIA_POLICY,
+  normalizeTabReturnEnabled,
   normalizeTabReturnMediaPolicy,
 } from "@/lib/tab-return-media";
 
@@ -17,5 +18,17 @@ describe("normalizeTabReturnMediaPolicy", () => {
     expect(normalizeTabReturnMediaPolicy("open")).toBe("open");
     expect(normalizeTabReturnMediaPolicy("CLOSED")).toBe("closed");
     expect(normalizeTabReturnMediaPolicy(" restore ")).toBe("restore");
+  });
+});
+
+describe("normalizeTabReturnEnabled", () => {
+  it("defaults to on when unset", () => {
+    expect(normalizeTabReturnEnabled(undefined)).toBe(true);
+    expect(normalizeTabReturnEnabled(null)).toBe(true);
+    expect(normalizeTabReturnEnabled(true)).toBe(true);
+  });
+
+  it("accepts explicit off", () => {
+    expect(normalizeTabReturnEnabled(false)).toBe(false);
   });
 });

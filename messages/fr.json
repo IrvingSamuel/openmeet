@@ -769,7 +769,12 @@
         "de": "Deutsch"
       },
       "tabReturnTitle": "En quittant l’onglet",
-      "tabReturnHint": "En quittant l’onglet, le micro et la caméra sont coupés pour la confidentialité. Au retour, la politique ci-dessous s’applique.",
+      "tabReturnHint": "Lorsqu’elle est activée, quitter l’onglet coupe le micro et la caméra pour la confidentialité. Au retour, la politique ci-dessous s’applique.",
+      "tabReturnEnabled": "Protection hors onglet",
+      "tabReturnEnabledOptions": {
+        "on": "Activé",
+        "off": "Désactivé"
+      },
       "tabReturnMic": "Micro au retour",
       "tabReturnCamera": "Caméra au retour",
       "tabReturnOptions": {

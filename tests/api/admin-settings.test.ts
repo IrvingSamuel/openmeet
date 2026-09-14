@@ -73,6 +73,7 @@ const baseRow = {
   locale: "pt-BR",
   deploymentMode: "platform",
   allowSignup: true,
+  tabReturnEnabled: true,
   tabReturnMic: "closed",
   tabReturnCamera: "closed",
   pageAccess: null,
@@ -195,6 +196,7 @@ describe("GET /api/admin/settings", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.locale).toBe("pt-BR");
+    expect(json.tabReturnEnabled).toBe(true);
     expect(json.geminiApiKey.configured).toBe(true);
     expect(json.geminiApiKey.preview).toBe("••••1234");
     expect(json.webhookUrl).toBe("https://hooks.example/meet");
@@ -255,6 +257,18 @@ describe("PUT /api/admin/settings", () => {
     const json = await res.json();
     expect(json.ok).toBe(true);
     expect(json.locale).toBe("en");
+  });
+
+  it("updates tab-return privacy toggle for admin", async () => {
+    session.isLoggedIn = true;
+    session.email = "admin@chronos.com.pt";
+    updateReturning.mockResolvedValue([
+      { ...baseRow, tabReturnEnabled: false, updatedAt: new Date() },
+    ]);
+    const res = await PUT(jsonRequest({ tabReturnEnabled: false }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.tabReturnEnabled).toBe(false);
   });
 });
 

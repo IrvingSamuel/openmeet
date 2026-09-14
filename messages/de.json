@@ -769,7 +769,12 @@
         "de": "Deutsch"
       },
       "tabReturnTitle": "Beim Verlassen des Tabs",
-      "tabReturnHint": "Beim Verlassen des Tabs werden Mikrofon und Kamera aus Datenschutzgründen ausgeschaltet. Beim Zurückkehren gilt die folgende Richtlinie.",
+      "tabReturnHint": "Wenn aktiv, werden beim Verlassen des Tabs Mikrofon und Kamera aus Datenschutzgründen ausgeschaltet. Beim Zurückkehren gilt die folgende Richtlinie.",
+      "tabReturnEnabled": "Schutz beim Tabwechsel",
+      "tabReturnEnabledOptions": {
+        "on": "Aktiviert",
+        "off": "Deaktiviert"
+      },
       "tabReturnMic": "Mikrofon bei Rückkehr",
       "tabReturnCamera": "Kamera bei Rückkehr",
       "tabReturnOptions": {

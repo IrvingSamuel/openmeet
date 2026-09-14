@@ -35,6 +35,7 @@ const putSchema = z.object({
   locale: z.enum(["pt-BR", "en", "es", "fr", "de"]).optional(),
   deploymentMode: z.enum(["server", "platform"]).optional(),
   allowSignup: z.boolean().optional(),
+  tabReturnEnabled: z.boolean().optional(),
   tabReturnMic: z.enum(["open", "closed", "restore"]).optional(),
   tabReturnCamera: z.enum(["open", "closed", "restore"]).optional(),
   pageAccess: z
@@ -157,6 +158,7 @@ function publicSettingsPayload(
     locale: row.locale || "pt-BR",
     deploymentMode: row.deploymentMode || "platform",
     allowSignup: row.allowSignup !== false,
+    tabReturnEnabled: row.tabReturnEnabled !== false,
     tabReturnMic: row.tabReturnMic || "closed",
     tabReturnCamera: row.tabReturnCamera || "closed",
     pageAccess: (() => {
@@ -267,6 +269,9 @@ export async function PUT(req: NextRequest) {
   if (body.locale !== undefined) patch.locale = body.locale;
   if (body.deploymentMode !== undefined) patch.deploymentMode = body.deploymentMode;
   if (body.allowSignup !== undefined) patch.allowSignup = body.allowSignup;
+  if (body.tabReturnEnabled !== undefined) {
+    patch.tabReturnEnabled = body.tabReturnEnabled;
+  }
   if (body.tabReturnMic !== undefined) patch.tabReturnMic = body.tabReturnMic;
   if (body.tabReturnCamera !== undefined) {
     patch.tabReturnCamera = body.tabReturnCamera;

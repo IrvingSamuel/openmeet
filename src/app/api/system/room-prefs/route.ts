@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppSettings } from "@/lib/app-settings";
 import {
   DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  normalizeTabReturnEnabled,
   normalizeTabReturnMediaPolicy,
 } from "@/lib/tab-return-media";
 
@@ -10,6 +11,7 @@ export async function GET() {
   const row = await getAppSettings();
   return NextResponse.json({
     tabReturnMedia: {
+      enabled: normalizeTabReturnEnabled(row?.tabReturnEnabled),
       mic: normalizeTabReturnMediaPolicy(
         row?.tabReturnMic ?? DEFAULT_TAB_RETURN_MEDIA_PREFS.mic,
       ),

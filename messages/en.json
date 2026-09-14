@@ -779,7 +779,12 @@
         "de": "Deutsch"
       },
       "tabReturnTitle": "When leaving the tab",
-      "tabReturnHint": "Leaving the tab turns mic and camera off for privacy. On return, the policy below is applied.",
+      "tabReturnHint": "When enabled, leaving the tab turns mic and camera off for privacy. On return, the policy below is applied.",
+      "tabReturnEnabled": "Tab-away protection",
+      "tabReturnEnabledOptions": {
+        "on": "Enabled",
+        "off": "Disabled"
+      },
       "tabReturnMic": "Microphone on return",
       "tabReturnCamera": "Camera on return",
       "tabReturnOptions": {

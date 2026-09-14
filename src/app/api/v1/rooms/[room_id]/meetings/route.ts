@@ -10,6 +10,7 @@ import {
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
 import { authorizePublicApi } from "@/lib/rooms";
+import { parseWebhookUrl } from "@/lib/webhook-url";
 
 const schema = z.object({
   /** Título da reunião (obrigatório — definido pela plataforma terceirizada). */
@@ -18,6 +19,7 @@ const schema = z.object({
   empty_timeout_sec: z.number().int().optional(),
   board_id: z.string().optional(),
   redirect_after_meet: z.string().max(2000).nullable().optional(),
+  webhook_url: z.string().max(2000).nullable().optional(),
   wait_for_host: z.boolean().optional(),
 });
 
@@ -82,6 +84,17 @@ export async function POST(
     return NextResponse.json({ error: "room_not_found" }, { status: 404 });
   }
 
+  let webhookUrl: string | null = null;
+  try {
+    webhookUrl =
+      body.webhook_url !== undefined
+        ? parseWebhookUrl(body.webhook_url)
+        : (room.webhookUrl ?? null);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "webhook_url_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   try {
     const accessPolicy =
       body.access_policy ||
@@ -101,6 +114,7 @@ export async function POST(
         useIdentityBrand: false,
         emptyTimeoutSec,
         redirectAfterMeet,
+        webhookUrl,
         waitForHost,
         issueHostEntry: true,
       });
@@ -118,6 +132,7 @@ export async function POST(
         brand_room_id: meeting.roomId,
         empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
         redirect_after_meet: meeting.redirectAfterMeet ?? null,
+        webhook_url: meeting.webhookUrl ?? null,
         wait_for_host: meeting.waitForHost,
       },
       { status: 201 },
