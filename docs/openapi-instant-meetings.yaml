@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: API pública — Salas e reuniões
-  version: 3.2.0
+  version: 3.2.1
   description: |
     API para plataformas terceirizadas criarem **salas-template** (personalização reutilizável)
     e **reuniões** (sessões com URL de entrada `/m/{slug}`).
@@ -49,6 +49,8 @@ info:
     - `summary.ready` — resumo em Markdown (`data.summaryMarkdown`)
     - `tasks.generated` — tarefas extraídas (`data.tasks`)
     - `recording.ready` — metadados da gravação + `data.downloadPath`
+      (`GET` com Bearer da API ou sessão do host/owner; `?download=1` força
+      `Content-Disposition: attachment`)
 
     Envelope comum: `{ event, version: 1, sentAt, meeting, data }`.
 
@@ -973,8 +975,10 @@ components:
                 downloadPath:
                   type: string
                   description: |
-                    Caminho relativo autenticado (host/owner). O GET continua
-                    a exigir sessão.
+                    Caminho relativo do ficheiro. O GET aceita o Bearer da API
+                    pública (o mesmo token de `POST /api/v1/rooms`) ou sessão
+                    do owner/host. Com `?download=1` a resposta vai como
+                    attachment.
                 startedAt:
                   type: string
                   format: date-time
