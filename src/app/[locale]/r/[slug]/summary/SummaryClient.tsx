@@ -10,9 +10,10 @@ import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
 import { IconCopy, IconDownload, IconFileText, IconLink } from "@/components/ui/icons";
-import { cn, formatBytes } from "@/lib/utils";
+import { cn, formatBytes, formatDuration } from "@/lib/utils";
 import { isPersonalBoard } from "@/lib/boards";
 import type { SuggestedAction } from "@/lib/meeting-summary";
+import type { AttendanceAttendee } from "@/lib/attendance";
 
 type ActionItemRow = {
   id: string;
@@ -66,7 +67,7 @@ type TranscriptSegment = {
   createdAt?: string;
 };
 
-type SummaryTab = "report" | "transcript" | "recordings" | "tasks";
+type SummaryTab = "report" | "transcript" | "recordings" | "attendance" | "tasks";
 
 function boardIdOf(b: BoardOption) {
   return b.board_id || b.id || "";
@@ -157,6 +158,8 @@ export default function MeetingSummaryPage() {
   const [pushResult, setPushResult] = useState<string | null>(null);
   const [shareHint, setShareHint] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<RecordingRow[]>([]);
+  const [attendees, setAttendees] = useState<AttendanceAttendee[]>([]);
+  const [attendanceLoaded, setAttendanceLoaded] = useState(false);
   const [tab, setTab] = useState<SummaryTab>("report");
 
   const loadMembers = useCallback(async (boardId: string) => {
@@ -216,6 +219,27 @@ export default function MeetingSummaryPage() {
         setRecordings(rows.filter((r) => r.status === "ready"));
       })
       .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingId, status]);
+
+  useEffect(() => {
+    if (!meetingId) return;
+    let cancelled = false;
+    fetch(`/api/meetings/${meetingId}/attendance`)
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((json) => {
+        if (cancelled || !json) return;
+        setAttendees((json.attendees ?? []) as AttendanceAttendee[]);
+        setAttendanceLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setAttendanceLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -363,12 +387,31 @@ export default function MeetingSummaryPage() {
     { id: "report", label: t("tabReport") },
     { id: "transcript", label: t("tabTranscript") },
     { id: "recordings", label: t("tabRecordings") },
+    { id: "attendance", label: t("tabAttendance") },
     { id: "tasks", label: t("tabTasks") },
   ];
 
   function downloadMarkdown() {
     if (!exportMarkdown.trim()) return;
     downloadTextFile(`resumo-${slug}.md`, exportMarkdown);
+  }
+
+  function downloadAttendanceCsv() {
+    if (!meetingId) return;
+    window.open(
+      `/api/meetings/${meetingId}/attendance?format=csv`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  function formatAttendanceTime(iso: string | null): string {
+    if (!iso) return t("attendanceStillPresent");
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return iso;
+    }
   }
 
   async function shareSummary() {
@@ -712,6 +755,72 @@ export default function MeetingSummaryPage() {
                   </li>
                 ))}
               </ul>
+            )}
+          </section>
+        ) : null}
+
+        {tab === "attendance" ? (
+          <section className="rounded-3xl border border-line bg-white/[0.03] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-faint">
+                {t("attendanceHeading")}
+              </h2>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!attendanceLoaded || attendees.length === 0}
+                icon={<IconDownload className="h-3.5 w-3.5" />}
+                onClick={downloadAttendanceCsv}
+              >
+                {t("attendanceDownloadCsv")}
+              </Button>
+            </div>
+            {!attendanceLoaded ? (
+              <p className="mt-4 text-sm text-ink-faint">{tMeta("waitingContent")}</p>
+            ) : attendees.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-faint">{t("attendanceEmpty")}</p>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[36rem] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-xs uppercase tracking-wider text-ink-faint">
+                      <th className="py-2 pr-3 font-medium">{t("attendanceName")}</th>
+                      <th className="py-2 pr-3 font-medium">{t("attendanceRole")}</th>
+                      <th className="py-2 pr-3 font-medium">{t("attendanceJoined")}</th>
+                      <th className="py-2 pr-3 font-medium">{t("attendanceLeft")}</th>
+                      <th className="py-2 font-medium">{t("attendanceDuration")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendees.map((row, idx) => (
+                      <tr
+                        key={`${row.identityId ?? row.displayName}-${idx}`}
+                        className="border-b border-line/60 last:border-0"
+                      >
+                        <td className="py-3 pr-3 font-medium text-ink">
+                          {row.displayName}
+                        </td>
+                        <td className="py-3 pr-3 text-ink-muted">
+                          {row.role === "host"
+                            ? t("attendanceRoleHost")
+                            : t("attendanceRoleParticipant")}
+                        </td>
+                        <td className="py-3 pr-3 text-ink-muted">
+                          {formatAttendanceTime(row.joinedAt)}
+                        </td>
+                        <td className="py-3 pr-3 text-ink-muted">
+                          {formatAttendanceTime(row.leftAt)}
+                        </td>
+                        <td className="py-3 text-ink-muted">
+                          {row.durationMs != null
+                            ? formatDuration(row.durationMs)
+                            : t("attendanceStillPresent")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         ) : null}

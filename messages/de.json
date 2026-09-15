@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "OpenMeet — Intelligente White-Label-Videokonferenz",
-    "titleTemplate": "%s · OpenMeet",
-    "description": "Open-Source-Videokonferenz mit eigener visueller Identität, Live-Untertiteln und einem Copiloten, der Meetings in Zusammenfassungen und Webhooks verwandelt.",
-    "ogTitle": "OpenMeet — Intelligente White-Label-Videokonferenz",
-    "ogDescription": "Räume mit Ihrer Unternehmensmarke, Live-Untertitel und automatisches Protokoll für externe Tools per Webhooks.",
+    "title": "{name} — Intelligente White-Label-Videokonferenz",
+    "titleTemplate": "%s · {name}",
+    "description": "Open-Source-Videokonferenz mit Ihrer visuellen Identität, Live-Untertiteln und einem KI-Copiloten, der Meetings in Zusammenfassungen und Webhooks verwandelt.",
+    "ogTitle": "{name} — Intelligente White-Label-Videokonferenz",
+    "ogDescription": "Räume mit Ihrem Unternehmensbranding, Live-Untertitel und automatische Protokolle für externe Tools per Webhook.",
     "loadingSummary": "Zusammenfassung wird geladen…",
     "verifyingSession": "Sitzung wird überprüft…",
     "establishingConnection": "Sichere Verbindung wird hergestellt…",
@@ -21,6 +21,7 @@
       "logout": "Abmelden",
       "cancel": "Abbrechen",
       "close": "Schließen",
+      "dismiss": "Benachrichtigung schließen",
       "save": "Speichern",
       "saveToken": "Token speichern",
       "create": "Erstellen",
@@ -346,7 +347,9 @@
       "joinFailed": "Beitritt zum Raum fehlgeschlagen.",
       "networkFailed": "Netzwerkfehler bei der Zugriffsanfrage.",
       "cancelFailed": "Anfrage konnte nicht storniert werden. Bitte erneut versuchen."
-    }
+    },
+    "waitingForHostTitle": "Warten auf den Host…",
+    "waitingForHostBody": "Sie treten automatisch bei, sobald der Host dem Meeting beitritt."
   },
   "offline": {
     "title": "Keine Netzwerkverbindung",
@@ -453,7 +456,7 @@
       "save": "Marke speichern",
       "livePreview": "Live-Vorschau",
       "yourRoom": "Ihr Raum",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Marke konnte nicht geladen werden.",
       "saveFailed": "Speichern fehlgeschlagen.",
       "saveNetworkFailed": "Netzwerkfehler beim Speichern der Marke.",
@@ -535,7 +538,10 @@
     "enableAudio": "Klicken, um Audio zu aktivieren",
     "reconnectBanner": "Wiederverbinden… Steuerelemente bleiben aktiv",
     "disconnectNotice": "Verbindung unterbrochen — Wiederverbindung wird versucht.",
-    "backToMeeting": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aus Datenschutzgründen deaktiviert.",
+    "backToMeeting": "Sie sind wieder in der Besprechung.",
+    "backToMeetingClosed": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aus Datenschutzgründen deaktiviert.",
+    "backToMeetingRestored": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden wiederhergestellt.",
+    "backToMeetingOpened": "Sie sind wieder in der Besprechung. Mikrofon und Kamera wurden aktiviert.",
     "mediaDeviceError": "Kamera/Mikrofon ({label}) nicht zugänglich. Prüfen Sie Berechtigungen und ob eine andere App das Gerät nutzt.",
     "mediaUnavailable": "Mediengerät nicht verfügbar",
     "endForAllFailed": "Meeting konnte nicht für alle beendet werden. Bitte erneut versuchen.",
@@ -545,6 +551,11 @@
     "recordingScreenDenied": "Du musst diesen Meeting-Tab/Bildschirm freigeben, um aufzunehmen.",
     "recordingScreenPrompt": "Die automatische Aufnahme muss diesen Meeting-Bildschirm erfassen. Wähle diesen Tab, wenn der Browser danach fragt.",
     "recordingScreenPromptCta": "Aufnahme starten",
+    "recordingAskTitle": "Dieses Meeting aufnehmen?",
+    "recordingAskBody": "Die Aufnahme ist optional. Du kannst jetzt starten oder später über die Steuerleiste.",
+    "recordingAskYes": "Ja",
+    "recordingAskNotNow": "Jetzt nicht",
+    "recordingHint": "Aufnahme hier starten",
     "controlBar": {
       "muteMic": "Mikrofon stummschalten",
       "unmuteMic": "Mikrofon aktivieren",
@@ -569,7 +580,70 @@
       "stopRecording": "Aufnahme stoppen",
       "raiseHand": "Hand heben",
       "lowerHand": "Hand senken",
-      "reactions": "Reaktionen"
+      "reactions": "Reaktionen",
+      "selectMic": "Mikrofon und Lautsprecher auswählen",
+      "selectCam": "Kamera auswählen",
+      "microphone": "Mikrofon",
+      "speaker": "Lautsprecher",
+      "camera": "Kamera",
+      "options": "Optionen",
+      "optionsEllipsis": "Optionen…",
+      "optionsDescription": "Wählen Sie Mikrofon, Lautsprecher, Kamera und Effekte für dieses Meeting.",
+      "optionsTabs": {
+        "general": "Allgemein",
+        "captions": "Untertitel",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "captionsStartOn": "Mit Untertiteln starten",
+      "captionsStartOnHint": "Ihre Einstellung überschreibt den Plattformstandard.",
+      "tabReturnHint": "Der Plattformadministrator legt den Standard fest. Wählen Sie eine eigene Einstellung für Ihre Meetings.",
+      "tabReturnEnabled": "Schutz beim Tabwechsel",
+      "tabReturnEnabledOptions": {
+        "on": "Aktiviert",
+        "off": "Deaktiviert"
+      },
+      "tabReturnMic": "Mikrofon bei Rückkehr",
+      "tabReturnCamera": "Kamera bei Rückkehr",
+      "tabReturnOptions": {
+        "inherit": "Plattformstandard",
+        "open": "An",
+        "closed": "Aus",
+        "restore": "Wie zuvor"
+      },
+      "closeOptions": "Optionen schließen",
+      "cameraPreviewOff": "Kamera ist aus",
+      "micLevel": "Mikrofonpegel",
+      "noDevices": "Keine Geräte gefunden",
+      "micN": "Mikrofon {n}",
+      "cameraN": "Kamera {n}",
+      "speakerN": "Lautsprecher {n}",
+      "speakerUnsupported": "Die Lautsprecherauswahl wird in diesem Browser nicht unterstützt.",
+      "effectsTitle": "Effekte",
+      "effectsNone": "Keine",
+      "effectsBlur": "Hintergrundunschärfe",
+      "effectsVirtual": "Virtueller Hintergrund",
+      "effectsBlurRadius": "Unschärfe-Stärke",
+      "effectsUnsupported": "Hintergrundeffekte werden in diesem Browser nicht unterstützt.",
+      "effectsAudioTitle": "Audioverarbeitung",
+      "effectsNoise": "Rauschunterdrückung",
+      "effectsEcho": "Echounterdrückung",
+      "effectsAgc": "Automatische Verstärkungsregelung",
+      "effectsUpload": "Eigenen Hintergrund hochladen",
+      "effectsUploading": "Wird hochgeladen…",
+      "effectsUploadOk": "Hintergrund hochgeladen",
+      "effectsUploadFailed": "Hintergrund konnte nicht hochgeladen werden ({label})",
+      "effectsUploadLogin": "Melden Sie sich an, um einen eigenen Hintergrund hochzuladen.",
+      "effectsCustomBg": "Eigener Hintergrund",
+      "effectsSavedAccount": "In Ihrem Konto gespeichert",
+      "effectsSavedBrowser": "Nur in diesem Browser gespeichert",
+      "effectsSaving": "Wird gespeichert…",
+      "presetOffice": "Büro",
+      "presetLiving": "Wohnzimmer",
+      "presetBookshelf": "Bücherregal",
+      "presetGradient": "Verlauf",
+      "presetNature": "Natur",
+      "presetAbstract": "Abstrakt"
     },
     "reactions": {
       "pickReaction": "Reaktion senden",
@@ -627,7 +701,8 @@
       "leave": "Verlassen"
     },
     "captions": {
-      "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen"
+      "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen",
+      "hide": "Untertitel ausblenden"
     },
     "stage": {
       "empty": "Noch niemand im Raum"
@@ -659,6 +734,7 @@
     "tabReport": "Zusammenfassung",
     "tabTranscript": "Transkript",
     "tabRecordings": "Aufnahmen",
+    "tabAttendance": "Anwesenheit",
     "tabTasks": "Vorgeschlagene Aufgaben",
     "tabsAria": "Abschnitte der Meeting-Zusammenfassung",
     "personalBoard": "persönlich",
@@ -694,7 +770,18 @@
     "recordingsHeading": "Aufnahmen",
     "recordingsEmpty": "Noch keine Aufnahmen.",
     "downloadRecording": "Herunterladen",
-    "playRecording": "Abspielen"
+    "playRecording": "Abspielen",
+    "attendanceHeading": "Anwesenheitsliste",
+    "attendanceEmpty": "Keine Teilnehmer waren in diesem Meeting anwesend.",
+    "attendanceName": "Name",
+    "attendanceRole": "Rolle",
+    "attendanceJoined": "Beigetreten",
+    "attendanceLeft": "Verlassen",
+    "attendanceDuration": "Dauer",
+    "attendanceRoleHost": "Host",
+    "attendanceRoleParticipant": "Teilnehmer",
+    "attendanceDownloadCsv": "CSV herunterladen",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "System",
@@ -702,10 +789,33 @@
     "description": "Konfigurieren Sie Sprache, KI-Schlüssel, Meeting-Aufzeichnung und ausgehende Webhooks zur Integration von Meet mit Drittplattformen.",
     "tabs": {
       "general": "Allgemein",
+      "access": "Zugang",
       "ai": "KI",
       "webhooks": "Webhooks",
       "recording": "Aufnahme",
-      "ui": "UI"
+      "ui": "UI",
+      "api": "API"
+    },
+    "api": {
+      "heading": "Öffentliches API-Token",
+      "body": "Erzeugen Sie ein Bearer-Token für Drittplattformen für POST /api/v1/*. Das Token gewährt vollen Zugriff auf die öffentliche API.",
+      "statusLabel": "Status",
+      "notConfigured": "Nicht konfiguriert",
+      "configured": "Konfiguriert: {preview}",
+      "createdAt": "Erstellt am {date}",
+      "generate": "Token erzeugen",
+      "rotate": "Token rotieren",
+      "revoke": "Widerrufen",
+      "revokeConfirm": "Aktuelles Token widerrufen? Clients scheitern an der Auth, bis Sie ein neues erzeugen.",
+      "generatedHeading": "Token erzeugt — jetzt kopieren",
+      "generatedWarning": "Dieser Wert wird nur einmal angezeigt. Bewahren Sie ihn sicher auf.",
+      "copy": "Token kopieren",
+      "copied": "Token kopiert.",
+      "docsLink": "API-Dokumentation öffnen",
+      "generateFailed": "Token konnte nicht erzeugt werden.",
+      "revokeFailed": "Token konnte nicht widerrufen werden.",
+      "revoked": "Token widerrufen.",
+      "generated": "Token erzeugt. Jetzt kopieren."
     },
     "loadFailed": "Administration konnte nicht geladen werden.",
     "saveFailed": "Speichern fehlgeschlagen.",
@@ -740,7 +850,45 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "captionsDefault": "Untertitel beim Meetingstart",
+      "captionsDefaultHint": "Legt fest, ob Untertitel standardmäßig aktiviert sind. Benutzer können diese Einstellung überschreiben.",
+      "captionsDefaultOptions": {
+        "on": "An",
+        "off": "Aus"
+      },
+      "tabReturnTitle": "Beim Verlassen des Tabs",
+      "tabReturnHint": "Wenn aktiv, werden beim Verlassen des Tabs Mikrofon und Kamera aus Datenschutzgründen ausgeschaltet. Beim Zurückkehren gilt die folgende Richtlinie.",
+      "tabReturnEnabled": "Schutz beim Tabwechsel",
+      "tabReturnEnabledOptions": {
+        "on": "Aktiviert",
+        "off": "Deaktiviert"
+      },
+      "tabReturnMic": "Mikrofon bei Rückkehr",
+      "tabReturnCamera": "Kamera bei Rückkehr",
+      "tabReturnOptions": {
+        "open": "An",
+        "closed": "Aus",
+        "restore": "Wie zuvor"
+      },
       "save": "Speichern"
+    },
+    "access": {
+      "body": "Legen Sie fest, ob Home, Dashboard und Einstellungen erreichbar sind. Wenn deaktiviert, werden Besucher umgeleitet. Mit einem Anforderungsschlüssel können sie unter /unlock freischalten.",
+      "requestKey": "Anforderungsschlüssel (Freischaltung)",
+      "requestKeyHint": "Optional. Wer diesen Schlüssel unter /unlock eingibt, kann deaktivierte Seiten öffnen.",
+      "requestKeyConfigured": "Schlüssel konfiguriert: {preview}. Leer lassen zum Behalten.",
+      "requestKeyPlaceholder": "Neuer Schlüssel…",
+      "enabled": "Erreichbar",
+      "redirectTo": "Umleiten nach",
+      "redirectHint": "Relativer Pfad (z. B. /login oder /unlock) oder absolute URL.",
+      "unlockHint": "Freischaltseite: {path}",
+      "pages": {
+        "home": "Home (Landing)",
+        "dashboard": "Dashboard",
+        "settings": "Einstellungen / Marke"
+      },
+      "save": "Zugang speichern",
+      "clearKey": "Schlüssel entfernen"
     },
     "ai": {
       "groqEnabled": "Groq / OpenAI-kompatible API nutzen (ersetzt Gemini wenn aktiv)",
@@ -761,7 +909,7 @@
       "modelSummary": "Modell (Zusammenfassung)",
       "modelSummaryHint": "Eine Generierung nach dem Meeting — stärkeres Modell nutzen (z. B. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
-      "deepgramKeyHint": "Der Python-Worker liest DEEPGRAM_API_KEY weiterhin aus der .env.",
+      "deepgramKeyHint": "Zuerst aus Admin (Datenbank), sonst DEEPGRAM_API_KEY in der .env. Der Python-Worker nutzt dieselbe Reihenfolge.",
       "save": "KI speichern",
       "clearGemini": "Gemini-Override löschen",
       "clearDeepgram": "Deepgram-Override löschen"
@@ -796,6 +944,10 @@
         "recording": {
           "label": "Aufnahme bereit",
           "description": "Metadaten und Download-Link, wenn die Aufnahme verfügbar ist."
+        },
+        "attendance": {
+          "label": "Anwesenheitsliste",
+          "description": "Anwesende Teilnehmer mit Eintritts- und Austrittszeit."
         }
       },
       "save": "Webhooks speichern",
@@ -816,6 +968,7 @@
       "controlLabel": "Steuerung",
       "controlManual": "Manuell — Moderator startet und stoppt im Raum",
       "controlAuto": "Automatisch — startet beim Beitritt des Moderators (kein Stopp)",
+      "controlAsk": "Immer fragen — Hinweis beim Beitritt des Hosts",
       "storageLabel": "Speicher",
       "storageLocal": "Lokale Festplatte des Servers",
       "storageS3": "S3-kompatibel (MinIO / Hetzner / AWS)",
@@ -839,13 +992,17 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Plattformname",
+      "logoUrl": "Logo-URL der Plattform",
+      "faviconUrl": "Favicon-URL der Plattform",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Logo hochladen",
+      "uploadFavicon": "Favicon hochladen",
+      "copyHex": "Hex kopieren",
+      "hexCopied": "Hex kopiert"
     }
   },
   "settings": {
@@ -868,12 +1025,24 @@
     "startFailed": "Meeting konnte nicht gestartet werden.",
     "startNetworkFailed": "Netzwerkfehler beim Starten des Meetings."
   },
+  "accessUnlock": {
+    "title": "Zugang freischalten",
+    "body": "Geben Sie den von der Administration bereitgestellten Anforderungsschlüssel ein, um eingeschränkte Seiten zu öffnen.",
+    "keyLabel": "Anforderungsschlüssel",
+    "keyPlaceholder": "Schlüssel…",
+    "submit": "Freischalten",
+    "submitting": "Prüfen…",
+    "success": "Zugang freigeschaltet.",
+    "invalidKey": "Ungültiger Schlüssel.",
+    "notConfigured": "Kein Freischaltschlüssel konfiguriert.",
+    "failed": "Freischalten fehlgeschlagen."
+  },
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Melden Sie sich mit E-Mail und Passwort bei {name} an.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Erstellen Sie das erste Admin-Konto für diese {name}-Instanz.",
     "name": "Name",
     "email": "Email",
     "password": "Password",

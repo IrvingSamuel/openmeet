@@ -13,7 +13,11 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.85
 
 
 def participant_mic_muted(participant: rtc.RemoteParticipant) -> bool:
-    """True when every published microphone track is muted (or none exist)."""
+    """True only when microphone publications exist and all are muted.
+
+    No microphone publication yet is treated as *not* muted so STT can start
+    during the subscribe race (before the track appears on the participant).
+    """
     found = False
     for pub in participant.track_publications.values():
         if pub.source != rtc.TrackSource.SOURCE_MICROPHONE:
@@ -21,8 +25,9 @@ def participant_mic_muted(participant: rtc.RemoteParticipant) -> bool:
         found = True
         if not pub.muted:
             return False
+    if not found:
+        return False
     return True
-DEFAULT_SIMILARITY_THRESHOLD = 0.85
 
 
 def normalize_text(text: str) -> str:

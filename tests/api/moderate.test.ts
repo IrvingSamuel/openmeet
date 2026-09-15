@@ -55,6 +55,12 @@ beforeEach(() => {
 
 describe("POST /api/rooms/[slug]/moderate", () => {
   it("rejects anonymous callers", async () => {
+    roomsFindFirst.mockResolvedValue({
+      id: "room-1",
+      slug: "weekly",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_weekly",
+    });
     const res = await moderate(
       jsonRequest({ action: "mute", identity: "guest_1" }),
       ctx,

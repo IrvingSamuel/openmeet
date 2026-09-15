@@ -48,6 +48,7 @@ export function Lobby({
   isLoggedIn,
   joining,
   waiting,
+  waitingForHost,
   error,
   onCancelWait,
 }: {
@@ -63,6 +64,8 @@ export function Lobby({
   isLoggedIn?: boolean;
   joining?: boolean;
   waiting?: boolean;
+  /** Guests wait until a host joins (API wait_for_host). */
+  waitingForHost?: boolean;
   error?: string | null;
   onJoin: (opts: JoinOptions) => void;
   onCancelWait?: () => void;
@@ -356,9 +359,15 @@ export function Lobby({
                     exit={{ opacity: 0 }}
                     className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-3 text-sm text-amber-50"
                   >
-                    <p className="font-medium">{t("waitingApprovalTitle")}</p>
+                    <p className="font-medium">
+                      {waitingForHost
+                        ? t("waitingForHostTitle")
+                        : t("waitingApprovalTitle")}
+                    </p>
                     <p className="mt-1 text-[12px] text-amber-100/80">
-                      {t("waitingApprovalBody")}
+                      {waitingForHost
+                        ? t("waitingForHostBody")
+                        : t("waitingApprovalBody")}
                     </p>
                   </motion.div>
                 ) : null}

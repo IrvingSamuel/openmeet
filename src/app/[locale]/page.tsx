@@ -7,8 +7,15 @@ import { BrandShowcase } from "@/components/landing/BrandShowcase";
 import { CopilotFlow } from "@/components/landing/CopilotFlow";
 import { FinalCta, Infra, SiteFooter } from "@/components/landing/Infra";
 import { Button } from "@/components/ui/Button";
+import { enforcePageAccess } from "@/lib/enforce-page-access";
 
-export default async function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  await enforcePageAccess("home", locale);
   const t = await getTranslations("header");
 
   return (
