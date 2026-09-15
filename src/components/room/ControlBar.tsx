@@ -48,7 +48,6 @@ import { ReactionPicker } from "@/components/room/ReactionPicker";
 import {
   CameraDeviceMenu,
   MicDeviceMenu,
-  SplitCaptionsControl,
   SplitDeviceControl,
   useExclusiveMenus,
 } from "@/components/room/DeviceMenus";
@@ -137,6 +136,7 @@ export function ControlBar({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
+  const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
   const recordBtnRef = useRef<HTMLButtonElement>(null);
   const chimesUnlockedRef = useRef(false);
 
@@ -178,12 +178,9 @@ export function ControlBar({
     }
   }
 
-  const moreBadge =
-    (unreadChat > 0 ? 1 : 0) +
-    (insightCount && insightCount > 0 ? 1 : 0) +
-    (showPeopleInBar
-      ? (pendingJoinRequests > 0 ? 1 : 0) + (peopleCount > 1 ? 1 : 0)
-      : 0);
+  const moreBadge = showPeopleInBar
+    ? (pendingJoinRequests > 0 ? 1 : 0) + (peopleCount > 1 ? 1 : 0)
+    : 0;
 
   const peopleBadge =
     pendingJoinRequests > 0
@@ -306,20 +303,59 @@ export function ControlBar({
 
         <Separator />
 
-        <SplitCaptionsControl
-          captionsOn={captionsOn}
-          transcriptOpen={panel === "captions"}
-          onToggleCaptions={onCaptionsToggle}
-          onToggleTranscript={() =>
-            onPanelChange(panel === "captions" ? "none" : "captions")
+        <ControlButton
+          active={captionsOn}
+          onClick={onCaptionsToggle}
+          label={captionsOn ? t("hideCaptions") : t("showCaptions")}
+        >
+          <IconCaptions />
+        </ControlButton>
+
+        <ControlButton
+          ref={reactionsAnchorRef}
+          active={reactionsOpen}
+          onClick={() => setReactionsOpen((v) => !v)}
+          label={t("reactions")}
+        >
+          <IconReaction />
+        </ControlButton>
+
+        <ControlButton
+          active={screen.enabled}
+          onClick={() => {
+            void screen.toggle();
+          }}
+          label={screen.enabled ? t("stopShare") : t("startShare")}
+        >
+          <IconScreen />
+        </ControlButton>
+
+        <ControlButton
+          active={panel === "copilot"}
+          onClick={() => selectPanel("copilot")}
+          label={t("copilot")}
+          badge={
+            insightCount && insightCount > 0
+              ? String(insightCount)
+              : undefined
           }
-          toggleLabel={captionsOn ? t("hideCaptions") : t("showCaptions")}
-          transcriptLabel={t("fullTranscript")}
-        />
+        >
+          <IconSparkles />
+        </ControlButton>
+
+        <ControlButton
+          active={panel === "chat"}
+          onClick={() => selectPanel("chat")}
+          label={t("chat")}
+          badge={unreadChat > 0 ? String(unreadChat) : undefined}
+          badgeTone="danger"
+        >
+          <IconChat />
+        </ControlButton>
 
         <ControlButton
           ref={moreAnchorRef}
-          active={moreOpen || panel === "chat" || panel === "copilot" || panel === "people" || optionsOpen}
+          active={moreOpen || panel === "people" || optionsOpen}
           onClick={() => setMoreOpen((v) => !v)}
           label={t("moreControls")}
           badge={moreBadge > 0 ? String(moreBadge) : undefined}
@@ -343,16 +379,6 @@ export function ControlBar({
             {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
           </MoreItem>
           <MoreItem
-            label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-            active={captionsOn}
-            onClick={() => {
-              onCaptionsToggle();
-              setMoreOpen(false);
-            }}
-          >
-            <IconCaptions />
-          </MoreItem>
-          <MoreItem
             label={t("fullTranscript")}
             active={panel === "captions"}
             onClick={() => selectPanel("captions")}
@@ -368,26 +394,6 @@ export function ControlBar({
           >
             <IconSettings />
           </MoreItem>
-          <MoreItem
-            label={t("reactions")}
-            active={reactionsOpen}
-            onClick={() => {
-              setReactionsOpen(true);
-              setMoreOpen(false);
-            }}
-          >
-            <IconReaction />
-          </MoreItem>
-          <MoreItem
-            label={screen.enabled ? t("stopShare") : t("startShare")}
-            active={screen.enabled}
-            onClick={() => {
-              void screen.toggle();
-              setMoreOpen(false);
-            }}
-          >
-            <IconScreen />
-          </MoreItem>
           {compact ? (
             <MoreItem
               label={handRaised ? t("lowerHand") : t("raiseHand")}
@@ -400,18 +406,6 @@ export function ControlBar({
               <IconHand />
             </MoreItem>
           ) : null}
-          <MoreItem
-            label={t("copilot")}
-            active={panel === "copilot"}
-            badge={
-              insightCount && insightCount > 0
-                ? String(insightCount)
-                : undefined
-            }
-            onClick={() => selectPanel("copilot")}
-          >
-            <IconSparkles />
-          </MoreItem>
           {showPeopleInBar ? (
             <MoreItem
               label={t("people")}
@@ -423,22 +417,13 @@ export function ControlBar({
               <IconUsers />
             </MoreItem>
           ) : null}
-          <MoreItem
-            label={t("chat")}
-            active={panel === "chat"}
-            badge={unreadChat > 0 ? String(unreadChat) : undefined}
-            badgeTone="danger"
-            onClick={() => selectPanel("chat")}
-          >
-            <IconChat />
-          </MoreItem>
         </FloatingMenu>
       </motion.div>
 
       <FloatingMenu
         open={reactionsOpen}
         onClose={() => setReactionsOpen(false)}
-        anchorRef={moreAnchorRef}
+        anchorRef={reactionsAnchorRef}
         align="center"
       >
         <ReactionPicker onPick={pickReaction} />

@@ -148,19 +148,21 @@ describe("ControlBar device menus", () => {
     vi.clearAllMocks();
   });
 
-  it("renders reactions and options in the overflow menu", async () => {
+  it("keeps primary actions on the bar and options in overflow", async () => {
     const user = userEvent.setup();
     renderBar();
+    expect(screen.getByLabelText("Reactions")).toBeTruthy();
+    expect(screen.getByLabelText("Stop sharing")).toBeTruthy();
+    expect(screen.getByLabelText("OpenMeet Copilot")).toBeTruthy();
+    expect(screen.getByLabelText("Chat")).toBeTruthy();
+    expect(screen.getByLabelText("Show captions")).toBeTruthy();
+    expect(screen.queryByLabelText("Full transcript")).toBeNull();
+
     await user.click(screen.getByLabelText("More controls"));
     const menu = await screen.findByRole("menu");
-    expect(within(menu).getByText("Reactions")).toBeTruthy();
     expect(within(menu).getByText("Options")).toBeTruthy();
-  });
-
-  it("renders captions split control on the bar", () => {
-    renderBar();
-    expect(screen.getByLabelText("Show captions")).toBeTruthy();
-    expect(screen.getByLabelText("Full transcript")).toBeTruthy();
+    expect(within(menu).getByText("Full transcript")).toBeTruthy();
+    expect(within(menu).queryByText("Reactions")).toBeNull();
   });
 
   it("opens mic menu from the chevron and switches device", async () => {
