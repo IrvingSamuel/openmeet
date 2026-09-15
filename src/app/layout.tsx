@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { ToastProvider } from "@/components/ui/Toast";
 import { resolveSystemUiTheme } from "@/lib/system-theme";
 
 export const dynamic = "force-dynamic";
@@ -88,9 +87,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen antialiased">
-        <ToastProvider>{children}</ToastProvider>
-      </body>
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }
