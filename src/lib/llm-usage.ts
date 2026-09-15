@@ -1,4 +1,4 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { copilotChatMessages, llmUsage } from "@/db/schema";
 import type { GeminiResult } from "@/lib/gemini";
@@ -79,6 +79,6 @@ export async function sumLlmUsageByFeature(days = 30) {
       outputTokens: sql<number>`coalesce(sum(${llmUsage.estOutputTokens}), 0)`,
     })
     .from(llmUsage)
-    .where(sql`${llmUsage.createdAt} >= ${since}`)
+    .where(gte(llmUsage.createdAt, since))
     .groupBy(llmUsage.feature);
 }

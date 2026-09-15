@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { participants } from "@/db/schema";
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     .where(
       and(
         eq(participants.meetingId, body.meetingId),
+        isNotNull(participants.connectedAt),
         isNull(participants.leftAt),
       ),
     );

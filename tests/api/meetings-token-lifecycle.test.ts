@@ -15,9 +15,15 @@ const mintRoomToken = vi.fn();
 const syncRoomMetadata = vi.fn();
 const resolveRecordingConfig = vi.fn();
 const startMeetingRecording = vi.fn();
+const participantsFindFirst = vi.fn();
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
+}));
+
+vi.mock("@/lib/host-entry", () => ({
+  hasHostEntryGrant: vi.fn(async () => false),
+  hostEntryDisplayName: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/meeting-lifecycle", () => ({
@@ -45,6 +51,9 @@ vi.mock("@/db", () => ({
     query: {
       joinRequests: {
         findFirst: vi.fn(),
+      },
+      participants: {
+        findFirst: (...args: unknown[]) => participantsFindFirst(...args),
       },
     },
     insert: () => ({
@@ -81,6 +90,7 @@ beforeEach(() => {
   syncRoomMetadata.mockReset();
   resolveRecordingConfig.mockReset();
   startMeetingRecording.mockReset();
+  participantsFindFirst.mockReset();
   mintRoomToken.mockResolvedValue("jwt-token");
   syncRoomMetadata.mockResolvedValue(undefined);
   activateMeetingIfScheduled.mockResolvedValue(true);
@@ -139,6 +149,41 @@ describe("POST /api/meetings/by-slug/[slug]/token", () => {
       expect.objectContaining({ emptyTimeout: expect.any(Number) }),
     );
     expect(activateMeetingIfScheduled).toHaveBeenCalledWith("m1");
+  });
+
+  it("restores a moderator role when minting a new token", async () => {
+    session.identityId = "identity-moderator";
+    participantsFindFirst.mockResolvedValue({
+      id: "p1",
+      role: "moderator",
+      leftAt: null,
+    });
+    loadMeetingBySlugAfterExpiry.mockResolvedValue({
+      id: "m1",
+      slug: "abc",
+      title: "Demo",
+      status: "active",
+      accessPolicy: "public",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_abc",
+      roomId: null,
+      boardId: null,
+      waitForHost: false,
+    });
+
+    const res = await tokenPost(
+      jsonRequest({ displayName: "Moderator", clientInstanceId: "inst1" }),
+      { params },
+    );
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).role).toBe("moderator");
+    expect(mintRoomToken).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "moderator" }),
+    );
+    expect(insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "moderator" }),
+    );
   });
 
   it("does not activate while invite join request is pending", async () => {

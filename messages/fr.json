@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "OpenMeet — Visioconférence intelligente white-label",
-    "titleTemplate": "%s · OpenMeet",
-    "description": "Visioconférence open-source avec votre identité visuelle, sous-titres en direct et un copilote qui transforme les réunions en résumés et webhooks actionnables.",
-    "ogTitle": "OpenMeet — Visioconférence intelligente white-label",
-    "ogDescription": "Salles à l'image de votre entreprise, sous-titres en direct et compte rendu automatique envoyable vers des outils externes via webhooks.",
+    "title": "{name} — Visioconférence white-label intelligente",
+    "titleTemplate": "%s · {name}",
+    "description": "Visioconférence open source avec votre identité visuelle, sous-titres en direct et un copilote IA qui transforme les réunions en résumés et webhooks.",
+    "ogTitle": "{name} — Visioconférence white-label intelligente",
+    "ogDescription": "Salles à l'image de votre entreprise, sous-titres en direct et comptes rendus automatiques pour vos outils via webhooks.",
     "loadingSummary": "Chargement du résumé…",
     "verifyingSession": "Vérification de votre session…",
     "establishingConnection": "Établissement d'une connexion sécurisée…",
@@ -21,6 +21,7 @@
       "logout": "Déconnexion",
       "cancel": "Annuler",
       "close": "Fermer",
+      "dismiss": "Ignorer la notification",
       "save": "Enregistrer",
       "saveToken": "Enregistrer le jeton",
       "create": "Créer",
@@ -172,6 +173,7 @@
     "openMenu": "Ouvrir le menu",
     "closeMenu": "Fermer le menu",
     "admin": "Administration",
+    "ops": "Ops",
     "settings": "Paramètres"
   },
   "landing": {
@@ -346,7 +348,9 @@
       "joinFailed": "Impossible de rejoindre la salle.",
       "networkFailed": "Erreur réseau lors de la demande d'accès.",
       "cancelFailed": "Impossible d'annuler la demande. Réessayez."
-    }
+    },
+    "waitingForHostTitle": "En attente de l'hôte…",
+    "waitingForHostBody": "Vous rejoindrez automatiquement dès que l'hôte entrera dans la réunion."
   },
   "offline": {
     "title": "Pas de connexion réseau",
@@ -453,7 +457,7 @@
       "save": "Enregistrer la marque",
       "livePreview": "Aperçu en direct",
       "yourRoom": "Votre salle",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Impossible de charger la marque.",
       "saveFailed": "Impossible d'enregistrer.",
       "saveNetworkFailed": "Erreur réseau lors de l'enregistrement de la marque.",
@@ -535,7 +539,10 @@
     "enableAudio": "Cliquez pour activer l'audio",
     "reconnectBanner": "Reconnexion… les contrôles restent actifs",
     "disconnectNotice": "Connexion interrompue — reconnexion en cours.",
-    "backToMeeting": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
+    "backToMeeting": "Vous êtes de retour dans la réunion.",
+    "backToMeetingClosed": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
+    "backToMeetingRestored": "Vous êtes de retour dans la réunion. Micro et caméra restaurés.",
+    "backToMeetingOpened": "Vous êtes de retour dans la réunion. Micro et caméra activés.",
     "mediaDeviceError": "Impossible d'accéder à la caméra/au micro ({label}). Vérifiez les permissions et si une autre app utilise l'appareil.",
     "mediaUnavailable": "périphérique média indisponible",
     "endForAllFailed": "Impossible de terminer la réunion pour tout le monde. Réessayez.",
@@ -545,6 +552,11 @@
     "recordingScreenDenied": "Vous devez partager cet onglet/écran de réunion pour enregistrer.",
     "recordingScreenPrompt": "L'enregistrement automatique doit capturer l'écran de cette réunion. Choisissez cet onglet lorsque le navigateur le demande.",
     "recordingScreenPromptCta": "Démarrer l'enregistrement",
+    "recordingAskTitle": "Enregistrer cette réunion ?",
+    "recordingAskBody": "L'enregistrement n'est pas obligatoire. Vous pouvez le démarrer maintenant ou plus tard depuis la barre de commandes.",
+    "recordingAskYes": "Oui",
+    "recordingAskNotNow": "Pas maintenant",
+    "recordingHint": "Démarrez l'enregistrement ici",
     "controlBar": {
       "muteMic": "Couper le micro",
       "unmuteMic": "Activer le micro",
@@ -569,7 +581,70 @@
       "stopRecording": "Arrêter l'enregistrement",
       "raiseHand": "Lever la main",
       "lowerHand": "Baisser la main",
-      "reactions": "Réactions"
+      "reactions": "Réactions",
+      "selectMic": "Sélectionner le microphone et le haut-parleur",
+      "selectCam": "Sélectionner la caméra",
+      "microphone": "Microphone",
+      "speaker": "Haut-parleur",
+      "camera": "Caméra",
+      "options": "Options",
+      "optionsEllipsis": "Options…",
+      "optionsDescription": "Choisissez le microphone, le haut-parleur, la caméra et les effets utilisés dans cette réunion.",
+      "optionsTabs": {
+        "general": "Général",
+        "captions": "Sous-titres",
+        "audio": "Audio",
+        "video": "Vidéo"
+      },
+      "captionsStartOn": "Démarrer avec les sous-titres",
+      "captionsStartOnHint": "Votre préférence remplace le réglage par défaut de la plateforme.",
+      "tabReturnHint": "L’administrateur de la plateforme définit le réglage par défaut. Choisissez une préférence pour vos réunions.",
+      "tabReturnEnabled": "Protection hors onglet",
+      "tabReturnEnabledOptions": {
+        "on": "Activé",
+        "off": "Désactivé"
+      },
+      "tabReturnMic": "Micro au retour",
+      "tabReturnCamera": "Caméra au retour",
+      "tabReturnOptions": {
+        "inherit": "Réglage de la plateforme",
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "restore": "Comme avant"
+      },
+      "closeOptions": "Fermer les options",
+      "cameraPreviewOff": "Caméra désactivée",
+      "micLevel": "Niveau du microphone",
+      "noDevices": "Aucun appareil trouvé",
+      "micN": "Microphone {n}",
+      "cameraN": "Caméra {n}",
+      "speakerN": "Haut-parleur {n}",
+      "speakerUnsupported": "La sélection du haut-parleur n'est pas prise en charge dans ce navigateur.",
+      "effectsTitle": "Effets",
+      "effectsNone": "Aucun",
+      "effectsBlur": "Flou d'arrière-plan",
+      "effectsVirtual": "Arrière-plan virtuel",
+      "effectsBlurRadius": "Intensité du flou",
+      "effectsUnsupported": "Les effets d'arrière-plan ne sont pas pris en charge dans ce navigateur.",
+      "effectsAudioTitle": "Traitement audio",
+      "effectsNoise": "Suppression du bruit",
+      "effectsEcho": "Annulation d'écho",
+      "effectsAgc": "Contrôle automatique du gain",
+      "effectsUpload": "Téléverser un arrière-plan personnalisé",
+      "effectsUploading": "Téléversement…",
+      "effectsUploadOk": "Arrière-plan téléversé",
+      "effectsUploadFailed": "Impossible de téléverser l'arrière-plan ({label})",
+      "effectsUploadLogin": "Connectez-vous pour téléverser un arrière-plan personnalisé.",
+      "effectsCustomBg": "Arrière-plan personnalisé",
+      "effectsSavedAccount": "Enregistré sur votre compte",
+      "effectsSavedBrowser": "Enregistré uniquement dans ce navigateur",
+      "effectsSaving": "Enregistrement…",
+      "presetOffice": "Bureau",
+      "presetLiving": "Salon",
+      "presetBookshelf": "Bibliothèque",
+      "presetGradient": "Dégradé",
+      "presetNature": "Nature",
+      "presetAbstract": "Abstrait"
     },
     "reactions": {
       "pickReaction": "Envoyer une réaction",
@@ -627,7 +702,8 @@
       "leave": "Quitter"
     },
     "captions": {
-      "dragHint": "Glisser pour repositionner · double-clic pour réinitialiser"
+      "dragHint": "Glisser pour repositionner · double-clic pour réinitialiser",
+      "hide": "Masquer les sous-titres"
     },
     "stage": {
       "empty": "Personne dans la salle pour l'instant"
@@ -659,6 +735,7 @@
     "tabReport": "Résumé",
     "tabTranscript": "Transcription",
     "tabRecordings": "Enregistrements",
+    "tabAttendance": "Présence",
     "tabTasks": "Tâches suggérées",
     "tabsAria": "Sections du résumé de réunion",
     "personalBoard": "personnel",
@@ -694,7 +771,18 @@
     "recordingsHeading": "Enregistrements",
     "recordingsEmpty": "Aucun enregistrement pour le moment.",
     "downloadRecording": "Télécharger",
-    "playRecording": "Lire"
+    "playRecording": "Lire",
+    "attendanceHeading": "Liste de présence",
+    "attendanceEmpty": "Aucun participant n’était présent à cette réunion.",
+    "attendanceName": "Nom",
+    "attendanceRole": "Rôle",
+    "attendanceJoined": "Arrivée",
+    "attendanceLeft": "Départ",
+    "attendanceDuration": "Durée",
+    "attendanceRoleHost": "Hôte",
+    "attendanceRoleParticipant": "Participant",
+    "attendanceDownloadCsv": "Télécharger CSV",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "Système",
@@ -702,10 +790,33 @@
     "description": "Configurez la langue, les clés IA, l'enregistrement des réunions et les webhooks sortants pour intégrer Meet à des plateformes tierces.",
     "tabs": {
       "general": "Général",
+      "access": "Accès",
       "ai": "IA",
       "webhooks": "Webhooks",
       "recording": "Enregistrement",
-      "ui": "UI"
+      "ui": "UI",
+      "api": "API"
+    },
+    "api": {
+      "heading": "Jeton de l’API publique",
+      "body": "Générez un Bearer token pour que des plateformes tierces appellent POST /api/v1/*. Le jeton donne un accès complet à l’API publique.",
+      "statusLabel": "État",
+      "notConfigured": "Non configuré",
+      "configured": "Configuré : {preview}",
+      "createdAt": "Créé le {date}",
+      "generate": "Générer le jeton",
+      "rotate": "Faire tourner le jeton",
+      "revoke": "Révoquer",
+      "revokeConfirm": "Révoquer le jeton actuel ? Les clients échoueront à s’authentifier jusqu’à en générer un autre.",
+      "generatedHeading": "Jeton généré — copiez-le maintenant",
+      "generatedWarning": "Cette valeur n’est affichée qu’une seule fois. Conservez-la en lieu sûr.",
+      "copy": "Copier le jeton",
+      "copied": "Jeton copié.",
+      "docsLink": "Ouvrir la documentation de l’API",
+      "generateFailed": "Impossible de générer le jeton.",
+      "revokeFailed": "Impossible de révoquer le jeton.",
+      "revoked": "Jeton révoqué.",
+      "generated": "Jeton généré. Copiez-le maintenant."
     },
     "loadFailed": "Impossible de charger l’administration.",
     "saveFailed": "Impossible d’enregistrer.",
@@ -740,7 +851,45 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "captionsDefault": "Sous-titres au démarrage",
+      "captionsDefaultHint": "Définit si les sous-titres sont activés par défaut. Les utilisateurs peuvent remplacer cette préférence.",
+      "captionsDefaultOptions": {
+        "on": "Activés",
+        "off": "Désactivés"
+      },
+      "tabReturnTitle": "En quittant l’onglet",
+      "tabReturnHint": "Lorsqu’elle est activée, quitter l’onglet coupe le micro et la caméra pour la confidentialité. Au retour, la politique ci-dessous s’applique.",
+      "tabReturnEnabled": "Protection hors onglet",
+      "tabReturnEnabledOptions": {
+        "on": "Activé",
+        "off": "Désactivé"
+      },
+      "tabReturnMic": "Micro au retour",
+      "tabReturnCamera": "Caméra au retour",
+      "tabReturnOptions": {
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "restore": "Comme avant"
+      },
       "save": "Enregistrer"
+    },
+    "access": {
+      "body": "Définissez si l’accueil, le tableau de bord et les paramètres sont accessibles. S’ils sont désactivés, les visiteurs sont redirigés. Avec une clé de requête, ils peuvent déverrouiller via /unlock.",
+      "requestKey": "Clé de requête (déverrouillage)",
+      "requestKeyHint": "Facultatif. Quiconque saisit cette clé sur /unlock accède aux pages désactivées.",
+      "requestKeyConfigured": "Clé configurée : {preview}. Laissez vide pour la conserver.",
+      "requestKeyPlaceholder": "Nouvelle clé…",
+      "enabled": "Accessible",
+      "redirectTo": "Rediriger vers",
+      "redirectHint": "Chemin relatif (ex. /login ou /unlock) ou URL absolue.",
+      "unlockHint": "Page de déverrouillage : {path}",
+      "pages": {
+        "home": "Accueil (landing)",
+        "dashboard": "Tableau de bord",
+        "settings": "Paramètres / marque"
+      },
+      "save": "Enregistrer l’accès",
+      "clearKey": "Supprimer la clé"
     },
     "ai": {
       "groqEnabled": "Utiliser Groq / API compatible OpenAI (remplace Gemini si actif)",
@@ -761,7 +910,7 @@
       "modelSummary": "Modèle (résumé)",
       "modelSummaryHint": "Une génération après la réunion — utiliser un modèle plus capable (ex. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
-      "deepgramKeyHint": "Le worker Python continue de lire DEEPGRAM_API_KEY depuis le .env.",
+      "deepgramKeyHint": "Résolu depuis Admin (base de données), sinon DEEPGRAM_API_KEY dans le .env. Le worker Python utilise le même ordre.",
       "save": "Enregistrer l’IA",
       "clearGemini": "Effacer le remplacement Gemini",
       "clearDeepgram": "Effacer le remplacement Deepgram"
@@ -796,6 +945,10 @@
         "recording": {
           "label": "Enregistrement prêt",
           "description": "Métadonnées et lien de téléchargement lorsque l'enregistrement est disponible."
+        },
+        "attendance": {
+          "label": "Liste de présence",
+          "description": "Participants présents avec heure d’arrivée et de départ."
         }
       },
       "save": "Enregistrer les webhooks",
@@ -816,6 +969,7 @@
       "controlLabel": "Contrôle",
       "controlManual": "Manuel — l'hôte démarre et arrête dans la salle",
       "controlAuto": "Automatique — démarre à l'arrivée de l'hôte (sans arrêt)",
+      "controlAsk": "Toujours demander — invite à l'arrivée de l'hôte",
       "storageLabel": "Stockage",
       "storageLocal": "Disque local du serveur",
       "storageS3": "Compatible S3 (MinIO / Hetzner / AWS)",
@@ -839,13 +993,17 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Nom de la plateforme",
+      "logoUrl": "URL du logo de la plateforme",
+      "faviconUrl": "URL du favicon de la plateforme",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Téléverser le logo",
+      "uploadFavicon": "Téléverser le favicon",
+      "copyHex": "Copier l’hexadécimal",
+      "hexCopied": "Hexadécimal copié"
     }
   },
   "settings": {
@@ -868,12 +1026,24 @@
     "startFailed": "Impossible de démarrer la réunion.",
     "startNetworkFailed": "Erreur réseau lors du démarrage de la réunion."
   },
+  "accessUnlock": {
+    "title": "Déverrouiller l’accès",
+    "body": "Saisissez la clé de requête fournie par l’administration pour ouvrir les pages restreintes.",
+    "keyLabel": "Clé de requête",
+    "keyPlaceholder": "Clé…",
+    "submit": "Déverrouiller",
+    "submitting": "Vérification…",
+    "success": "Accès déverrouillé.",
+    "invalidKey": "Clé invalide.",
+    "notConfigured": "Aucune clé de déverrouillage n’est configurée.",
+    "failed": "Impossible de déverrouiller."
+  },
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Utilisez votre e-mail et mot de passe pour accéder à {name}.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Créez le premier compte administrateur de cette instance {name}.",
     "name": "Name",
     "email": "Email",
     "password": "Password",
@@ -898,5 +1068,112 @@
       "auth_failed": "Authentication failed.",
       "setup_failed": "Setup failed."
     }
+  },
+  "ops": {
+    "eyebrow": "Ops interne",
+    "eyebrowVersion": "Ops interne · v{version}",
+    "tabs": {
+      "overview": "Aperçu",
+      "tenants": "Tenants"
+    },
+    "titles": {
+      "health": "Santé et métriques",
+      "tenants": "Tenants",
+      "tenant": "Tenant",
+      "meeting": "Réunion"
+    },
+    "forbidden": {
+      "title": "Ops — interdit",
+      "body": "Session admin root locale requise.",
+      "back": "← Dashboard"
+    },
+    "nav": {
+      "admin": "Administration",
+      "dashboard": "Dashboard",
+      "back": "← Retour"
+    },
+    "overview": {
+      "platformHealth": "Santé de la plateforme",
+      "liveSnapshot": "Instantané en direct · actualisé toutes les 30s",
+      "healthy": "Saine",
+      "degraded": "Dégradée",
+      "statusOk": "ok",
+      "statusDown": "hors service",
+      "meetingsNow": "Réunions en cours",
+      "livekitRooms": "Salles LiveKit : {count}",
+      "livekitUnavailable": "Nombre de salles LiveKit indisponible",
+      "participantsNow": "Participants en cours",
+      "users": "Utilisateurs",
+      "meetingsEnded": "Réunions terminées",
+      "endedHint": "7j : {ended7d} · 30j : {ended30d}",
+      "newUsers30d": "Nouveaux utilisateurs · 30j",
+      "meetingsEnded30d": "Réunions terminées · 30j",
+      "total": "{count} au total",
+      "recordings": "Enregistrements",
+      "storage": "Stockage {size}",
+      "noRecordingsYet": "Pas encore d'enregistrements",
+      "llmUsage30d": "Usage LLM · 30j",
+      "noLlmCalls": "Aucun appel LLM enregistré",
+      "llmRow": "{calls} appels · {tokens} tok",
+      "statsFailed": "Échec du chargement des stats : {error}"
+    },
+    "tenants": {
+      "searchPlaceholder": "Rechercher email / nom / id externe",
+      "search": "Rechercher",
+      "account": "Compte",
+      "role": "Rôle",
+      "rooms": "Salles",
+      "meetings": "Réunions",
+      "active": "Actives",
+      "created": "Créé",
+      "loading": "Chargement…",
+      "empty": "Aucun tenant",
+      "loadError": "Échec du chargement des tenants",
+      "roomsCount": "{count} salles",
+      "meetingsCount": "{count} réunions",
+      "activeCount": "{count} actives",
+      "via": "via {channel}",
+      "ext": "ext {id}",
+      "idLabel": "id {id}",
+      "impersonate": "Usurper",
+      "impersonating": "Usurpation de {email}",
+      "impersonateFailed": "Échec de l'usurpation",
+      "roleUpdated": "Rôle → {role}",
+      "roleFailed": "Échec de la mise à jour du rôle",
+      "brand": "Marque",
+      "wordmark": "wordmark : {value}",
+      "theme": "thème : {value}",
+      "primary": "primaire : {value}",
+      "none": "Aucune",
+      "mediaPrefs": "Préférences média",
+      "videoEffect": "vidéo : {effect} (flou {blur})",
+      "audioFlags": "NS {ns} · EC {ec} · AGC {agc}",
+      "defaults": "Par défaut",
+      "roomsHeading": "Salles ({count})",
+      "noRooms": "Aucune salle",
+      "meetingsHeading": "Réunions ({count})",
+      "noMeetings": "Aucune réunion",
+      "summaryBadge": "résumé"
+    },
+    "meeting": {
+      "started": "démarrée {date}",
+      "ended": "terminée {date}",
+      "transcriptSegments": "{count} segments de transcription",
+      "openSummary": "Ouvrir la page de résumé ↗",
+      "endMeeting": "Terminer la réunion",
+      "endConfirm": "Terminer cette réunion maintenant ?",
+      "endedOk": "Réunion terminée",
+      "alreadyEnded": "Déjà terminée",
+      "endFailed": "Échec de la fin",
+      "participants": "Participants ({count})",
+      "noParticipants": "Aucun participant",
+      "inCall": "en cours",
+      "recordings": "Enregistrements ({count})",
+      "noRecordings": "Aucun enregistrement",
+      "summary": "Résumé",
+      "noSummary": "Pas encore de résumé (statut : {status})",
+      "loadError": "Échec du chargement de la réunion"
+    },
+    "detailLoadError": "Échec du chargement du tenant"
   }
 }

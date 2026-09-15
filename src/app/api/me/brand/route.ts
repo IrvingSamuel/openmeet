@@ -8,18 +8,24 @@ import {
   brandFieldsSchema,
   brandFieldsToPatch,
 } from "@/lib/brand-schema";
+import {
+  platformPoweredBySubtitle,
+  platformWordmark,
+} from "@/lib/platform-defaults";
 
-function defaultIdentityBrand(identityId: string) {
+async function defaultIdentityBrand(identityId: string) {
   const colors = BOARD_THEMES.sky;
+  const name = await platformWordmark();
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     identityId,
     themePreset: "sky",
     primaryColor: colors.primary,
     secondaryColor: colors.secondary,
     tertiaryColor: colors.tertiary,
-    wordmark: "OpenMeet",
-    lobbyTitle: "OpenMeet",
-    lobbySubtitle: "Powered by OpenMeet",
+    wordmark: name,
+    lobbyTitle: name,
+    lobbySubtitle: poweredBy,
   };
 }
 
@@ -36,7 +42,7 @@ export async function GET() {
   if (!brand) {
     const [created] = await db
       .insert(identityBrands)
-      .values(defaultIdentityBrand(session.identityId))
+      .values(await defaultIdentityBrand(session.identityId))
       .returning();
     brand = created;
   }
@@ -50,24 +56,22 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const body = brandFieldsSchema.parse(await req.json());
-  const patch: Record<string, unknown> = {
-    ...brandFieldsToPatch(body),
-    updatedAt: new Date(),
-  };
-
-  if (
-    body.themePreset &&
-    BOARD_THEMES[body.themePreset] &&
-    !body.primaryColor &&
-    body.primaryPaint === undefined
-  ) {
-    const c = BOARD_THEMES[body.themePreset];
-    patch.primaryColor = c.primary;
-    patch.secondaryColor = c.secondary;
-    patch.tertiaryColor = c.tertiary;
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
+  const parsed = brandFieldsSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_body", detail: parsed.error.message },
+      { status: 400 },
+    );
+  }
+
+  const patch = brandFieldsToPatch(parsed.data);
   const existing = await db.query.identityBrands.findFirst({
     where: eq(identityBrands.identityId, session.identityId),
   });
@@ -76,18 +80,18 @@ export async function PATCH(req: NextRequest) {
     const [created] = await db
       .insert(identityBrands)
       .values({
-        ...defaultIdentityBrand(session.identityId),
+        ...(await defaultIdentityBrand(session.identityId)),
         ...patch,
       })
       .returning();
     return NextResponse.json({ brand: created });
   }
 
-  const [brand] = await db
+  const [updated] = await db
     .update(identityBrands)
-    .set(patch)
+    .set({ ...patch, updatedAt: new Date() })
     .where(eq(identityBrands.identityId, session.identityId))
     .returning();
 
-  return NextResponse.json({ brand });
+  return NextResponse.json({ brand: updated });
 }

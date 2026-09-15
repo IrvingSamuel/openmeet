@@ -5,7 +5,8 @@ export type OutboundWebhookEvent =
   | "chat.ready"
   | "summary.ready"
   | "tasks.generated"
-  | "recording.ready";
+  | "recording.ready"
+  | "attendance.ready";
 
 export type WebhookMeetingMeta = {
   id: string;
@@ -29,6 +30,7 @@ export const OUTBOUND_WEBHOOK_EVENTS: OutboundWebhookEvent[] = [
   "summary.ready",
   "tasks.generated",
   "recording.ready",
+  "attendance.ready",
 ];
 
 export function exampleWebhookPayload(
@@ -157,6 +159,48 @@ export function exampleWebhookPayload(
             "/api/meetings/11111111-1111-1111-1111-111111111111/recording/88888888-8888-8888-8888-888888888888/file",
           startedAt: "2026-08-04T11:00:10.000Z",
           endedAt: "2026-08-04T11:30:00.000Z",
+        },
+      };
+    case "attendance.ready":
+      return {
+        event,
+        version: 1,
+        sentAt,
+        meeting,
+        data: {
+          attendees: [
+            {
+              displayName: "Ana",
+              role: "host",
+              identityId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+              joinedAt: "2026-08-04T11:00:05.000Z",
+              leftAt: "2026-08-04T11:30:00.000Z",
+              durationMs: 1_795_000,
+              sessions: [
+                {
+                  joinedAt: "2026-08-04T11:00:05.000Z",
+                  leftAt: "2026-08-04T11:30:00.000Z",
+                },
+              ],
+            },
+            {
+              displayName: "Caio",
+              role: "participant",
+              identityId: null,
+              joinedAt: "2026-08-04T11:02:00.000Z",
+              leftAt: "2026-08-04T11:28:00.000Z",
+              durationMs: 1_560_000,
+              sessions: [
+                {
+                  joinedAt: "2026-08-04T11:02:00.000Z",
+                  leftAt: "2026-08-04T11:28:00.000Z",
+                },
+              ],
+            },
+          ],
+          presentCount: 2,
+          meetingStartedAt: "2026-08-04T11:00:00.000Z",
+          meetingEndedAt: "2026-08-04T11:30:00.000Z",
         },
       };
   }
