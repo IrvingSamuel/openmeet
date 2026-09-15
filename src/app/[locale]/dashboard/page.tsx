@@ -34,6 +34,7 @@ import {
   IconShield,
   IconSparkles,
   IconTrash,
+  IconUsers,
   IconVideo,
 } from "@/components/ui/icons";
 import { cn, formatDuration, initials, timeAgo } from "@/lib/utils";
@@ -45,6 +46,7 @@ type Me = {
   name?: string;
   email?: string;
   isAdmin?: boolean;
+  isLocalRoot?: boolean;
 };
 
 type Room = {
@@ -244,6 +246,17 @@ export default function DashboardPage() {
                   icon={<IconShield className="h-4 w-4" />}
                 >
                   <span className="hidden sm:inline">{tHeader("admin")}</span>
+                </Button>
+              </Link>
+            ) : null}
+            {me.isLocalRoot ? (
+              <Link href="/ops">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={<IconUsers className="h-4 w-4" />}
+                >
+                  <span className="hidden sm:inline">{tHeader("ops")}</span>
                 </Button>
               </Link>
             ) : null}

@@ -67,8 +67,3 @@ infra/livekit.yaml
 infra/egress.yaml
 !infra/livekit.yaml.example
 !infra/egress.yaml.example
-
-# Internal tenant ops panel (VPS-only; do not ship)
-/src/ops/
-/src/app/**/ops/
-/src/app/api/ops/

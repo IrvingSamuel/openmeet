@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdmin } from "@/lib/admin-auth";
+import { isAdmin, isLocalRoot } from "@/lib/admin-auth";
 import { getDeploymentMode, isSignupAllowed, needsSetup } from "@/lib/deployment-mode";
 import { isOidcEnabled } from "@/lib/oidc";
 import { getSession } from "@/lib/session";
@@ -14,6 +14,7 @@ export async function GET() {
       oidcEnabled: isOidcEnabled(),
       signupAllowed: setup ? false : await isSignupAllowed(),
       deploymentMode: await getDeploymentMode(),
+      isLocalRoot: false,
     });
   }
   const impersonating = Boolean(session.impersonatorIdentityId);
@@ -26,6 +27,7 @@ export async function GET() {
     avatarUrl: session.avatarUrl,
     role: session.role,
     isAdmin: isAdmin(session),
+    isLocalRoot: await isLocalRoot(session),
     impersonating,
     impersonatorEmail: impersonating
       ? session.impersonatorEmail ?? null
