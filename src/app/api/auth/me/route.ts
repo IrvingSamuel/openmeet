@@ -16,6 +16,7 @@ export async function GET() {
       deploymentMode: await getDeploymentMode(),
     });
   }
+  const impersonating = Boolean(session.impersonatorIdentityId);
   return NextResponse.json({
     isLoggedIn: true,
     identityId: session.identityId,
@@ -25,6 +26,10 @@ export async function GET() {
     avatarUrl: session.avatarUrl,
     role: session.role,
     isAdmin: isAdmin(session),
+    impersonating,
+    impersonatorEmail: impersonating
+      ? session.impersonatorEmail ?? null
+      : null,
     needsSetup: false,
     oidcEnabled: isOidcEnabled(),
     signupAllowed: await isSignupAllowed(),

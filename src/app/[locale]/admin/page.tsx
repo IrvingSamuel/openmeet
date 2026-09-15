@@ -48,6 +48,7 @@ type WebhookEvents = {
   summary: boolean;
   tasks: boolean;
   recording: boolean;
+  attendance: boolean;
 };
 
 type AdminSettings = {
@@ -136,6 +137,7 @@ const EVENT_META: Array<{
   { key: "summary", event: "summary.ready" },
   { key: "tasks", event: "tasks.generated" },
   { key: "recording", event: "recording.ready" },
+  { key: "attendance", event: "attendance.ready" },
 ];
 
 const AI_LOCALES = ["pt-BR", "en", "es", "fr", "de"] as const;

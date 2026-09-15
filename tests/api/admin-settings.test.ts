@@ -93,6 +93,7 @@ const baseRow = {
     summary: true,
     tasks: true,
     recording: true,
+    attendance: true,
   },
   recordingEnabled: false,
   recordingEngine: "browser",

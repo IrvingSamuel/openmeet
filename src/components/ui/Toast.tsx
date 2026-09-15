@@ -69,7 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="pointer-events-none fixed bottom-5 left-1/2 z-[200] flex w-[min(420px,92vw)] -translate-x-1/2 flex-col gap-2"
+        className="pointer-events-none fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-4 z-[200] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-2"
         role="status"
         aria-live="polite"
       >

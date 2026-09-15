@@ -7,9 +7,11 @@ import {
   DEFAULT_WEBHOOK_EVENTS,
   meetingSummaries,
   meetings,
+  participants,
   transcriptSegments,
   type WebhookEventsConfig,
 } from "@/db/schema";
+import { buildAttendanceList } from "@/lib/attendance";
 import {
   getAppSettings,
   webhookEventsOrDefault,
@@ -36,6 +38,7 @@ const EVENT_TOGGLE: Record<
   "summary.ready": "summary",
   "tasks.generated": "tasks",
   "recording.ready": "recording",
+  "attendance.ready": "attendance",
 };
 
 async function loadMeetingMeta(
@@ -173,6 +176,32 @@ async function buildTasksPayload(
         };
       }),
     },
+  };
+}
+
+async function buildAttendancePayload(
+  meetingId: string,
+  meta: WebhookMeetingMeta,
+): Promise<WebhookEnvelope> {
+  const [meeting, rows] = await Promise.all([
+    db.query.meetings.findFirst({
+      where: eq(meetings.id, meetingId),
+    }),
+    db.query.participants.findMany({
+      where: eq(participants.meetingId, meetingId),
+      orderBy: [asc(participants.joinedAt)],
+    }),
+  ]);
+  const payload = buildAttendanceList(rows, {
+    startedAt: meeting?.startedAt ?? new Date(meta.startedAt),
+    endedAt: meeting?.endedAt ?? (meta.endedAt ? new Date(meta.endedAt) : null),
+  });
+  return {
+    event: "attendance.ready",
+    version: 1,
+    sentAt: new Date().toISOString(),
+    meeting: meta,
+    data: payload,
   };
 }
 
@@ -322,7 +351,7 @@ export async function dispatchPreparedWebhook(
   await deliverToTargets(envelope.event, envelope, targets);
 }
 
-/** Fire transcript + chat webhooks after a meeting ends. */
+/** Fire transcript + chat + attendance webhooks after a meeting ends. */
 export async function dispatchMeetingEndedWebhooks(meetingId: string) {
   const meta = await loadMeetingMeta(meetingId);
   if (!meta) return;
@@ -341,6 +370,13 @@ export async function dispatchMeetingEndedWebhooks(meetingId: string) {
     jobs.push(
       buildChatPayload(meetingId, meta).then((envelope) =>
         deliverToTargets("chat.ready", envelope, targets),
+      ),
+    );
+  }
+  if (anyTargetWants(targets, "attendance")) {
+    jobs.push(
+      buildAttendancePayload(meetingId, meta).then((envelope) =>
+        deliverToTargets("attendance.ready", envelope, targets),
       ),
     );
   }

@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { HtmlLang } from "@/components/layout/HtmlLang";
 import { SystemThemeProvider } from "@/components/layout/SystemThemeProvider";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { resolveSystemUiTheme } from "@/lib/system-theme";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +85,10 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider messages={messages}>
       <HtmlLang locale={locale} />
-      <SystemThemeProvider theme={theme}>{children}</SystemThemeProvider>
+      <SystemThemeProvider theme={theme}>
+        <ImpersonationBanner />
+        {children}
+      </SystemThemeProvider>
     </NextIntlClientProvider>
   );
 }

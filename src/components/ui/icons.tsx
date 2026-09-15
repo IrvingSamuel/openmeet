@@ -179,6 +179,20 @@ export const IconSettings = (p: IconProps) => (
   </Base>
 );
 
+export const IconChevronDown = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6 9l6 6 6-6" />
+  </Base>
+);
+
+export const IconSpeaker = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M18 6a8.5 8.5 0 0 1 0 12" />
+  </Base>
+);
+
 export const IconTrash = (p: IconProps) => (
   <Base {...p}>
     <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M8 7l1 12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2l1-12M10 11v6M14 11v6" />

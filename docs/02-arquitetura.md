@@ -72,9 +72,9 @@ Agent ──► Postgres
 - UI em `/admin` (acesso via `ADMIN_EMAILS` no `.env`).
 - Overrides de locale / Gemini / Deepgram em `app_settings` (fallback para env se vazio).
 - **Gravação** em `/admin` → tab Gravação: motor (`browser` | `egress`), controlo (`manual` | `auto`), storage (`local` | `s3`).
-- Webhooks outbound JSON (`transcript.ready`, `chat.ready`, `summary.ready`, `tasks.generated`, `recording.ready`) com HMAC `X-OpenMeet-Signature`.
+- Webhooks outbound JSON (`transcript.ready`, `chat.ready`, `summary.ready`, `tasks.generated`, `recording.ready`, `attendance.ready`) com HMAC `X-OpenMeet-Signature`.
 - Destino: `webhook_url` por sala/reunião (API pública, snapshot na criação) **e/ou** URL global em `app_settings` (Admin). A URL da reunião dispara mesmo com o webhook Admin desligado; se o Admin estiver ativo e a URL for distinta, envia para os dois.
-- Disparo: fim de reunião (transcript + chat), após resumo (summary + tasks), e quando a gravação fica `ready`.
+- Disparo: fim de reunião (transcript + chat + attendance), após resumo (summary + tasks), e quando a gravação fica `ready`.
 - `redirect_after_meet` é redirect de browser; não substitui `webhook_url`.
 
 ### Gravação de reuniões

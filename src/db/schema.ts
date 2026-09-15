@@ -151,6 +151,22 @@ export const identityBrands = pgTable("identity_brands", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Per-user media effects prefs (blur / virtual bg / browser audio constraints). */
+export const identityMediaPrefs = pgTable("identity_media_prefs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  identityId: uuid("identity_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  videoEffect: text("video_effect").notNull().default("none"), // none | blur | virtual
+  blurRadius: integer("blur_radius").notNull().default(10),
+  virtualBackgroundUrl: text("virtual_background_url"),
+  noiseSuppression: boolean("noise_suppression").notNull().default(true),
+  echoCancellation: boolean("echo_cancellation").notNull().default(true),
+  autoGainControl: boolean("auto_gain_control").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const meetings = pgTable(
   "meetings",
   {
@@ -248,6 +264,8 @@ export const participants = pgTable(
     role: text("role").notNull().default("participant"),
     livekitIdentity: text("livekit_identity").notNull(),
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Set when LiveKit fires participant_joined (actual room connect). */
+    connectedAt: timestamp("connected_at", { withTimezone: true }),
     leftAt: timestamp("left_at", { withTimezone: true }),
   },
   (t) => [index("participants_meeting_idx").on(t.meetingId)],
@@ -394,6 +412,7 @@ export type WebhookEventsConfig = {
   summary: boolean;
   tasks: boolean;
   recording: boolean;
+  attendance: boolean;
 };
 
 export const DEFAULT_WEBHOOK_EVENTS: WebhookEventsConfig = {
@@ -402,6 +421,7 @@ export const DEFAULT_WEBHOOK_EVENTS: WebhookEventsConfig = {
   summary: true,
   tasks: true,
   recording: true,
+  attendance: true,
 };
 
 export const appSettings = pgTable("app_settings", {

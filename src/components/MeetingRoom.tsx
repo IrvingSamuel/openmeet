@@ -61,6 +61,12 @@ import {
   type TabReturnMediaPrefs,
   type TabReturnMediaPolicy,
 } from "@/lib/tab-return-media";
+import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
+import {
+  audioOptionsFromPrefs,
+  useMeetingEffects,
+} from "@/hooks/useMeetingEffects";
+import { useMediaPrefs } from "@/hooks/useMediaPrefs";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
@@ -455,6 +461,11 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  const mediaPrefsApi = useMediaPrefs();
+  useMeetingEffects(
+    room,
+    mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+  );
   // Cleared on tab-return so reconnect backup does not re-open mic/cam.
   const [mediaWanted, setMediaWanted] = useState({
     video: wantVideo,
@@ -747,8 +758,13 @@ function RoomShell({
     if (leavingRef.current) return;
     const gen = ++mediaEnsureGen.current;
     const lp = room.localParticipant;
-    const videoOpts = videoDeviceId ? { deviceId: videoDeviceId } : undefined;
-    const audioOpts = audioDeviceId ? { deviceId: audioDeviceId } : undefined;
+    const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+    const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
+    const videoOpts = videoId ? { deviceId: videoId } : undefined;
+    const audioOpts = audioOptionsFromPrefs(
+      mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+      audioId,
+    );
 
     void (async () => {
       try {
@@ -779,6 +795,10 @@ function RoomShell({
     videoDeviceId,
     audioDeviceId,
     leavingRef,
+    mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.noiseSuppression,
+    mediaPrefsApi.prefs.echoCancellation,
+    mediaPrefsApi.prefs.autoGainControl,
   ]);
 
   const muteLocalMediaForPrivacy = useCallback(() => {
@@ -838,8 +858,13 @@ function RoomShell({
       snapOn: boolean,
     ) => {
       const lp = room.localParticipant;
-      const videoOpts = videoDeviceId ? { deviceId: videoDeviceId } : undefined;
-      const audioOpts = audioDeviceId ? { deviceId: audioDeviceId } : undefined;
+      const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+      const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
+      const videoOpts = videoId ? { deviceId: videoId } : undefined;
+      const audioOpts = audioOptionsFromPrefs(
+        mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        audioId,
+      );
       let want = false;
       if (policy === "open") want = true;
       else if (policy === "restore") want = snapOn;
@@ -852,7 +877,15 @@ function RoomShell({
       }
       return want;
     },
-    [room, videoDeviceId, audioDeviceId],
+    [
+      room,
+      videoDeviceId,
+      audioDeviceId,
+      mediaPrefsApi.ready,
+      mediaPrefsApi.prefs.noiseSuppression,
+      mediaPrefsApi.prefs.echoCancellation,
+      mediaPrefsApi.prefs.autoGainControl,
+    ],
   );
 
   const onTabHidden = useCallback(() => {
@@ -1172,6 +1205,12 @@ function RoomShell({
             handRaised={localHandRaised}
             onToggleHand={toggleHand}
             onSendReaction={sendReaction}
+            mediaPrefs={mediaPrefsApi.prefs}
+            mediaPrefsReady={mediaPrefsApi.ready}
+            mediaPrefsAccountBound={mediaPrefsApi.accountBound}
+            mediaPrefsSaving={mediaPrefsApi.saving}
+            onMediaPrefsChange={mediaPrefsApi.updatePrefs}
+            onUploadVirtualBackground={mediaPrefsApi.uploadVirtualBackground}
           />
         </div>
       </div>

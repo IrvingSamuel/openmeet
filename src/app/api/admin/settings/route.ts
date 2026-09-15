@@ -29,6 +29,7 @@ const webhookEventsSchema = z.object({
   summary: z.boolean(),
   tasks: z.boolean(),
   recording: z.boolean().optional(),
+  attendance: z.boolean().optional(),
 });
 
 const putSchema = z.object({
@@ -363,6 +364,7 @@ export async function PUT(req: NextRequest) {
       summary: body.webhookEvents.summary,
       tasks: body.webhookEvents.tasks,
       recording: body.webhookEvents.recording ?? true,
+      attendance: body.webhookEvents.attendance ?? true,
     };
   }
 

@@ -46,6 +46,7 @@ info:
 
     - `transcript.ready` — transcrição completa (`data.segments`)
     - `chat.ready` — mensagens do chat da reunião
+    - `attendance.ready` — lista de presença (`data.attendees`, nomes + entrada/saída)
     - `summary.ready` — resumo em Markdown (`data.summaryMarkdown`)
     - `tasks.generated` — tarefas extraídas (`data.tasks`)
     - `recording.ready` — metadados da gravação + `data.downloadPath`
@@ -793,6 +794,7 @@ components:
             - summary.ready
             - tasks.generated
             - recording.ready
+            - attendance.ready
         version:
           type: integer
           enum: [1]
@@ -1005,4 +1007,88 @@ components:
               mimeType: video/webm
               bytes: 12345678
               downloadPath: /api/meetings/11111111-1111-1111-1111-111111111111/recording/88888888-8888-8888-8888-888888888888/file
+
+    WebhookAttendanceReady:
+      allOf:
+        - $ref: "#/components/schemas/WebhookEnvelope"
+        - type: object
+          properties:
+            event:
+              type: string
+              enum: [attendance.ready]
+            data:
+              type: object
+              required: [attendees, presentCount, meetingStartedAt]
+              properties:
+                attendees:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      [displayName, role, joinedAt, leftAt, durationMs, sessions]
+                    properties:
+                      displayName:
+                        type: string
+                      role:
+                        type: string
+                        enum: [host, participant]
+                      identityId:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      joinedAt:
+                        type: string
+                        format: date-time
+                      leftAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      durationMs:
+                        type: integer
+                        nullable: true
+                      sessions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            joinedAt:
+                              type: string
+                              format: date-time
+                            leftAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                presentCount:
+                  type: integer
+                meetingStartedAt:
+                  type: string
+                  format: date-time
+                meetingEndedAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+          example:
+            event: attendance.ready
+            version: 1
+            sentAt: "2026-08-04T11:30:05.000Z"
+            meeting:
+              id: "11111111-1111-1111-1111-111111111111"
+              roomSlug: standup
+              roomTitle: Standup
+              startedAt: "2026-08-04T11:00:00.000Z"
+              endedAt: "2026-08-04T11:30:00.000Z"
+            data:
+              attendees:
+                - displayName: Ana
+                  role: host
+                  identityId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                  joinedAt: "2026-08-04T11:00:05.000Z"
+                  leftAt: "2026-08-04T11:30:00.000Z"
+                  durationMs: 1795000
+                  sessions:
+                    - joinedAt: "2026-08-04T11:00:05.000Z"
+                      leftAt: "2026-08-04T11:30:00.000Z"
+              presentCount: 1
+              meetingStartedAt: "2026-08-04T11:00:00.000Z"
+              meetingEndedAt: "2026-08-04T11:30:00.000Z"
 

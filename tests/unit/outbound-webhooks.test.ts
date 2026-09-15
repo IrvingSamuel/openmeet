@@ -5,6 +5,7 @@ const meetingsFindFirst = vi.fn();
 const transcriptFindMany = vi.fn();
 const chatFindMany = vi.fn();
 const copilotFindMany = vi.fn();
+const participantsFindMany = vi.fn();
 const getAppSettings = vi.fn();
 
 vi.mock("@/db", () => ({
@@ -21,6 +22,9 @@ vi.mock("@/db", () => ({
       },
       copilotChatMessages: {
         findMany: (...args: unknown[]) => copilotFindMany(...args),
+      },
+      participants: {
+        findMany: (...args: unknown[]) => participantsFindMany(...args),
       },
     },
   },
@@ -55,10 +59,12 @@ beforeEach(() => {
   transcriptFindMany.mockReset();
   chatFindMany.mockReset();
   copilotFindMany.mockReset();
+  participantsFindMany.mockReset();
   getAppSettings.mockReset();
   transcriptFindMany.mockResolvedValue([]);
   chatFindMany.mockResolvedValue([]);
   copilotFindMany.mockResolvedValue([]);
+  participantsFindMany.mockResolvedValue([]);
   vi.unstubAllGlobals();
 });
 
@@ -86,6 +92,7 @@ describe("resolveDeliveryTargets", () => {
           summary: true,
           tasks: true,
           recording: true,
+          attendance: true,
         },
       },
     ]);
@@ -181,6 +188,7 @@ describe("dispatchMeetingEndedWebhooks", () => {
     });
     expect(events).toContain("transcript.ready");
     expect(events).toContain("chat.ready");
+    expect(events).toContain("attendance.ready");
   });
 
   it("POSTs to both meeting and admin URLs when they differ", async () => {

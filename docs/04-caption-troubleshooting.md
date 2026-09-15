@@ -123,15 +123,15 @@ AGENT_MAX_CONCURRENT_JOBS=4
 AGENT_NUM_IDLE_PROCESSES=1
 AGENT_HTTP_PORT=8095
 
-# Multi-produto no mesmo LiveKit: nome explícito + dispatch no token
-# LIVEKIT_AGENT_NAME=openmeet
+# Multi-produto no mesmo LiveKit: nome explícito + dispatch no createRoom/token
+LIVEKIT_AGENT_NAME=openmeet
 ```
 
 ### Evitar misconfig comum
 
 | Problema | Solução |
 |----------|---------|
-| Dois produtos no **mesmo** LiveKit com `agent_name=""` | Definir `LIVEKIT_AGENT_NAME` por produto e dispatch explícito |
+| Dois produtos no **mesmo** LiveKit com `agent_name=""` | `LIVEKIT_AGENT_NAME` por produto + `ensureAgentDispatch` / `roomConfig.agents` |
 | Porta 8095 em uso | `AGENT_HTTP_PORT=8096` (ou outra livre) |
 | Agent fala com API pública via HTTPS | Usar `MEET_API_URL` loopback |
 | Deepgram só no Admin, env vazio | OK se `/api/agent/config` responder 200 com secret |

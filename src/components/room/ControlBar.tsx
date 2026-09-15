@@ -1,6 +1,9 @@
 "use client";
 
-import { useTrackToggle } from "@livekit/components-react";
+import {
+  useRoomContext,
+  useTrackToggle,
+} from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
@@ -17,6 +20,8 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { unlockMeetingChimes } from "@/lib/recording-beep";
 import { useIsSmUp } from "@/hooks/useMediaQuery";
+import { useMeetingDevices } from "@/hooks/useMeetingDevices";
+import { useToast } from "@/components/ui/Toast";
 import { springSoft } from "@/components/motion/primitives";
 import {
   IconCaptions,
@@ -29,6 +34,7 @@ import {
   IconPhoneOff,
   IconReaction,
   IconScreen,
+  IconSettings,
   IconSparkles,
   IconSpotlight,
   IconUsers,
@@ -39,6 +45,15 @@ import {
 import type { StageLayout } from "@/components/room/Stage";
 import { FloatingMenu } from "@/components/room/FloatingMenu";
 import { ReactionPicker } from "@/components/room/ReactionPicker";
+import {
+  CameraDeviceMenu,
+  MicDeviceMenu,
+  SplitDeviceControl,
+  useExclusiveMenus,
+} from "@/components/room/DeviceMenus";
+import { DeviceSettingsModal } from "@/components/room/DeviceSettingsModal";
+import { canUseBackgroundEffects } from "@/hooks/useMeetingEffects";
+import type { MediaPrefs } from "@/lib/media-prefs-schema";
 
 export type SidePanel = "none" | "chat" | "people" | "captions" | "copilot";
 
@@ -65,6 +80,12 @@ export function ControlBar({
   handRaised = false,
   onToggleHand,
   onSendReaction,
+  mediaPrefs,
+  mediaPrefsReady = false,
+  mediaPrefsAccountBound = false,
+  mediaPrefsSaving = false,
+  onMediaPrefsChange,
+  onUploadVirtualBackground,
 }: {
   layout: StageLayout;
   onLayoutChange: (layout: StageLayout) => void;
@@ -88,14 +109,26 @@ export function ControlBar({
   handRaised?: boolean;
   onToggleHand?: () => void | Promise<void>;
   onSendReaction?: (emoji: string) => void | Promise<boolean>;
+  mediaPrefs?: MediaPrefs;
+  mediaPrefsReady?: boolean;
+  mediaPrefsAccountBound?: boolean;
+  mediaPrefsSaving?: boolean;
+  onMediaPrefsChange?: (patch: Partial<MediaPrefs>) => void;
+  onUploadVirtualBackground?: (file: File) => Promise<string>;
 }) {
   const t = useTranslations("room.controlBar");
+  const tRoom = useTranslations("room");
+  const room = useRoomContext();
+  const toast = useToast();
   const mic = useTrackToggle({ source: Track.Source.Microphone });
   const cam = useTrackToggle({ source: Track.Source.Camera });
   const screen = useTrackToggle({ source: Track.Source.ScreenShare });
+  const devicesApi = useMeetingDevices(room);
+  const deviceMenus = useExclusiveMenus();
   const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
   const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
@@ -116,6 +149,28 @@ export function ControlBar({
   function selectPanel(next: SidePanel) {
     onPanelChange(panel === next ? "none" : next);
     setMoreOpen(false);
+  }
+
+  function openOptions() {
+    deviceMenus.closeAll();
+    setMoreOpen(false);
+    setReactionsOpen(false);
+    setOptionsOpen(true);
+  }
+
+  async function switchSafe(
+    kind: "mic" | "camera" | "speaker",
+    deviceId: string,
+  ) {
+    try {
+      if (kind === "mic") await devicesApi.switchMic(deviceId);
+      else if (kind === "camera") await devicesApi.switchCamera(deviceId);
+      else await devicesApi.switchSpeaker(deviceId);
+      deviceMenus.closeAll();
+    } catch (err) {
+      const label = err instanceof Error ? err.message : String(err);
+      toast.error(tRoom("mediaDeviceError", { label }));
+    }
   }
 
   const moreBadge =
@@ -144,29 +199,69 @@ export function ControlBar({
         transition={{ ...springSoft, delay: 0.15 }}
         className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl glass-strong p-1.5 shadow-lift"
       >
-        <ControlButton
+        <SplitDeviceControl
           active={mic.enabled}
           danger={!mic.enabled}
           pending={mic.pending}
-          onClick={() => {
+          onToggle={() => {
             void mic.toggle();
           }}
-          label={mic.enabled ? t("muteMic") : t("unmuteMic")}
+          toggleLabel={mic.enabled ? t("muteMic") : t("unmuteMic")}
+          menuLabel={t("selectMic")}
+          menuOpen={deviceMenus.micOpen}
+          onMenuOpenChange={(open) => {
+            if (open) void devicesApi.refresh();
+            deviceMenus.setMicOpen(open);
+          }}
+          menu={
+            <MicDeviceMenu
+              mics={devicesApi.devices.mics}
+              speakers={devicesApi.devices.speakers}
+              activeMicId={devicesApi.active.micId}
+              activeSpeakerId={devicesApi.active.speakerId}
+              speakerSupported={devicesApi.speakerSupported}
+              switching={devicesApi.switching}
+              onSelectMic={(id) => {
+                void switchSafe("mic", id);
+              }}
+              onSelectSpeaker={(id) => {
+                void switchSafe("speaker", id);
+              }}
+              onOpenOptions={openOptions}
+            />
+          }
         >
           {mic.enabled ? <IconMic /> : <IconMicOff />}
-        </ControlButton>
+        </SplitDeviceControl>
 
-        <ControlButton
+        <SplitDeviceControl
           active={cam.enabled}
           danger={!cam.enabled}
           pending={cam.pending}
-          onClick={() => {
+          onToggle={() => {
             void cam.toggle();
           }}
-          label={cam.enabled ? t("turnOffCam") : t("turnOnCam")}
+          toggleLabel={cam.enabled ? t("turnOffCam") : t("turnOnCam")}
+          menuLabel={t("selectCam")}
+          menuOpen={deviceMenus.camOpen}
+          onMenuOpenChange={(open) => {
+            if (open) void devicesApi.refresh();
+            deviceMenus.setCamOpen(open);
+          }}
+          menu={
+            <CameraDeviceMenu
+              cameras={devicesApi.devices.cameras}
+              activeCameraId={devicesApi.active.cameraId}
+              switching={devicesApi.switching}
+              onSelectCamera={(id) => {
+                void switchSafe("camera", id);
+              }}
+              onOpenOptions={openOptions}
+            />
+          }
         >
           {cam.enabled ? <IconVideo /> : <IconVideoOff />}
-        </ControlButton>
+        </SplitDeviceControl>
 
         <ControlButton
           active={handRaised}
@@ -336,6 +431,15 @@ export function ControlBar({
                 <IconUsers />
               </MoreItem>
               <MoreItem
+                label={t("options")}
+                active={optionsOpen}
+                onClick={() => {
+                  openOptions();
+                }}
+              >
+                <IconSettings />
+              </MoreItem>
+              <MoreItem
                 label={t("chat")}
                 active={panel === "chat"}
                 badge={unreadChat > 0 ? String(unreadChat) : undefined}
@@ -404,6 +508,14 @@ export function ControlBar({
             >
               <IconChat />
             </ControlButton>
+
+            <ControlButton
+              active={optionsOpen}
+              onClick={openOptions}
+              label={t("options")}
+            >
+              <IconSettings />
+            </ControlButton>
           </>
         )}
       </motion.div>
@@ -416,6 +528,18 @@ export function ControlBar({
       >
         <ReactionPicker onPick={pickReaction} />
       </FloatingMenu>
+
+      <DeviceSettingsModal
+        open={optionsOpen}
+        onClose={() => setOptionsOpen(false)}
+        mediaPrefs={mediaPrefs}
+        mediaPrefsReady={mediaPrefsReady}
+        accountBound={mediaPrefsAccountBound}
+        saving={mediaPrefsSaving}
+        effectsSupported={canUseBackgroundEffects()}
+        onMediaPrefsChange={onMediaPrefsChange}
+        onUploadVirtualBackground={onUploadVirtualBackground}
+      />
 
       {/* Leave sits outside overflow-x-auto so its menu isn't clipped under video */}
       <motion.div
