@@ -148,10 +148,19 @@ describe("ControlBar device menus", () => {
     vi.clearAllMocks();
   });
 
-  it("renders reactions and options buttons", () => {
+  it("renders reactions and options in the overflow menu", async () => {
+    const user = userEvent.setup();
     renderBar();
-    expect(screen.getByLabelText("Reactions")).toBeTruthy();
-    expect(screen.getByLabelText("Options")).toBeTruthy();
+    await user.click(screen.getByLabelText("More controls"));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByText("Reactions")).toBeTruthy();
+    expect(within(menu).getByText("Options")).toBeTruthy();
+  });
+
+  it("renders captions split control on the bar", () => {
+    renderBar();
+    expect(screen.getByLabelText("Show captions")).toBeTruthy();
+    expect(screen.getByLabelText("Full transcript")).toBeTruthy();
   });
 
   it("opens mic menu from the chevron and switches device", async () => {
@@ -187,7 +196,9 @@ describe("ControlBar device menus", () => {
     const onMediaPrefsChange = vi.fn();
     renderBar({ onMediaPrefsChange });
 
-    await user.click(screen.getByLabelText("Options"));
+    await user.click(screen.getByLabelText("More controls"));
+    const overflow = await screen.findByRole("menu");
+    await user.click(within(overflow).getByText("Options"));
     expect(
       await screen.findByRole("dialog", { name: "Options" }),
     ).toBeTruthy();

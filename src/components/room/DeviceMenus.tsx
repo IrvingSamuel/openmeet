@@ -12,6 +12,7 @@ import { FloatingMenu } from "@/components/room/FloatingMenu";
 import {
   IconCheck,
   IconChevronDown,
+  IconCaptions,
   IconMic,
   IconSettings,
   IconSpeaker,
@@ -81,6 +82,74 @@ export function deviceLabel(
   return fallback(index + 1);
 }
 
+export function SplitCaptionsControl({
+  captionsOn,
+  transcriptOpen,
+  onToggleCaptions,
+  onToggleTranscript,
+  toggleLabel,
+  transcriptLabel,
+}: {
+  captionsOn: boolean;
+  transcriptOpen: boolean;
+  onToggleCaptions: () => void;
+  onToggleTranscript: () => void;
+  toggleLabel: string;
+  transcriptLabel: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative flex h-12 shrink-0 overflow-hidden rounded-xl border transition-colors duration-300",
+        captionsOn || transcriptOpen
+          ? "border-brand-primary/60 bg-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] text-white"
+          : "border-line bg-white/[0.05] text-ink-muted",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={toggleLabel}
+        aria-pressed={captionsOn}
+        title={toggleLabel}
+        onClick={onToggleCaptions}
+        className={cn(
+          "grid h-12 w-11 place-items-center transition-colors",
+          !captionsOn && !transcriptOpen && "hover:text-ink",
+        )}
+      >
+        <IconCaptions />
+      </button>
+      <button
+        type="button"
+        aria-label={transcriptLabel}
+        aria-pressed={transcriptOpen}
+        title={transcriptLabel}
+        onClick={onToggleTranscript}
+        className={cn(
+          "grid h-12 w-7 place-items-center border-l transition-colors",
+          captionsOn || transcriptOpen
+            ? "border-white/20 hover:bg-white/10"
+            : "border-line hover:bg-white/[0.06] hover:text-ink",
+        )}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          width={14}
+          height={14}
+          aria-hidden
+        >
+          <path d="M4 6h16M4 12h10M4 18h14" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 export function SplitDeviceControl({
   children,
   toggleLabel,
@@ -111,7 +180,7 @@ export function SplitDeviceControl({
     <div
       ref={anchorRef}
       className={cn(
-        "relative flex h-11 shrink-0 overflow-hidden rounded-xl border transition-colors duration-300",
+        "relative flex h-12 shrink-0 overflow-hidden rounded-xl border transition-colors duration-300",
         danger
           ? "border-rose-400/50 bg-rose-500/85 text-white"
           : active
@@ -126,7 +195,7 @@ export function SplitDeviceControl({
         title={toggleLabel}
         onClick={onToggle}
         className={cn(
-          "grid h-11 w-10 place-items-center transition-colors disabled:opacity-50",
+          "grid h-12 w-11 place-items-center transition-colors disabled:opacity-50",
           !danger && !active && "hover:text-ink",
         )}
       >
@@ -141,7 +210,7 @@ export function SplitDeviceControl({
         title={menuLabel}
         onClick={() => onMenuOpenChange(!menuOpen)}
         className={cn(
-          "grid h-11 w-6 place-items-center border-l transition-colors",
+          "grid h-12 w-7 place-items-center border-l transition-colors",
           danger
             ? "border-white/25 hover:bg-white/10"
             : active

@@ -5,7 +5,7 @@ import {
   useTrackToggle,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import {
   useEffect,
@@ -48,6 +48,7 @@ import { ReactionPicker } from "@/components/room/ReactionPicker";
 import {
   CameraDeviceMenu,
   MicDeviceMenu,
+  SplitCaptionsControl,
   SplitDeviceControl,
   useExclusiveMenus,
 } from "@/components/room/DeviceMenus";
@@ -86,6 +87,7 @@ export function ControlBar({
   mediaPrefsSaving = false,
   onMediaPrefsChange,
   onUploadVirtualBackground,
+  showPeopleInBar = true,
 }: {
   layout: StageLayout;
   onLayoutChange: (layout: StageLayout) => void;
@@ -115,6 +117,8 @@ export function ControlBar({
   mediaPrefsSaving?: boolean;
   onMediaPrefsChange?: (patch: Partial<MediaPrefs>) => void;
   onUploadVirtualBackground?: (file: File) => Promise<string>;
+  /** When false, people control lives in the room header (next to copy link). */
+  showPeopleInBar?: boolean;
 }) {
   const t = useTranslations("room.controlBar");
   const tRoom = useTranslations("room");
@@ -131,7 +135,6 @@ export function ControlBar({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
-  const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
   const recordBtnRef = useRef<HTMLButtonElement>(null);
   const chimesUnlockedRef = useRef(false);
 
@@ -176,8 +179,9 @@ export function ControlBar({
   const moreBadge =
     (unreadChat > 0 ? 1 : 0) +
     (insightCount && insightCount > 0 ? 1 : 0) +
-    (pendingJoinRequests > 0 ? 1 : 0) +
-    (peopleCount > 1 ? 1 : 0);
+    (showPeopleInBar
+      ? (pendingJoinRequests > 0 ? 1 : 0) + (peopleCount > 1 ? 1 : 0)
+      : 0);
 
   const peopleBadge =
     pendingJoinRequests > 0
@@ -273,30 +277,6 @@ export function ControlBar({
           <IconHand />
         </ControlButton>
 
-        {!compact ? (
-          <ControlButton
-            ref={reactionsAnchorRef}
-            active={reactionsOpen}
-            onClick={() => setReactionsOpen((v) => !v)}
-            label={t("reactions")}
-          >
-            <IconReaction />
-          </ControlButton>
-        ) : null}
-
-        {!compact ? (
-          <ControlButton
-            active={screen.enabled}
-            pending={screen.pending}
-            onClick={() => {
-              void screen.toggle();
-            }}
-            label={screen.enabled ? t("stopShare") : t("startShare")}
-          >
-            <IconScreen />
-          </ControlButton>
-        ) : null}
-
         {canToggleRecording ? (
           <div className="relative shrink-0">
             <ControlButton
@@ -324,206 +304,139 @@ export function ControlBar({
 
         <Separator />
 
-        <ControlButton
-          active={layout === "spotlight"}
-          onClick={() =>
-            onLayoutChange(layout === "grid" ? "spotlight" : "grid")
+        <SplitCaptionsControl
+          captionsOn={captionsOn}
+          transcriptOpen={panel === "captions"}
+          onToggleCaptions={onCaptionsToggle}
+          onToggleTranscript={() =>
+            onPanelChange(panel === "captions" ? "none" : "captions")
           }
-          label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
+          toggleLabel={captionsOn ? t("hideCaptions") : t("showCaptions")}
+          transcriptLabel={t("fullTranscript")}
+        />
+
+        <ControlButton
+          ref={moreAnchorRef}
+          active={moreOpen || panel === "chat" || panel === "copilot" || panel === "people" || optionsOpen}
+          onClick={() => setMoreOpen((v) => !v)}
+          label={t("moreControls")}
+          badge={moreBadge > 0 ? String(moreBadge) : undefined}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={layout}
-              initial={{ opacity: 0, rotate: -35, scale: 0.6 }}
-              animate={{ opacity: 1, rotate: 0, scale: 1 }}
-              exit={{ opacity: 0, rotate: 35, scale: 0.6 }}
-              transition={{ duration: 0.2 }}
-              className="grid place-items-center"
-            >
-              {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
-            </motion.span>
-          </AnimatePresence>
+          <IconMore />
         </ControlButton>
-
-        {compact ? (
-          <>
-            <ControlButton
-              ref={moreAnchorRef}
-              active={moreOpen || panel !== "none" || captionsOn}
-              onClick={() => setMoreOpen((v) => !v)}
-              label={t("moreControls")}
-              badge={moreBadge > 0 ? String(moreBadge) : undefined}
+        <FloatingMenu
+          open={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          anchorRef={moreAnchorRef}
+          align="center"
+        >
+          <MoreItem
+            label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
+            active={layout === "spotlight"}
+            onClick={() => {
+              onLayoutChange(layout === "grid" ? "spotlight" : "grid");
+              setMoreOpen(false);
+            }}
+          >
+            {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
+          </MoreItem>
+          <MoreItem
+            label={captionsOn ? t("hideCaptions") : t("showCaptions")}
+            active={captionsOn}
+            onClick={() => {
+              onCaptionsToggle();
+              setMoreOpen(false);
+            }}
+          >
+            <IconCaptions />
+          </MoreItem>
+          <MoreItem
+            label={t("fullTranscript")}
+            active={panel === "captions"}
+            onClick={() => selectPanel("captions")}
+          >
+            <TranscriptIcon />
+          </MoreItem>
+          <MoreItem
+            label={t("options")}
+            active={optionsOpen}
+            onClick={() => {
+              openOptions();
+            }}
+          >
+            <IconSettings />
+          </MoreItem>
+          <MoreItem
+            label={t("reactions")}
+            active={reactionsOpen}
+            onClick={() => {
+              setReactionsOpen(true);
+              setMoreOpen(false);
+            }}
+          >
+            <IconReaction />
+          </MoreItem>
+          <MoreItem
+            label={screen.enabled ? t("stopShare") : t("startShare")}
+            active={screen.enabled}
+            onClick={() => {
+              void screen.toggle();
+              setMoreOpen(false);
+            }}
+          >
+            <IconScreen />
+          </MoreItem>
+          {compact ? (
+            <MoreItem
+              label={handRaised ? t("lowerHand") : t("raiseHand")}
+              active={handRaised}
+              onClick={() => {
+                void onToggleHand?.();
+                setMoreOpen(false);
+              }}
             >
-              <IconMore />
-            </ControlButton>
-            <FloatingMenu
-              open={moreOpen}
-              onClose={() => setMoreOpen(false)}
-              anchorRef={moreAnchorRef}
-              align="center"
-            >
-              <MoreItem
-                label={t("reactions")}
-                active={reactionsOpen}
-                onClick={() => {
-                  setReactionsOpen(true);
-                  setMoreOpen(false);
-                }}
-              >
-                <IconReaction />
-              </MoreItem>
-              <MoreItem
-                label={screen.enabled ? t("stopShare") : t("startShare")}
-                active={screen.enabled}
-                onClick={() => {
-                  void screen.toggle();
-                  setMoreOpen(false);
-                }}
-              >
-                <IconScreen />
-              </MoreItem>
-              <MoreItem
-                label={handRaised ? t("lowerHand") : t("raiseHand")}
-                active={handRaised}
-                onClick={() => {
-                  void onToggleHand?.();
-                  setMoreOpen(false);
-                }}
-              >
-                <IconHand />
-              </MoreItem>
-              <MoreItem
-                label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-                active={captionsOn}
-                onClick={() => {
-                  onCaptionsToggle();
-                  setMoreOpen(false);
-                }}
-              >
-                <IconCaptions />
-              </MoreItem>
-              <MoreItem
-                label={t("fullTranscript")}
-                active={panel === "captions"}
-                onClick={() => selectPanel("captions")}
-              >
-                <TranscriptIcon />
-              </MoreItem>
-              <MoreItem
-                label={t("copilot")}
-                active={panel === "copilot"}
-                badge={
-                  insightCount && insightCount > 0
-                    ? String(insightCount)
-                    : undefined
-                }
-                onClick={() => selectPanel("copilot")}
-              >
-                <IconSparkles />
-              </MoreItem>
-              <MoreItem
-                label={t("people")}
-                active={panel === "people"}
-                badge={peopleBadge}
-                badgeTone={peopleBadgeTone}
-                onClick={() => selectPanel("people")}
-              >
-                <IconUsers />
-              </MoreItem>
-              <MoreItem
-                label={t("options")}
-                active={optionsOpen}
-                onClick={() => {
-                  openOptions();
-                }}
-              >
-                <IconSettings />
-              </MoreItem>
-              <MoreItem
-                label={t("chat")}
-                active={panel === "chat"}
-                badge={unreadChat > 0 ? String(unreadChat) : undefined}
-                badgeTone="danger"
-                onClick={() => selectPanel("chat")}
-              >
-                <IconChat />
-              </MoreItem>
-            </FloatingMenu>
-          </>
-        ) : (
-          <>
-            <ControlButton
-              active={captionsOn}
-              onClick={onCaptionsToggle}
-              label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-            >
-              <IconCaptions />
-            </ControlButton>
-
-            <ControlButton
-              active={panel === "captions"}
-              onClick={() =>
-                onPanelChange(panel === "captions" ? "none" : "captions")
-              }
-              label={t("fullTranscript")}
-            >
-              <TranscriptIcon />
-            </ControlButton>
-
-            <Separator />
-
-            <ControlButton
-              active={panel === "copilot"}
-              onClick={() =>
-                onPanelChange(panel === "copilot" ? "none" : "copilot")
-              }
-              label={t("copilot")}
-              badge={
-                insightCount && insightCount > 0
-                  ? String(insightCount)
-                  : undefined
-              }
-            >
-              <IconSparkles />
-            </ControlButton>
-
-            <ControlButton
-              active={panel === "people"}
-              onClick={() =>
-                onPanelChange(panel === "people" ? "none" : "people")
-              }
+              <IconHand />
+            </MoreItem>
+          ) : null}
+          <MoreItem
+            label={t("copilot")}
+            active={panel === "copilot"}
+            badge={
+              insightCount && insightCount > 0
+                ? String(insightCount)
+                : undefined
+            }
+            onClick={() => selectPanel("copilot")}
+          >
+            <IconSparkles />
+          </MoreItem>
+          {showPeopleInBar ? (
+            <MoreItem
               label={t("people")}
+              active={panel === "people"}
               badge={peopleBadge}
               badgeTone={peopleBadgeTone}
+              onClick={() => selectPanel("people")}
             >
               <IconUsers />
-            </ControlButton>
-
-            <ControlButton
-              active={panel === "chat"}
-              onClick={() => onPanelChange(panel === "chat" ? "none" : "chat")}
-              label={t("chat")}
-              badge={unreadChat > 0 ? String(unreadChat) : undefined}
-              badgeTone="danger"
-            >
-              <IconChat />
-            </ControlButton>
-
-            <ControlButton
-              active={optionsOpen}
-              onClick={openOptions}
-              label={t("options")}
-            >
-              <IconSettings />
-            </ControlButton>
-          </>
-        )}
+            </MoreItem>
+          ) : null}
+          <MoreItem
+            label={t("chat")}
+            active={panel === "chat"}
+            badge={unreadChat > 0 ? String(unreadChat) : undefined}
+            badgeTone="danger"
+            onClick={() => selectPanel("chat")}
+          >
+            <IconChat />
+          </MoreItem>
+        </FloatingMenu>
       </motion.div>
 
       <FloatingMenu
         open={reactionsOpen}
         onClose={() => setReactionsOpen(false)}
-        anchorRef={compact ? moreAnchorRef : reactionsAnchorRef}
+        anchorRef={moreAnchorRef}
         align="center"
       >
         <ReactionPicker onPick={pickReaction} />
@@ -654,7 +567,7 @@ function LeaveControl({
         transition={springSoft}
         aria-label={t("leaveMeeting")}
         aria-expanded={isHost ? open : undefined}
-        className="grid h-11 w-14 place-items-center rounded-xl bg-rose-500 text-white shadow-[0_10px_36px_-12px_rgba(244,63,94,0.9)] transition-colors hover:bg-rose-400"
+        className="grid h-12 w-14 place-items-center rounded-xl bg-rose-500 text-white shadow-[0_10px_36px_-12px_rgba(244,63,94,0.9)] transition-colors hover:bg-rose-400"
       >
         <IconPhoneOff />
       </motion.button>
@@ -788,7 +701,7 @@ const ControlButton = forwardRef(function ControlButton(
       whileTap={{ scale: 0.94 }}
       transition={springSoft}
       className={cn(
-        "relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition-colors duration-300 disabled:opacity-50",
+        "relative grid h-12 w-12 shrink-0 place-items-center rounded-xl border transition-colors duration-300 disabled:opacity-50",
         danger
           ? "border-rose-400/50 bg-rose-500/85 text-white"
           : active

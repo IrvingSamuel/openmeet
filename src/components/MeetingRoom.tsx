@@ -39,7 +39,7 @@ import { Badge } from "@/components/ui/Surface";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { LogoMark } from "@/components/layout/Logo";
-import { IconCopy, IconCheck } from "@/components/ui/icons";
+import { IconCopy, IconCheck, IconUsers } from "@/components/ui/icons";
 import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 import { isAgentParticipant } from "@/lib/participants";
 import { useIsLgUp } from "@/hooks/useMediaQuery";
@@ -1084,6 +1084,31 @@ function RoomShell({
           ) : null}
           <ConnectionBadge state={state} count={humans.length} />
           <button
+            type="button"
+            onClick={() =>
+              setPanel((p) => (p === "people" ? "none" : "people"))
+            }
+            aria-label={t("controlBar.people")}
+            aria-pressed={panel === "people"}
+            className={cn(
+              "relative grid h-9 w-9 place-items-center rounded-xl border transition-colors",
+              panel === "people"
+                ? "border-brand-primary/60 bg-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] text-ink"
+                : "border-line bg-white/[0.05] text-ink-muted hover:text-ink",
+            )}
+          >
+            <IconUsers className="h-4 w-4" />
+            {joinRequests.length > 0 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-[16px] place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                {joinRequests.length}
+              </span>
+            ) : humans.length > 1 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-[16px] place-items-center rounded-full bg-brand-primary px-1 text-[9px] font-semibold text-white">
+                {humans.length}
+              </span>
+            ) : null}
+          </button>
+          <button
             onClick={copyLink}
             aria-label={t("copyMeetingLink")}
             className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white/[0.05] text-ink-muted transition-colors hover:text-ink"
@@ -1211,6 +1236,7 @@ function RoomShell({
             mediaPrefsSaving={mediaPrefsApi.saving}
             onMediaPrefsChange={mediaPrefsApi.updatePrefs}
             onUploadVirtualBackground={mediaPrefsApi.uploadVirtualBackground}
+            showPeopleInBar={false}
           />
         </div>
       </div>
