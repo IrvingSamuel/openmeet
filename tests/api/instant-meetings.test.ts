@@ -6,6 +6,7 @@ const identityBrandsFindFirst = vi.fn();
 const insertReturning = vi.fn();
 const usersFindFirst = vi.fn();
 const getAppSettings = vi.fn();
+const insertedValues: unknown[] = [];
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
@@ -32,7 +33,10 @@ vi.mock("@/db", () => ({
       },
     },
     insert: () => ({
-      values: () => ({ returning: () => insertReturning() }),
+      values: (values: unknown) => {
+        insertedValues.push(values);
+        return { returning: () => insertReturning() };
+      },
     }),
   },
 }));
@@ -56,6 +60,7 @@ beforeEach(() => {
   insertReturning.mockReset();
   usersFindFirst.mockReset();
   getAppSettings.mockReset();
+  insertedValues.length = 0;
   getAppSettings.mockResolvedValue(null);
   identityBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
@@ -323,6 +328,68 @@ describe("POST /api/v1/instant-meetings", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe("redirect_after_meet_invalid");
+  });
+
+  it("stores and echoes external_invite_url", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-invite",
+          slug: "inviteurl1",
+          title: "Aula",
+          accessPolicy: "public",
+          roomId: null,
+          waitForHost: false,
+          redirectAfterMeet: null,
+          externalInviteUrl: "https://lms.example.com/classes/12/join",
+          webhookUrl: null,
+          emptyTimeoutSec: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-invite" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Aula",
+          external_id: "cu-1",
+          external_invite_url: "https://lms.example.com/classes/12/join",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      external_invite_url: "https://lms.example.com/classes/12/join",
+    });
+    expect(insertedValues[0]).toMatchObject({
+      externalInviteUrl: "https://lms.example.com/classes/12/join",
+    });
+  });
+
+  it("rejects invalid external_invite_url", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Bad invite",
+          external_id: "cu-1",
+          external_invite_url: "javascript:alert(1)",
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("external_invite_url_invalid");
+    expect(insertedValues).toHaveLength(0);
   });
 
   it("stores and echoes webhook_url", async () => {

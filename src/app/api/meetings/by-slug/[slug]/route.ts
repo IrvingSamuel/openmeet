@@ -26,6 +26,7 @@ export async function GET(
       boardId: meeting.boardId,
       roomId: meeting.roomId,
       redirectAfterMeet: meeting.redirectAfterMeet ?? null,
+      externalInviteUrl: meeting.externalInviteUrl ?? null,
       waitForHost: meeting.waitForHost,
     },
     brand,

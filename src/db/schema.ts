@@ -195,6 +195,8 @@ export const meetings = pgTable(
     emptyTimeoutSec: integer("empty_timeout_sec"),
     /** Absolute http(s) URL to send participants after leave/end. */
     redirectAfterMeet: text("redirect_after_meet"),
+    /** Absolute http(s) URL copied when inviting participants. */
+    externalInviteUrl: text("external_invite_url"),
     /** Absolute http(s) URL for outbound meeting artifacts (snapshot at create). */
     webhookUrl: text("webhook_url"),
     /**

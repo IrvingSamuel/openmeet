@@ -106,6 +106,7 @@ export function MeetingRoom({
   role = "participant",
   recordingConfig = null,
   redirectAfterMeet = null,
+  externalInviteUrl = null,
   onLeave,
   onEndForAll,
   initialVideo = false,
@@ -126,6 +127,7 @@ export function MeetingRoom({
   role?: RoomRole;
   recordingConfig?: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
+  externalInviteUrl?: string | null;
   onLeave?: () => void;
   onEndForAll?: () => void | Promise<void>;
   initialVideo?: boolean;
@@ -390,6 +392,7 @@ export function MeetingRoom({
           isHost={role === "host"}
           recordingConfig={recordingConfig}
           redirectAfterMeet={redirectAfterMeet}
+          externalInviteUrl={externalInviteUrl}
           forcedExit={forcedExit}
           onLeave={requestLeave}
           onEndForAll={requestEndForAll}
@@ -423,6 +426,7 @@ function RoomShell({
   isHost,
   recordingConfig,
   redirectAfterMeet,
+  externalInviteUrl,
   forcedExit,
   onLeave,
   onEndForAll,
@@ -442,6 +446,7 @@ function RoomShell({
   isHost: boolean;
   recordingConfig: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
+  externalInviteUrl?: string | null;
   forcedExit: "ended" | "removed" | null;
   onLeave: () => void;
   onEndForAll: () => void | Promise<void>;
@@ -1046,7 +1051,7 @@ function RoomShell({
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(externalInviteUrl || window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {

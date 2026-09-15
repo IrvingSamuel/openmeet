@@ -35,6 +35,8 @@ export type CreateMeetingInput = {
   emptyTimeoutSec?: number | null;
   /** Absolute http(s) URL after leave/end. */
   redirectAfterMeet?: string | null;
+  /** Absolute http(s) URL copied when inviting participants. */
+  externalInviteUrl?: string | null;
   /** Absolute http(s) URL for outbound meeting artifacts. */
   webhookUrl?: string | null;
   /**
@@ -56,6 +58,26 @@ export type CreatedMeetingResult = {
   /** Raw token only available at creation time (never stored plaintext). */
   hostEntryToken: string | null;
 };
+
+export function parseExternalInviteUrl(
+  value: string | null | undefined,
+): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  const trimmed = value.trim();
+  if (trimmed.length > 2000) {
+    throw new Error("external_invite_url_too_long");
+  }
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("external_invite_url_invalid");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("external_invite_url_invalid");
+  }
+  return url.toString();
+}
 
 function publicOrigin(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
@@ -225,6 +247,7 @@ export async function createMeetingWithBrand(
       status: "scheduled",
       emptyTimeoutSec: input.emptyTimeoutSec ?? null,
       redirectAfterMeet: input.redirectAfterMeet ?? null,
+      externalInviteUrl: input.externalInviteUrl ?? null,
       webhookUrl: input.webhookUrl ?? null,
       waitForHost,
       hostEntryTokenHash,

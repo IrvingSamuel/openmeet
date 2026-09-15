@@ -4,7 +4,10 @@ import { z } from "zod";
 import { db } from "@/db";
 import { rooms } from "@/db/schema";
 import { parseRedirectAfterMeet } from "@/lib/host-entry";
-import { createMeetingWithBrand } from "@/lib/meetings";
+import {
+  createMeetingWithBrand,
+  parseExternalInviteUrl,
+} from "@/lib/meetings";
 import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
@@ -19,6 +22,7 @@ const schema = z.object({
   empty_timeout_sec: z.number().int().optional(),
   board_id: z.string().optional(),
   redirect_after_meet: z.string().max(2000).nullable().optional(),
+  external_invite_url: z.string().max(2000).nullable().optional(),
   webhook_url: z.string().max(2000).nullable().optional(),
   wait_for_host: z.boolean().optional(),
 });
@@ -95,6 +99,15 @@ export async function POST(
     return NextResponse.json({ error: code }, { status: 400 });
   }
 
+  let externalInviteUrl: string | null = null;
+  try {
+    externalInviteUrl = parseExternalInviteUrl(body.external_invite_url);
+  } catch (err) {
+    const code =
+      err instanceof Error ? err.message : "external_invite_url_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   try {
     const accessPolicy =
       body.access_policy ||
@@ -114,6 +127,7 @@ export async function POST(
         useIdentityBrand: false,
         emptyTimeoutSec,
         redirectAfterMeet,
+        externalInviteUrl,
         webhookUrl,
         waitForHost,
         issueHostEntry: true,
@@ -132,6 +146,7 @@ export async function POST(
         brand_room_id: meeting.roomId,
         empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
         redirect_after_meet: meeting.redirectAfterMeet ?? null,
+        external_invite_url: meeting.externalInviteUrl ?? null,
         webhook_url: meeting.webhookUrl ?? null,
         wait_for_host: meeting.waitForHost,
       },

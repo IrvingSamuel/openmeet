@@ -8,7 +8,10 @@ import {
 } from "@/lib/api-brand";
 import { brandFieldsSchema } from "@/lib/brand-schema";
 import { parseRedirectAfterMeet } from "@/lib/host-entry";
-import { createMeetingWithBrand } from "@/lib/meetings";
+import {
+  createMeetingWithBrand,
+  parseExternalInviteUrl,
+} from "@/lib/meetings";
 import { parseWebhookUrl } from "@/lib/webhook-url";
 import {
   clampEmptyTimeoutSec,
@@ -37,6 +40,8 @@ const schema = z.object({
   empty_timeout_sec: z.number().int().optional(),
   /** Absolute http(s) URL to return to after leave/end. */
   redirect_after_meet: z.string().max(2000).nullable().optional(),
+  /** Absolute http(s) URL copied by the in-meeting invite action. */
+  external_invite_url: z.string().max(2000).nullable().optional(),
   /** Absolute http(s) URL for outbound meeting artifacts. */
   webhook_url: z.string().max(2000).nullable().optional(),
   /**
@@ -60,6 +65,7 @@ function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWi
     brand_room_id: meeting.roomId,
     empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
     redirect_after_meet: meeting.redirectAfterMeet ?? null,
+    external_invite_url: meeting.externalInviteUrl ?? null,
     webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
   };
@@ -114,6 +120,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: code }, { status: 400 });
   }
 
+  let externalInviteUrl: string | null = null;
+  try {
+    externalInviteUrl = parseExternalInviteUrl(body.external_invite_url);
+  } catch (err) {
+    const code =
+      err instanceof Error ? err.message : "external_invite_url_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   const ui = resolveApiBrandUi({
     ui: body.ui,
     identity: body.identity,
@@ -142,6 +157,7 @@ export async function POST(req: NextRequest) {
       useIdentityBrand: !ui,
       emptyTimeoutSec,
       redirectAfterMeet,
+      externalInviteUrl,
       webhookUrl,
       waitForHost,
       issueHostEntry: true,

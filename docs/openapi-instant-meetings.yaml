@@ -219,6 +219,7 @@ paths:
                 brand_room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
                 empty_timeout_sec: 300
                 redirect_after_meet: null
+                external_invite_url: null
                 webhook_url: null
                 wait_for_host: false
         "400":
@@ -286,6 +287,7 @@ paths:
                   access_policy: invite
                   external_id: "teacher-42"
                   redirect_after_meet: "https://lms.example.com/classes/12"
+                  external_invite_url: "https://lms.example.com/classes/12/join"
                   webhook_url: "https://lms.example.com/hooks/openmeet"
                   wait_for_host: true
       responses:
@@ -307,6 +309,7 @@ paths:
                 brand_room_id: null
                 empty_timeout_sec: 300
                 redirect_after_meet: "https://lms.example.com/classes/12"
+                external_invite_url: "https://lms.example.com/classes/12/join"
                 webhook_url: "https://lms.example.com/hooks/openmeet"
                 wait_for_host: true
         "400":
@@ -638,6 +641,8 @@ components:
           format: uri
           nullable: true
           description: URL http(s) absoluta para onde enviar o utilizador após leave/end
+        external_invite_url:
+          $ref: "#/components/schemas/ExternalInviteUrl"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
         wait_for_host:
@@ -686,6 +691,8 @@ components:
           format: uri
           nullable: true
           description: URL http(s) absoluta para retorno pós-reunião
+        external_invite_url:
+          $ref: "#/components/schemas/ExternalInviteUrl"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
         wait_for_host:
@@ -745,6 +752,8 @@ components:
           type: string
           format: uri
           nullable: true
+        external_invite_url:
+          $ref: "#/components/schemas/ExternalInviteUrl"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
         wait_for_host:
@@ -760,6 +769,15 @@ components:
         URL http(s) absoluta para onde enviar os artefatos da reunião
         (resumo, transcrição completa, tarefas e link da gravação).
         Não é redirect de browser — isso é `redirect_after_meet`.
+
+    ExternalInviteUrl:
+      type: string
+      format: uri
+      nullable: true
+      maxLength: 2000
+      description: |
+        URL http(s) absoluta copiada pela ação de convite dentro da reunião.
+        Se omitida ou null, o OpenMeet copia a URL atual da reunião.
 
     WebhookMeetingMeta:
       type: object

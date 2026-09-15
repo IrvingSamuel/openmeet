@@ -24,6 +24,7 @@ type MeetingPayload = {
     accessPolicy: string;
     status: string;
     redirectAfterMeet?: string | null;
+    externalInviteUrl?: string | null;
     waitForHost?: boolean;
   };
   brand: (BrandTokens & { customCss?: string | null; faviconUrl?: string | null }) | null;
@@ -457,6 +458,7 @@ export default function MeetingJoinPage() {
             redirectAfterMeet={
               session.redirectAfterMeet ?? data.meeting.redirectAfterMeet ?? null
             }
+            externalInviteUrl={data.meeting.externalInviteUrl ?? null}
             initialVideo={session.video}
             initialAudio={session.audio}
             videoDeviceId={session.videoDeviceId}
