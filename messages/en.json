@@ -598,6 +598,28 @@
       "options": "Options",
       "optionsEllipsis": "Options…",
       "optionsDescription": "Choose the microphone, speaker, camera, and media effects used in this meeting.",
+      "optionsTabs": {
+        "general": "General",
+        "captions": "Captions",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "captionsStartOn": "Start with captions on",
+      "captionsStartOnHint": "Your preference overrides the platform default.",
+      "tabReturnHint": "The platform administrator sets the default. Choose an override for your meetings.",
+      "tabReturnEnabled": "Tab-away protection",
+      "tabReturnEnabledOptions": {
+        "on": "Enabled",
+        "off": "Disabled"
+      },
+      "tabReturnMic": "Microphone on return",
+      "tabReturnCamera": "Camera on return",
+      "tabReturnOptions": {
+        "inherit": "Platform default",
+        "open": "Open",
+        "closed": "Closed",
+        "restore": "As it was"
+      },
       "closeOptions": "Close options",
       "cameraPreviewOff": "Camera is off",
       "micLevel": "Microphone level",
@@ -835,6 +857,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Captions at meeting start",
+      "captionsDefaultHint": "Sets whether captions start on by default. Users can override this preference.",
+      "captionsDefaultOptions": {
+        "on": "On",
+        "off": "Off"
       },
       "tabReturnTitle": "When leaving the tab",
       "tabReturnHint": "When enabled, leaving the tab turns mic and camera off for privacy. On return, the policy below is applied.",

@@ -164,6 +164,10 @@ export const identityMediaPrefs = pgTable("identity_media_prefs", {
   noiseSuppression: boolean("noise_suppression").notNull().default(true),
   echoCancellation: boolean("echo_cancellation").notNull().default(true),
   autoGainControl: boolean("auto_gain_control").notNull().default(true),
+  captionsDefault: boolean("captions_default"),
+  tabReturnEnabled: boolean("tab_return_enabled"),
+  tabReturnMic: text("tab_return_mic"),
+  tabReturnCamera: text("tab_return_camera"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -437,6 +441,7 @@ export const appSettings = pgTable("app_settings", {
   tabReturnEnabled: boolean("tab_return_enabled").notNull().default(true),
   tabReturnMic: text("tab_return_mic").notNull().default("closed"),
   tabReturnCamera: text("tab_return_camera").notNull().default("closed"),
+  captionsDefault: boolean("captions_default").notNull().default(true),
   /**
    * Page shell access: which of home/dashboard/settings are public,
    * redirect targets when disabled, and optional unlock request key.

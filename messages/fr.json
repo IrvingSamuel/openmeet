@@ -588,6 +588,28 @@
       "options": "Options",
       "optionsEllipsis": "Options…",
       "optionsDescription": "Choisissez le microphone, le haut-parleur, la caméra et les effets utilisés dans cette réunion.",
+      "optionsTabs": {
+        "general": "Général",
+        "captions": "Sous-titres",
+        "audio": "Audio",
+        "video": "Vidéo"
+      },
+      "captionsStartOn": "Démarrer avec les sous-titres",
+      "captionsStartOnHint": "Votre préférence remplace le réglage par défaut de la plateforme.",
+      "tabReturnHint": "L’administrateur de la plateforme définit le réglage par défaut. Choisissez une préférence pour vos réunions.",
+      "tabReturnEnabled": "Protection hors onglet",
+      "tabReturnEnabledOptions": {
+        "on": "Activé",
+        "off": "Désactivé"
+      },
+      "tabReturnMic": "Micro au retour",
+      "tabReturnCamera": "Caméra au retour",
+      "tabReturnOptions": {
+        "inherit": "Réglage de la plateforme",
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "restore": "Comme avant"
+      },
       "closeOptions": "Fermer les options",
       "cameraPreviewOff": "Caméra désactivée",
       "micLevel": "Niveau du microphone",
@@ -825,6 +847,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Sous-titres au démarrage",
+      "captionsDefaultHint": "Définit si les sous-titres sont activés par défaut. Les utilisateurs peuvent remplacer cette préférence.",
+      "captionsDefaultOptions": {
+        "on": "Activés",
+        "off": "Désactivés"
       },
       "tabReturnTitle": "En quittant l’onglet",
       "tabReturnHint": "Lorsqu’elle est activée, quitter l’onglet coupe le micro et la caméra pour la confidentialité. Au retour, la politique ci-dessous s’applique.",

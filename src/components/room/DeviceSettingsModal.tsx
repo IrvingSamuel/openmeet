@@ -4,19 +4,21 @@ import { useRoomContext } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { EASE_OUT_EXPO, springSoft } from "@/components/motion/primitives";
+import { deviceLabel } from "@/components/room/DeviceMenus";
 import { Select } from "@/components/ui/Field";
+import { useToast } from "@/components/ui/Toast";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
 import { useMeetingDevices } from "@/hooks/useMeetingDevices";
-import { deviceLabel } from "@/components/room/DeviceMenus";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/Toast";
 import {
   VIRTUAL_BACKGROUND_PRESETS,
   type MediaPrefs,
 } from "@/lib/media-prefs-schema";
+import { cn } from "@/lib/utils";
+
+type OptionsTab = "general" | "captions" | "audio" | "video";
 
 export function DeviceSettingsModal({
   open,
@@ -25,6 +27,7 @@ export function DeviceSettingsModal({
   mediaPrefsReady = false,
   accountBound = false,
   saving = false,
+  resolvedCaptionsDefault = true,
   effectsSupported = false,
   onMediaPrefsChange,
   onUploadVirtualBackground,
@@ -35,6 +38,7 @@ export function DeviceSettingsModal({
   mediaPrefsReady?: boolean;
   accountBound?: boolean;
   saving?: boolean;
+  resolvedCaptionsDefault?: boolean;
   effectsSupported?: boolean;
   onMediaPrefsChange?: (patch: Partial<MediaPrefs>) => void;
   onUploadVirtualBackground?: (file: File) => Promise<string>;
@@ -54,14 +58,13 @@ export function DeviceSettingsModal({
     switchSpeaker,
   } = useMeetingDevices(room);
   const [mounted, setMounted] = useState(false);
+  const [tab, setTab] = useState<OptionsTab>("general");
   const [uploading, setUploading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const prefs = mediaPrefs;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -78,39 +81,29 @@ export function DeviceSettingsModal({
     };
   }, [open, onClose, refresh]);
 
-  const camPub = room.localParticipant.getTrackPublication(
-    Track.Source.Camera,
-  );
-  const micPub = room.localParticipant.getTrackPublication(
+  const camTrack = room.localParticipant.getTrackPublication(Track.Source.Camera)?.track;
+  const micTrack = room.localParticipant.getTrackPublication(
     Track.Source.Microphone,
-  );
-  const camTrack = camPub?.track;
-  const micTrack = micPub?.track;
+  )?.track;
   const videoStream = useMemo(() => {
-    const mst = camTrack?.mediaStreamTrack;
-    if (!mst || camTrack?.isMuted) return null;
-    return new MediaStream([mst]);
+    const track = camTrack?.mediaStreamTrack;
+    return track && !camTrack?.isMuted ? new MediaStream([track]) : null;
   }, [camTrack, camTrack?.isMuted, camTrack?.mediaStreamTrack]);
-
   const audioStream = useMemo(() => {
-    const mst = micTrack?.mediaStreamTrack;
-    if (!mst || micTrack?.isMuted) return null;
-    return new MediaStream([mst]);
+    const track = micTrack?.mediaStreamTrack;
+    return track && !micTrack?.isMuted ? new MediaStream([track]) : null;
   }, [micTrack, micTrack?.isMuted, micTrack?.mediaStreamTrack]);
-
-  const level = useAudioLevel(audioStream, open && Boolean(audioStream));
+  const level = useAudioLevel(audioStream, open && tab === "audio" && Boolean(audioStream));
 
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    el.srcObject = videoStream;
-    if (videoStream) {
-      void el.play().catch(() => undefined);
-    }
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = videoStream;
+    if (videoStream) void video.play().catch(() => undefined);
     return () => {
-      el.srcObject = null;
+      video.srcObject = null;
     };
-  }, [videoStream]);
+  }, [videoStream, tab]);
 
   async function handleSwitch(
     kind: "camera" | "mic" | "speaker",
@@ -121,8 +114,11 @@ export function DeviceSettingsModal({
       else if (kind === "mic") await switchMic(deviceId);
       else await switchSpeaker(deviceId);
     } catch (err) {
-      const label = err instanceof Error ? err.message : String(err);
-      toast.error(tRoom("mediaDeviceError", { label }));
+      toast.error(
+        tRoom("mediaDeviceError", {
+          label: err instanceof Error ? err.message : String(err),
+        }),
+      );
     }
   }
 
@@ -137,8 +133,11 @@ export function DeviceSettingsModal({
       });
       toast.success(t("effectsUploadOk"));
     } catch (err) {
-      const label = err instanceof Error ? err.message : String(err);
-      toast.error(t("effectsUploadFailed", { label }));
+      toast.error(
+        t("effectsUploadFailed", {
+          label: err instanceof Error ? err.message : String(err),
+        }),
+      );
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -146,6 +145,8 @@ export function DeviceSettingsModal({
   }
 
   if (!mounted) return null;
+
+  const tabs: OptionsTab[] = ["general", "captions", "audio", "video"];
 
   return createPortal(
     <AnimatePresence>
@@ -156,7 +157,6 @@ export function DeviceSettingsModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
             onClick={onClose}
           />
           <motion.div
@@ -167,18 +167,17 @@ export function DeviceSettingsModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ duration: 0.4, ease: EASE_OUT_EXPO }}
-            className="relative z-10 w-full max-w-lg max-h-[min(90dvh,720px)] overflow-y-auto overflow-x-hidden rounded-3xl glass-strong shadow-lift"
+            className="relative z-10 max-h-[min(90dvh,760px)] w-full max-w-2xl overflow-y-auto overflow-x-hidden rounded-3xl glass-strong shadow-lift"
           >
-            <div
-              aria-hidden
-              className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-secondary to-transparent"
-            />
-            <header className="space-y-1 px-6 pb-4 pt-6">
+            <header className="px-6 pb-4 pt-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight text-ink">
                     {t("options")}
                   </h2>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    {t("optionsDescription")}
+                  </p>
                   {mediaPrefsReady ? (
                     <p className="mt-1 text-[11px] text-ink-faint">
                       {accountBound
@@ -193,7 +192,7 @@ export function DeviceSettingsModal({
                   type="button"
                   onClick={onClose}
                   aria-label={t("closeOptions")}
-                  className="-mr-1 -mt-1 rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-white/10 hover:text-ink"
+                  className="rounded-lg p-1.5 text-ink-faint hover:bg-white/10 hover:text-ink"
                 >
                   <svg
                     viewBox="0 0 20 20"
@@ -201,306 +200,229 @@ export function DeviceSettingsModal({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
-                    strokeLinecap="round"
                   >
                     <path d="M5 5l10 10M15 5L5 15" />
                   </svg>
                 </button>
               </div>
-              <p className="text-sm leading-relaxed text-ink-muted">
-                {t("optionsDescription")}
-              </p>
             </header>
 
-            <div className="space-y-5 px-6 pb-6">
-              <div className="overflow-hidden rounded-2xl border border-line bg-black/40">
-                <div className="relative aspect-video bg-black/60">
-                  {videoStream ? (
-                    <video
-                      ref={videoRef}
-                      muted
-                      playsInline
-                      autoPlay
-                      className="h-full w-full object-cover"
-                      style={{ transform: "scaleX(-1)" }}
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center text-sm text-ink-faint">
-                      {t("cameraPreviewOff")}
-                    </div>
+            <div
+              role="tablist"
+              className="mx-6 grid grid-cols-4 gap-1 rounded-xl border border-line bg-black/20 p-1"
+            >
+              {tabs.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item}
+                  onClick={() => setTab(item)}
+                  className={cn(
+                    "rounded-lg px-2 py-2 text-sm transition-colors",
+                    tab === item
+                      ? "bg-white/10 text-ink"
+                      : "text-ink-faint hover:text-ink",
                   )}
-                </div>
-                <div className="flex items-center gap-3 border-t border-line px-4 py-3">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-                    {t("microphone")}
-                  </span>
-                  <div
-                    className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10"
-                    role="meter"
-                    aria-label={t("micLevel")}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(level * 100)}
-                  >
-                    <motion.div
-                      className="h-full rounded-full bg-brand-primary"
-                      animate={{ width: `${Math.max(2, level * 100)}%` }}
-                      transition={springSoft}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Select
-                label={t("camera")}
-                value={active.cameraId}
-                disabled={switching || devices.cameras.length === 0}
-                onChange={(e) => {
-                  void handleSwitch("camera", e.target.value);
-                }}
-              >
-                {devices.cameras.length === 0 ? (
-                  <option value="">{t("noDevices")}</option>
-                ) : (
-                  devices.cameras.map((d, i) => (
-                    <option key={d.deviceId || i} value={d.deviceId}>
-                      {deviceLabel(d, i, (n) => t("cameraN", { n }))}
-                    </option>
-                  ))
-                )}
-              </Select>
-
-              <Select
-                label={t("microphone")}
-                value={active.micId}
-                disabled={switching || devices.mics.length === 0}
-                onChange={(e) => {
-                  void handleSwitch("mic", e.target.value);
-                }}
-              >
-                {devices.mics.length === 0 ? (
-                  <option value="">{t("noDevices")}</option>
-                ) : (
-                  devices.mics.map((d, i) => (
-                    <option key={d.deviceId || i} value={d.deviceId}>
-                      {deviceLabel(d, i, (n) => t("micN", { n }))}
-                    </option>
-                  ))
-                )}
-              </Select>
-
-              {speakerSupported ? (
-                <Select
-                  label={t("speaker")}
-                  value={active.speakerId}
-                  disabled={switching || devices.speakers.length === 0}
-                  onChange={(e) => {
-                    void handleSwitch("speaker", e.target.value);
-                  }}
                 >
-                  {devices.speakers.length === 0 ? (
-                    <option value="">{t("noDevices")}</option>
-                  ) : (
-                    devices.speakers.map((d, i) => (
-                      <option key={d.deviceId || i} value={d.deviceId}>
-                        {deviceLabel(d, i, (n) => t("speakerN", { n }))}
-                      </option>
-                    ))
-                  )}
-                </Select>
-              ) : (
-                <p className={cn("text-xs text-ink-faint")}>
-                  {t("speakerUnsupported")}
-                </p>
-              )}
+                  {t(`optionsTabs.${item}`)}
+                </button>
+              ))}
+            </div>
 
-              {prefs && onMediaPrefsChange ? (
-                <section className="space-y-3 border-t border-line pt-5">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-                    {t("effectsTitle")}
-                  </h3>
-
-                  {!effectsSupported ? (
-                    <p className="text-xs text-ink-faint">
-                      {t("effectsUnsupported")}
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(
-                          [
-                            ["none", t("effectsNone")],
-                            ["blur", t("effectsBlur")],
-                            ["virtual", t("effectsVirtual")],
-                          ] as const
-                        ).map(([mode, label]) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => {
-                              const patch: Partial<MediaPrefs> = {
-                                videoEffect: mode,
-                              };
-                              if (
-                                mode === "virtual" &&
-                                !prefs.virtualBackgroundUrl
-                              ) {
-                                patch.virtualBackgroundUrl =
-                                  VIRTUAL_BACKGROUND_PRESETS[0].url;
-                              }
-                              onMediaPrefsChange(patch);
-                            }}
-                            className={cn(
-                              "rounded-xl border px-3 py-1.5 text-sm transition-colors",
-                              prefs.videoEffect === mode
-                                ? "border-brand-primary/60 bg-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] text-ink"
-                                : "border-line text-ink-muted hover:bg-white/[0.06] hover:text-ink",
-                            )}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {prefs.videoEffect === "blur" ? (
-                        <label className="block space-y-2">
-                          <span className="text-xs text-ink-muted">
-                            {t("effectsBlurRadius")}: {prefs.blurRadius}
-                          </span>
-                          <input
-                            type="range"
-                            min={4}
-                            max={24}
-                            value={prefs.blurRadius}
-                            onChange={(e) =>
-                              onMediaPrefsChange({
-                                blurRadius: Number(e.target.value),
-                              })
-                            }
-                            className="w-full accent-[var(--brand-primary)]"
-                          />
-                        </label>
-                      ) : null}
-
-                      {prefs.videoEffect === "virtual" ? (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-3 gap-2">
-                            {VIRTUAL_BACKGROUND_PRESETS.map((preset) => {
-                              const selected =
-                                prefs.virtualBackgroundUrl === preset.url;
-                              const presetLabels: Record<string, string> = {
-                                presetOffice: t("presetOffice"),
-                                presetLiving: t("presetLiving"),
-                                presetBookshelf: t("presetBookshelf"),
-                                presetGradient: t("presetGradient"),
-                                presetNature: t("presetNature"),
-                                presetAbstract: t("presetAbstract"),
-                              };
-                              const label =
-                                presetLabels[preset.labelKey] ?? preset.id;
-                              return (
-                                <button
-                                  key={preset.id}
-                                  type="button"
-                                  title={label}
-                                  onClick={() =>
-                                    onMediaPrefsChange({
-                                      videoEffect: "virtual",
-                                      virtualBackgroundUrl: preset.url,
-                                    })
-                                  }
-                                  className={cn(
-                                    "relative aspect-video overflow-hidden rounded-xl border transition-colors",
-                                    selected
-                                      ? "border-brand-primary ring-2 ring-brand-primary/40"
-                                      : "border-line hover:border-line-strong",
-                                  )}
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={preset.url}
-                                    alt={label}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {prefs.virtualBackgroundUrl &&
-                          !VIRTUAL_BACKGROUND_PRESETS.some(
-                            (p) => p.url === prefs.virtualBackgroundUrl,
-                          ) ? (
-                            <div className="overflow-hidden rounded-xl border border-brand-primary/50">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={prefs.virtualBackgroundUrl}
-                                alt={t("effectsCustomBg")}
-                                className="aspect-video w-full object-cover"
-                              />
-                            </div>
-                          ) : null}
-
-                          {accountBound && onUploadVirtualBackground ? (
-                            <>
-                              <input
-                                ref={fileRef}
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                className="hidden"
-                                onChange={(e) => {
-                                  void handleUpload(e.target.files?.[0]);
-                                }}
-                              />
-                              <button
-                                type="button"
-                                disabled={uploading}
-                                onClick={() => fileRef.current?.click()}
-                                className="w-full rounded-xl border border-line px-3 py-2.5 text-sm text-ink-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-50"
-                              >
-                                {uploading
-                                  ? t("effectsUploading")
-                                  : t("effectsUpload")}
-                              </button>
-                            </>
-                          ) : (
-                            <p className="text-xs text-ink-faint">
-                              {t("effectsUploadLogin")}
-                            </p>
-                          )}
-                        </div>
-                      ) : null}
-                    </>
-                  )}
-
-                  <div className="space-y-2 border-t border-line pt-4">
-                    <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-                      {t("effectsAudioTitle")}
-                    </h4>
-                    {(
-                      [
-                        ["noiseSuppression", t("effectsNoise")],
-                        ["echoCancellation", t("effectsEcho")],
-                        ["autoGainControl", t("effectsAgc")],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <label
-                        key={key}
-                        className="flex cursor-pointer items-center gap-3 rounded-xl px-1 py-1.5 text-sm text-ink-muted hover:text-ink"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={prefs[key]}
+            <div role="tabpanel" className="space-y-5 px-6 pb-6 pt-5">
+              {tab === "general" && prefs && onMediaPrefsChange ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-ink-faint">{t("tabReturnHint")}</p>
+                  <Select
+                    label={t("tabReturnEnabled")}
+                    value={
+                      prefs.tabReturnEnabled === null
+                        ? "inherit"
+                        : prefs.tabReturnEnabled
+                          ? "on"
+                          : "off"
+                    }
+                    onChange={(e) =>
+                      onMediaPrefsChange({
+                        tabReturnEnabled:
+                          e.target.value === "inherit"
+                            ? null
+                            : e.target.value === "on",
+                      })
+                    }
+                  >
+                    <option value="inherit">{t("tabReturnOptions.inherit")}</option>
+                    <option value="on">{t("tabReturnEnabledOptions.on")}</option>
+                    <option value="off">{t("tabReturnEnabledOptions.off")}</option>
+                  </Select>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {(["Mic", "Camera"] as const).map((kind) => {
+                      const key = `tabReturn${kind}` as
+                        | "tabReturnMic"
+                        | "tabReturnCamera";
+                      return (
+                        <Select
+                          key={key}
+                          label={t(key)}
+                          value={prefs[key] ?? "inherit"}
                           onChange={(e) =>
-                            onMediaPrefsChange({ [key]: e.target.checked })
+                            onMediaPrefsChange({
+                              [key]:
+                                e.target.value === "inherit"
+                                  ? null
+                                  : (e.target.value as "open" | "closed" | "restore"),
+                            })
                           }
-                          className="h-4 w-4 rounded border-line accent-[var(--brand-primary)]"
-                        />
-                        <span>{label}</span>
-                      </label>
-                    ))}
+                        >
+                          <option value="inherit">
+                            {t("tabReturnOptions.inherit")}
+                          </option>
+                          <option value="closed">{t("tabReturnOptions.closed")}</option>
+                          <option value="open">{t("tabReturnOptions.open")}</option>
+                          <option value="restore">{t("tabReturnOptions.restore")}</option>
+                        </Select>
+                      );
+                    })}
                   </div>
-                </section>
+                </div>
+              ) : null}
+
+              {tab === "captions" && prefs && onMediaPrefsChange ? (
+                <CheckboxRow
+                  checked={
+                    prefs.captionsDefault ?? resolvedCaptionsDefault
+                  }
+                  onChange={(checked) =>
+                    onMediaPrefsChange({ captionsDefault: checked })
+                  }
+                  label={t("captionsStartOn")}
+                  hint={t("captionsStartOnHint")}
+                />
+              ) : null}
+
+              {tab === "audio" ? (
+                <div className="space-y-5">
+                  <Select
+                    label={t("microphone")}
+                    value={active.micId}
+                    disabled={switching || devices.mics.length === 0}
+                    onChange={(e) => void handleSwitch("mic", e.target.value)}
+                  >
+                    {devices.mics.length ? (
+                      devices.mics.map((device, index) => (
+                        <option key={device.deviceId || index} value={device.deviceId}>
+                          {deviceLabel(device, index, (n) => t("micN", { n }))}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">{t("noDevices")}</option>
+                    )}
+                  </Select>
+                  {speakerSupported ? (
+                    <Select
+                      label={t("speaker")}
+                      value={active.speakerId}
+                      disabled={switching || devices.speakers.length === 0}
+                      onChange={(e) => void handleSwitch("speaker", e.target.value)}
+                    >
+                      {devices.speakers.length ? (
+                        devices.speakers.map((device, index) => (
+                          <option key={device.deviceId || index} value={device.deviceId}>
+                            {deviceLabel(device, index, (n) =>
+                              t("speakerN", { n }),
+                            )}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">{t("noDevices")}</option>
+                      )}
+                    </Select>
+                  ) : (
+                    <p className="text-xs text-ink-faint">{t("speakerUnsupported")}</p>
+                  )}
+                  <div className="flex items-center gap-3 rounded-xl border border-line p-4">
+                    <span className="text-xs text-ink-muted">{t("micLevel")}</span>
+                    <div
+                      className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10"
+                      role="meter"
+                      aria-valuenow={Math.round(level * 100)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <motion.div
+                        className="h-full rounded-full bg-brand-primary"
+                        animate={{ width: `${Math.max(2, level * 100)}%` }}
+                        transition={springSoft}
+                      />
+                    </div>
+                  </div>
+                  {prefs && onMediaPrefsChange
+                    ? (
+                        [
+                          ["noiseSuppression", t("effectsNoise")],
+                          ["echoCancellation", t("effectsEcho")],
+                          ["autoGainControl", t("effectsAgc")],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <CheckboxRow
+                          key={key}
+                          checked={prefs[key]}
+                          onChange={(checked) => onMediaPrefsChange({ [key]: checked })}
+                          label={label}
+                        />
+                      ))
+                    : null}
+                </div>
+              ) : null}
+
+              {tab === "video" ? (
+                <div className="space-y-5">
+                  <Select
+                    label={t("camera")}
+                    value={active.cameraId}
+                    disabled={switching || devices.cameras.length === 0}
+                    onChange={(e) => void handleSwitch("camera", e.target.value)}
+                  >
+                    {devices.cameras.length ? (
+                      devices.cameras.map((device, index) => (
+                        <option key={device.deviceId || index} value={device.deviceId}>
+                          {deviceLabel(device, index, (n) => t("cameraN", { n }))}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">{t("noDevices")}</option>
+                    )}
+                  </Select>
+                  <div className="relative aspect-video overflow-hidden rounded-2xl border border-line bg-black/60">
+                    {videoStream ? (
+                      <video
+                        ref={videoRef}
+                        muted
+                        playsInline
+                        autoPlay
+                        className="h-full w-full object-cover"
+                        style={{ transform: "scaleX(-1)" }}
+                      />
+                    ) : (
+                      <div className="grid h-full place-items-center text-sm text-ink-faint">
+                        {t("cameraPreviewOff")}
+                      </div>
+                    )}
+                  </div>
+                  {prefs && onMediaPrefsChange ? (
+                    <VideoEffects
+                      prefs={prefs}
+                      supported={effectsSupported}
+                      accountBound={accountBound}
+                      uploading={uploading}
+                      fileRef={fileRef}
+                      onChange={onMediaPrefsChange}
+                      onUpload={(file) => void handleUpload(file)}
+                      t={t}
+                    />
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </motion.div>
@@ -508,5 +430,154 @@ export function DeviceSettingsModal({
       ) : null}
     </AnimatePresence>,
     document.body,
+  );
+}
+
+function CheckboxRow({
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: ReactNode;
+  hint?: ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 text-sm text-ink-muted">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 accent-[var(--brand-primary)]"
+      />
+      <span>
+        <span className="block text-ink">{label}</span>
+        {hint ? <span className="mt-1 block text-xs text-ink-faint">{hint}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+function VideoEffects({
+  prefs,
+  supported,
+  accountBound,
+  uploading,
+  fileRef,
+  onChange,
+  onUpload,
+  t,
+}: {
+  prefs: MediaPrefs;
+  supported: boolean;
+  accountBound: boolean;
+  uploading: boolean;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onChange: (patch: Partial<MediaPrefs>) => void;
+  onUpload: (file: File | undefined) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  if (!supported) return <p className="text-xs text-ink-faint">{t("effectsUnsupported")}</p>;
+  return (
+    <section className="space-y-3 border-t border-line pt-5">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-faint">
+        {t("effectsTitle")}
+      </h3>
+      <div className="flex flex-wrap gap-2">
+        {(["none", "blur", "virtual"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() =>
+              onChange({
+                videoEffect: mode,
+                ...(mode === "virtual" && !prefs.virtualBackgroundUrl
+                  ? { virtualBackgroundUrl: VIRTUAL_BACKGROUND_PRESETS[0].url }
+                  : {}),
+              })
+            }
+            className={cn(
+              "rounded-xl border px-3 py-2 text-sm",
+              prefs.videoEffect === mode
+                ? "border-brand-primary/60 bg-white/10 text-ink"
+                : "border-line text-ink-muted",
+            )}
+          >
+            {t(
+              mode === "none"
+                ? "effectsNone"
+                : mode === "blur"
+                  ? "effectsBlur"
+                  : "effectsVirtual",
+            )}
+          </button>
+        ))}
+      </div>
+      {prefs.videoEffect === "blur" ? (
+        <input
+          aria-label={t("effectsBlurRadius")}
+          type="range"
+          min={4}
+          max={24}
+          value={prefs.blurRadius}
+          onChange={(e) => onChange({ blurRadius: Number(e.target.value) })}
+          className="w-full accent-[var(--brand-primary)]"
+        />
+      ) : null}
+      {prefs.videoEffect === "virtual" ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {VIRTUAL_BACKGROUND_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    videoEffect: "virtual",
+                    virtualBackgroundUrl: preset.url,
+                  })
+                }
+                className={cn(
+                  "aspect-video overflow-hidden rounded-xl border",
+                  prefs.virtualBackgroundUrl === preset.url
+                    ? "border-brand-primary ring-2 ring-brand-primary/40"
+                    : "border-line",
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={preset.url}
+                  alt={t(preset.labelKey)}
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+          {accountBound ? (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => onUpload(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+                className="w-full rounded-xl border border-line px-3 py-2.5 text-sm text-ink-muted disabled:opacity-50"
+              >
+                {uploading ? t("effectsUploading") : t("effectsUpload")}
+              </button>
+            </>
+          ) : (
+            <p className="text-xs text-ink-faint">{t("effectsUploadLogin")}</p>
+          )}
+        </div>
+      ) : null}
+    </section>
   );
 }

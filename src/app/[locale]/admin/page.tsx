@@ -55,6 +55,7 @@ type AdminSettings = {
   locale: string;
   deploymentMode?: "server" | "platform";
   allowSignup?: boolean;
+  captionsDefault?: boolean;
   tabReturnEnabled?: boolean;
   tabReturnMic?: "open" | "closed" | "restore";
   tabReturnCamera?: "open" | "closed" | "restore";
@@ -235,6 +236,7 @@ export default function AdminPage() {
       locale: settings.locale,
       deploymentMode: settings.deploymentMode || "platform",
       allowSignup: settings.allowSignup !== false,
+      captionsDefault: settings.captionsDefault !== false,
       tabReturnEnabled: settings.tabReturnEnabled !== false,
       tabReturnMic: settings.tabReturnMic || "closed",
       tabReturnCamera: settings.tabReturnCamera || "closed",
@@ -664,6 +666,24 @@ export default function AdminPage() {
                   {t("ui.allowSignup")}
                 </label>
                 <div className="space-y-3 rounded-2xl border border-line bg-black/20 p-4">
+                  <Select
+                    label={t("general.captionsDefault")}
+                    hint={t("general.captionsDefaultHint")}
+                    value={settings.captionsDefault === false ? "off" : "on"}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        captionsDefault: e.target.value === "on",
+                      })
+                    }
+                  >
+                    <option value="on">
+                      {t("general.captionsDefaultOptions.on")}
+                    </option>
+                    <option value="off">
+                      {t("general.captionsDefaultOptions.off")}
+                    </option>
+                  </Select>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
                       {t("general.tabReturnTitle")}

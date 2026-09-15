@@ -73,6 +73,7 @@ const baseRow = {
   locale: "pt-BR",
   deploymentMode: "platform",
   allowSignup: true,
+  captionsDefault: true,
   tabReturnEnabled: true,
   tabReturnMic: "closed",
   tabReturnCamera: "closed",
@@ -197,6 +198,7 @@ describe("GET /api/admin/settings", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.locale).toBe("pt-BR");
+    expect(json.captionsDefault).toBe(true);
     expect(json.tabReturnEnabled).toBe(true);
     expect(json.geminiApiKey.configured).toBe(true);
     expect(json.geminiApiKey.preview).toBe("••••1234");
@@ -297,6 +299,18 @@ describe("PUT /api/admin/settings", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.tabReturnEnabled).toBe(false);
+  });
+
+  it("updates the platform captions default for admin", async () => {
+    session.isLoggedIn = true;
+    session.email = "admin@chronos.com.pt";
+    updateReturning.mockResolvedValue([
+      { ...baseRow, captionsDefault: false, updatedAt: new Date() },
+    ]);
+    const res = await PUT(jsonRequest({ captionsDefault: false }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.captionsDefault).toBe(false);
   });
 });
 

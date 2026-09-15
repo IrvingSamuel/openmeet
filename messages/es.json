@@ -588,6 +588,28 @@
       "options": "Opciones",
       "optionsEllipsis": "Opciones…",
       "optionsDescription": "Elija el micrófono, el altavoz, la cámara y los efectos usados en esta reunión.",
+      "optionsTabs": {
+        "general": "General",
+        "captions": "Subtítulos",
+        "audio": "Audio",
+        "video": "Vídeo"
+      },
+      "captionsStartOn": "Iniciar con subtítulos",
+      "captionsStartOnHint": "Su preferencia reemplaza el valor predeterminado de la plataforma.",
+      "tabReturnHint": "El administrador de la plataforma establece el valor predeterminado. Elija una preferencia para sus reuniones.",
+      "tabReturnEnabled": "Protección al ausentarse",
+      "tabReturnEnabledOptions": {
+        "on": "Activado",
+        "off": "Desactivado"
+      },
+      "tabReturnMic": "Micrófono al volver",
+      "tabReturnCamera": "Cámara al volver",
+      "tabReturnOptions": {
+        "inherit": "Predeterminado de la plataforma",
+        "open": "Abierto",
+        "closed": "Cerrado",
+        "restore": "Como estaba"
+      },
       "closeOptions": "Cerrar opciones",
       "cameraPreviewOff": "Cámara apagada",
       "micLevel": "Nivel del micrófono",
@@ -825,6 +847,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Subtítulos al iniciar la reunión",
+      "captionsDefaultHint": "Define si los subtítulos se activan de forma predeterminada. Los usuarios pueden reemplazar esta preferencia.",
+      "captionsDefaultOptions": {
+        "on": "Activados",
+        "off": "Desactivados"
       },
       "tabReturnTitle": "Al ausentarse de la pestaña",
       "tabReturnHint": "Si está activa, al salir de la pestaña el micrófono y la cámara se apagan por privacidad. Al volver, se aplica la política siguiente.",

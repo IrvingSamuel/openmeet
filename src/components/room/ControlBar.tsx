@@ -85,6 +85,7 @@ export function ControlBar({
   mediaPrefsReady = false,
   mediaPrefsAccountBound = false,
   mediaPrefsSaving = false,
+  resolvedCaptionsDefault = true,
   onMediaPrefsChange,
   onUploadVirtualBackground,
   showPeopleInBar = true,
@@ -115,6 +116,7 @@ export function ControlBar({
   mediaPrefsReady?: boolean;
   mediaPrefsAccountBound?: boolean;
   mediaPrefsSaving?: boolean;
+  resolvedCaptionsDefault?: boolean;
   onMediaPrefsChange?: (patch: Partial<MediaPrefs>) => void;
   onUploadVirtualBackground?: (file: File) => Promise<string>;
   /** When false, people control lives in the room header (next to copy link). */
@@ -449,6 +451,7 @@ export function ControlBar({
         mediaPrefsReady={mediaPrefsReady}
         accountBound={mediaPrefsAccountBound}
         saving={mediaPrefsSaving}
+        resolvedCaptionsDefault={resolvedCaptionsDefault}
         effectsSupported={canUseBackgroundEffects()}
         onMediaPrefsChange={onMediaPrefsChange}
         onUploadVirtualBackground={onUploadVirtualBackground}

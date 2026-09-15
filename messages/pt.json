@@ -588,6 +588,28 @@
       "options": "Opções",
       "optionsEllipsis": "Opções…",
       "optionsDescription": "Escolha o microfone, o alto-falante, a câmera e os efeitos usados nesta reunião.",
+      "optionsTabs": {
+        "general": "Geral",
+        "captions": "Legendas",
+        "audio": "Áudio",
+        "video": "Vídeo"
+      },
+      "captionsStartOn": "Iniciar com legendas",
+      "captionsStartOnHint": "A sua preferência substitui a predefinição da plataforma.",
+      "tabReturnHint": "O administrador da plataforma define o padrão. Escolha uma substituição para as suas reuniões.",
+      "tabReturnEnabled": "Proteção ao ausentar",
+      "tabReturnEnabledOptions": {
+        "on": "Ativado",
+        "off": "Desativado"
+      },
+      "tabReturnMic": "Microfone ao voltar",
+      "tabReturnCamera": "Câmara ao voltar",
+      "tabReturnOptions": {
+        "inherit": "Padrão da plataforma",
+        "open": "Aberto",
+        "closed": "Fechado",
+        "restore": "Como estava"
+      },
       "closeOptions": "Fechar opções",
       "cameraPreviewOff": "Câmera desligada",
       "micLevel": "Nível do microfone",
@@ -825,6 +847,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Legendas ao iniciar a reunião",
+      "captionsDefaultHint": "Define se as legendas começam ligadas por padrão. Os utilizadores podem substituir esta preferência.",
+      "captionsDefaultOptions": {
+        "on": "Ligadas",
+        "off": "Desligadas"
       },
       "tabReturnTitle": "Ao ausentar da guia",
       "tabReturnHint": "Quando ativada, ao sair da aba o microfone e a câmara são desligados por privacidade. Ao voltar, aplica-se a política abaixo.",

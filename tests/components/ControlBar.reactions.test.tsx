@@ -202,6 +202,7 @@ describe("ControlBar device menus", () => {
     expect(
       await screen.findByRole("dialog", { name: "Options" }),
     ).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Video" }));
     expect(screen.getByText("Effects")).toBeTruthy();
     expect(screen.getByText("Background blur")).toBeTruthy();
 

@@ -19,6 +19,10 @@ function defaultRow(identityId: string) {
     noiseSuppression: DEFAULT_MEDIA_PREFS.noiseSuppression,
     echoCancellation: DEFAULT_MEDIA_PREFS.echoCancellation,
     autoGainControl: DEFAULT_MEDIA_PREFS.autoGainControl,
+    captionsDefault: DEFAULT_MEDIA_PREFS.captionsDefault,
+    tabReturnEnabled: DEFAULT_MEDIA_PREFS.tabReturnEnabled,
+    tabReturnMic: DEFAULT_MEDIA_PREFS.tabReturnMic,
+    tabReturnCamera: DEFAULT_MEDIA_PREFS.tabReturnCamera,
   };
 }
 

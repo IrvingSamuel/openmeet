@@ -588,6 +588,28 @@
       "options": "Optionen",
       "optionsEllipsis": "Optionen…",
       "optionsDescription": "Wählen Sie Mikrofon, Lautsprecher, Kamera und Effekte für dieses Meeting.",
+      "optionsTabs": {
+        "general": "Allgemein",
+        "captions": "Untertitel",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "captionsStartOn": "Mit Untertiteln starten",
+      "captionsStartOnHint": "Ihre Einstellung überschreibt den Plattformstandard.",
+      "tabReturnHint": "Der Plattformadministrator legt den Standard fest. Wählen Sie eine eigene Einstellung für Ihre Meetings.",
+      "tabReturnEnabled": "Schutz beim Tabwechsel",
+      "tabReturnEnabledOptions": {
+        "on": "Aktiviert",
+        "off": "Deaktiviert"
+      },
+      "tabReturnMic": "Mikrofon bei Rückkehr",
+      "tabReturnCamera": "Kamera bei Rückkehr",
+      "tabReturnOptions": {
+        "inherit": "Plattformstandard",
+        "open": "An",
+        "closed": "Aus",
+        "restore": "Wie zuvor"
+      },
       "closeOptions": "Optionen schließen",
       "cameraPreviewOff": "Kamera ist aus",
       "micLevel": "Mikrofonpegel",
@@ -825,6 +847,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Untertitel beim Meetingstart",
+      "captionsDefaultHint": "Legt fest, ob Untertitel standardmäßig aktiviert sind. Benutzer können diese Einstellung überschreiben.",
+      "captionsDefaultOptions": {
+        "on": "An",
+        "off": "Aus"
       },
       "tabReturnTitle": "Beim Verlassen des Tabs",
       "tabReturnHint": "Wenn aktiv, werden beim Verlassen des Tabs Mikrofon und Kamera aus Datenschutzgründen ausgeschaltet. Beim Zurückkehren gilt die folgende Richtlinie.",

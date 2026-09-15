@@ -36,6 +36,7 @@ const putSchema = z.object({
   locale: z.enum(["pt-BR", "en", "es", "fr", "de"]).optional(),
   deploymentMode: z.enum(["server", "platform"]).optional(),
   allowSignup: z.boolean().optional(),
+  captionsDefault: z.boolean().optional(),
   tabReturnEnabled: z.boolean().optional(),
   tabReturnMic: z.enum(["open", "closed", "restore"]).optional(),
   tabReturnCamera: z.enum(["open", "closed", "restore"]).optional(),
@@ -159,6 +160,7 @@ function publicSettingsPayload(
     locale: row.locale || "pt-BR",
     deploymentMode: row.deploymentMode || "platform",
     allowSignup: row.allowSignup !== false,
+    captionsDefault: row.captionsDefault !== false,
     tabReturnEnabled: row.tabReturnEnabled !== false,
     tabReturnMic: row.tabReturnMic || "closed",
     tabReturnCamera: row.tabReturnCamera || "closed",
@@ -270,6 +272,9 @@ export async function PUT(req: NextRequest) {
   if (body.locale !== undefined) patch.locale = body.locale;
   if (body.deploymentMode !== undefined) patch.deploymentMode = body.deploymentMode;
   if (body.allowSignup !== undefined) patch.allowSignup = body.allowSignup;
+  if (body.captionsDefault !== undefined) {
+    patch.captionsDefault = body.captionsDefault;
+  }
   if (body.tabReturnEnabled !== undefined) {
     patch.tabReturnEnabled = body.tabReturnEnabled;
   }

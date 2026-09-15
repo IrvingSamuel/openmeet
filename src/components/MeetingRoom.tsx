@@ -55,12 +55,13 @@ import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
 import { useRoomVisibility } from "@/hooks/useRoomVisibility";
 import {
-  DEFAULT_TAB_RETURN_MEDIA_PREFS,
-  normalizeTabReturnEnabled,
-  normalizeTabReturnMediaPolicy,
-  type TabReturnMediaPrefs,
   type TabReturnMediaPolicy,
 } from "@/lib/tab-return-media";
+import {
+  resolveCaptionsDefault,
+  resolveTabReturnPrefs,
+  type PlatformMeetingPrefs,
+} from "@/lib/meeting-prefs";
 import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
 import {
   audioOptionsFromPrefs,
@@ -580,7 +581,36 @@ function RoomShell({
     prevHasScreenShare.current = hasScreenShare;
   }, [hasScreenShare]);
 
-  const [captionsOn, setCaptionsOn] = useState(true);
+  const [platformMeetingPrefs, setPlatformMeetingPrefs] =
+    useState<PlatformMeetingPrefs | null>(null);
+  const [roomPrefsReady, setRoomPrefsReady] = useState(false);
+  const resolvedCaptionsDefault = useMemo(
+    () =>
+      resolveCaptionsDefault({
+        user: mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        platform: platformMeetingPrefs,
+      }),
+    [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
+  );
+  const [captionsOn, setCaptionsOn] = useState(() =>
+    resolveCaptionsDefault({}),
+  );
+  const captionsDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (
+      captionsDefaultApplied.current ||
+      !roomPrefsReady ||
+      !mediaPrefsApi.ready
+    ) {
+      return;
+    }
+    captionsDefaultApplied.current = true;
+    setCaptionsOn(resolvedCaptionsDefault);
+  }, [mediaPrefsApi.ready, resolvedCaptionsDefault, roomPrefsReady]);
+  const toggleCaptions = useCallback(() => {
+    captionsDefaultApplied.current = true;
+    setCaptionsOn((value) => !value);
+  }, []);
   const [copied, setCopied] = useState(false);
   const [readChat, setReadChat] = useState(0);
   const hasConnectedOnce = useRef(false);
@@ -818,8 +848,13 @@ function RoomShell({
     })();
   }, [room, leavingRef]);
 
-  const [tabReturnPrefs, setTabReturnPrefs] = useState<TabReturnMediaPrefs>(
-    DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  const tabReturnPrefs = useMemo(
+    () =>
+      resolveTabReturnPrefs({
+        user: mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        platform: platformMeetingPrefs,
+      }),
+    [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
   );
   const tabMediaSnapshot = useRef<{ audio: boolean; video: boolean } | null>(
     null,
@@ -830,22 +865,15 @@ function RoomShell({
     fetch("/api/system/room-prefs", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then(
-        (data: {
-          tabReturnMedia?: {
-            enabled?: boolean;
-            mic?: string;
-            camera?: string;
-          };
-        } | null) => {
-          if (cancelled || !data?.tabReturnMedia) return;
-          setTabReturnPrefs({
-            enabled: normalizeTabReturnEnabled(data.tabReturnMedia.enabled),
-            mic: normalizeTabReturnMediaPolicy(data.tabReturnMedia.mic),
-            camera: normalizeTabReturnMediaPolicy(data.tabReturnMedia.camera),
-          });
+        (data: PlatformMeetingPrefs | null) => {
+          if (cancelled) return;
+          if (data) setPlatformMeetingPrefs(data);
         },
       )
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setRoomPrefsReady(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -1210,7 +1238,7 @@ function RoomShell({
             panel={panel}
             onPanelChange={setPanel}
             captionsOn={captionsOn}
-            onCaptionsToggle={() => setCaptionsOn((v) => !v)}
+            onCaptionsToggle={toggleCaptions}
             unreadChat={unread}
             peopleCount={humans.length}
             pendingJoinRequests={joinRequests.length}
@@ -1234,6 +1262,7 @@ function RoomShell({
             mediaPrefsReady={mediaPrefsApi.ready}
             mediaPrefsAccountBound={mediaPrefsApi.accountBound}
             mediaPrefsSaving={mediaPrefsApi.saving}
+            resolvedCaptionsDefault={resolvedCaptionsDefault}
             onMediaPrefsChange={mediaPrefsApi.updatePrefs}
             onUploadVirtualBackground={mediaPrefsApi.uploadVirtualBackground}
             showPeopleInBar={false}
