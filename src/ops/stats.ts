@@ -168,7 +168,10 @@ export async function getOpsStats() {
       })
       .from(recordings)
       .groupBy(recordings.status),
-    sumLlmUsageByFeature(30),
+    sumLlmUsageByFeature(30).catch((err) => {
+      console.warn("[ops/stats] llm usage rollup failed", err);
+      return [] as Awaited<ReturnType<typeof sumLlmUsageByFeature>>;
+    }),
   ]);
 
   const byCreatedVia: Record<string, number> = {};
