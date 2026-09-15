@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Aurora,
@@ -130,10 +130,10 @@ type View =
   | { kind: "tenant"; id: string }
   | { kind: "meeting"; tenantId: string; meetingId: string };
 
-function fmtDate(iso: string | null | undefined) {
+function fmtDate(iso: string | null | undefined, locale: string) {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString();
+    return new Date(iso).toLocaleString(locale);
   } catch {
     return iso;
   }
@@ -141,6 +141,11 @@ function fmtDate(iso: string | null | undefined) {
 
 export default function OpsTenantsPage() {
   const locale = useLocale();
+  const t = useTranslations("ops");
+  const tTenants = useTranslations("ops.tenants");
+  const tMeeting = useTranslations("ops.meeting");
+  const tNav = useTranslations("ops.nav");
+  const tTitles = useTranslations("ops.titles");
   const toast = useToast();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [view, setView] = useState<View>({ kind: "overview" });
@@ -175,12 +180,12 @@ export default function OpsTenantsPage() {
       if (!res.ok) throw new Error(data.error || "failed");
       setTenants(data.tenants);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load tenants");
+      toast.error(e instanceof Error ? e.message : tTenants("loadError"));
       setTenants([]);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, tTenants]);
 
   useEffect(() => {
     if (allowed && view.kind === "list") {
@@ -211,13 +216,13 @@ export default function OpsTenantsPage() {
         setRooms(r.rooms ?? []);
         setMeetings(m.meetings ?? []);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to load tenant");
+        toast.error(e instanceof Error ? e.message : t("detailLoadError"));
         setView({ kind: "list" });
       } finally {
         setLoading(false);
       }
     },
-    [toast],
+    [toast, t],
   );
 
   const openMeeting = useCallback(
@@ -233,13 +238,13 @@ export default function OpsTenantsPage() {
         if (!res.ok) throw new Error(data.error || "meeting failed");
         setMeetingDetail(data);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to load meeting");
+        toast.error(e instanceof Error ? e.message : tMeeting("loadError"));
         setView({ kind: "tenant", id: tenantId });
       } finally {
         setLoading(false);
       }
     },
-    [toast],
+    [toast, tMeeting],
   );
 
   async function impersonate(userId: string) {
@@ -252,10 +257,16 @@ export default function OpsTenantsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "impersonate failed");
-      toast.success(`Impersonating ${data.target?.email || userId}`);
+      toast.success(
+        tTenants("impersonating", {
+          email: data.target?.email || userId,
+        }),
+      );
       window.location.href = `/${locale}/dashboard`;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impersonate failed");
+      toast.error(
+        e instanceof Error ? e.message : tTenants("impersonateFailed"),
+      );
       setBusy(false);
     }
   }
@@ -270,17 +281,17 @@ export default function OpsTenantsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "role failed");
-      toast.success(`Role → ${role}`);
+      toast.success(tTenants("roleUpdated", { role }));
       await openTenant(userId);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Role update failed");
+      toast.error(e instanceof Error ? e.message : tTenants("roleFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   async function endMeeting(tenantId: string, meetingId: string) {
-    if (!confirm("End this meeting now?")) return;
+    if (!confirm(tMeeting("endConfirm"))) return;
     setBusy(true);
     try {
       const res = await fetch(
@@ -289,21 +300,24 @@ export default function OpsTenantsPage() {
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "end failed");
-      toast.success(data.alreadyEnded ? "Already ended" : "Meeting ended");
+      toast.success(
+        data.alreadyEnded ? tMeeting("alreadyEnded") : tMeeting("endedOk"),
+      );
       await openMeeting(tenantId, meetingId);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "End failed");
+      toast.error(e instanceof Error ? e.message : tMeeting("endFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   const title = useMemo(() => {
-    if (view.kind === "meeting") return "Meeting";
-    if (view.kind === "tenant") return detail?.user.email || "Tenant";
-    if (view.kind === "overview") return "Health & metrics";
-    return "Tenants";
-  }, [view, detail]);
+    if (view.kind === "meeting") return tTitles("meeting");
+    if (view.kind === "tenant")
+      return detail?.user.email || tTitles("tenant");
+    if (view.kind === "overview") return tTitles("health");
+    return tTitles("tenants");
+  }, [view, detail, tTitles]);
 
   if (allowed === null) {
     return (
@@ -321,12 +335,12 @@ export default function OpsTenantsPage() {
       <main className="relative min-h-screen overflow-hidden">
         <Aurora intensity={0.4} />
         <PageTransition className="relative mx-auto max-w-lg px-6 py-24 text-center">
-          <h1 className="text-2xl font-semibold text-ink">Ops — forbidden</h1>
-          <p className="mt-2 text-ink-muted">
-            Local root admin session required.
-          </p>
+          <h1 className="text-2xl font-semibold text-ink">
+            {t("forbidden.title")}
+          </h1>
+          <p className="mt-2 text-ink-muted">{t("forbidden.body")}</p>
           <Link href="/dashboard" className="mt-6 inline-block text-brand-primary">
-            ← Dashboard
+            {t("forbidden.back")}
           </Link>
         </PageTransition>
       </main>
@@ -343,8 +357,9 @@ export default function OpsTenantsPage() {
             <div>
               <Wordmark className="text-lg" />
               <p className="text-xs uppercase tracking-widest text-ink-muted">
-                Internal ops
-                {appVersion ? ` · v${appVersion}` : ""}
+                {appVersion
+                  ? t("eyebrowVersion", { version: appVersion })
+                  : t("eyebrow")}
               </p>
             </div>
           </div>
@@ -352,12 +367,12 @@ export default function OpsTenantsPage() {
             <LanguageSwitcher />
             <Link href="/admin">
               <Button variant="ghost" size="sm">
-                Admin
+                {tNav("admin")}
               </Button>
             </Link>
             <Link href="/dashboard">
               <Button variant="secondary" size="sm">
-                Dashboard
+                {tNav("dashboard")}
               </Button>
             </Link>
           </div>
@@ -370,7 +385,7 @@ export default function OpsTenantsPage() {
               variant={view.kind === "overview" ? "primary" : "ghost"}
               onClick={() => setView({ kind: "overview" })}
             >
-              Overview
+              {t("tabs.overview")}
             </Button>
             <Button
               size="sm"
@@ -386,7 +401,7 @@ export default function OpsTenantsPage() {
                 void loadTenants(q);
               }}
             >
-              Tenants
+              {t("tabs.tenants")}
             </Button>
           </div>
         </Reveal>
@@ -406,7 +421,7 @@ export default function OpsTenantsPage() {
                   }
                 }}
               >
-                ← Back
+                {tNav("back")}
               </Button>
             )}
             <h1 className="text-2xl font-semibold tracking-tight text-ink">
@@ -433,11 +448,11 @@ export default function OpsTenantsPage() {
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search email / name / external id"
+                placeholder={tTenants("searchPlaceholder")}
                 className="min-w-[240px] flex-1"
               />
               <Button type="submit" size="sm" loading={loading}>
-                Search
+                {tTenants("search")}
               </Button>
             </form>
 
@@ -445,58 +460,68 @@ export default function OpsTenantsPage() {
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="border-b border-line text-ink-muted">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Account</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Rooms</th>
-                    <th className="px-4 py-3 font-medium">Meetings</th>
-                    <th className="px-4 py-3 font-medium">Active</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
+                    <th className="px-4 py-3 font-medium">
+                      {tTenants("account")}
+                    </th>
+                    <th className="px-4 py-3 font-medium">{tTenants("role")}</th>
+                    <th className="px-4 py-3 font-medium">{tTenants("rooms")}</th>
+                    <th className="px-4 py-3 font-medium">
+                      {tTenants("meetings")}
+                    </th>
+                    <th className="px-4 py-3 font-medium">
+                      {tTenants("active")}
+                    </th>
+                    <th className="px-4 py-3 font-medium">
+                      {tTenants("created")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading && !tenants ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-ink-muted">
-                        Loading…
+                        {tTenants("loading")}
                       </td>
                     </tr>
                   ) : tenants && tenants.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-ink-muted">
-                        No tenants
+                        {tTenants("empty")}
                       </td>
                     </tr>
                   ) : (
-                    tenants?.map((t) => (
+                    tenants?.map((row) => (
                       <tr
-                        key={t.id}
+                        key={row.id}
                         className="cursor-pointer border-t border-line/60 hover:bg-white/[0.04]"
-                        onClick={() => void openTenant(t.id)}
+                        onClick={() => void openTenant(row.id)}
                       >
                         <td className="px-4 py-3">
                           <div className="font-medium text-ink">
-                            {t.name || "—"}
+                            {row.name || "—"}
                           </div>
-                          <div className="text-ink-muted">{t.email}</div>
+                          <div className="text-ink-muted">{row.email}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <Badge>{t.role}</Badge>
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">{t.roomCount}</td>
-                        <td className="px-4 py-3 tabular-nums">
-                          {t.meetingCount}
+                          <Badge>{row.role}</Badge>
                         </td>
                         <td className="px-4 py-3 tabular-nums">
-                          {t.activeMeetingCount > 0 ? (
+                          {row.roomCount}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {row.meetingCount}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {row.activeMeetingCount > 0 ? (
                             <span className="text-amber-300">
-                              {t.activeMeetingCount}
+                              {row.activeMeetingCount}
                             </span>
                           ) : (
                             0
                           )}
                         </td>
                         <td className="px-4 py-3 text-ink-muted">
-                          {fmtDate(t.createdAt)}
+                          {fmtDate(row.createdAt, locale)}
                         </td>
                       </tr>
                     ))
@@ -521,19 +546,29 @@ export default function OpsTenantsPage() {
                       </h2>
                       <p className="text-ink-muted">{detail.user.email}</p>
                       <p className="mt-2 text-xs text-ink-muted">
-                        id {detail.user.id}
+                        {tTenants("idLabel", { id: detail.user.id })}
                         {detail.user.externalId
-                          ? ` · ext ${detail.user.externalId}`
+                          ? ` · ${tTenants("ext", { id: detail.user.externalId })}`
                           : ""}
-                        {` · via ${detail.user.createdVia}`}
+                        {` · ${tTenants("via", { channel: detail.user.createdVia })}`}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2 text-sm text-ink-muted">
-                        <span>{detail.counts.rooms} rooms</span>
+                        <span>
+                          {tTenants("roomsCount", {
+                            count: detail.counts.rooms,
+                          })}
+                        </span>
                         <span>·</span>
-                        <span>{detail.counts.meetings} meetings</span>
+                        <span>
+                          {tTenants("meetingsCount", {
+                            count: detail.counts.meetings,
+                          })}
+                        </span>
                         <span>·</span>
                         <span className="text-amber-300">
-                          {detail.counts.activeMeetings} active
+                          {tTenants("activeCount", {
+                            count: detail.counts.activeMeetings,
+                          })}
                         </span>
                       </div>
                     </div>
@@ -556,44 +591,64 @@ export default function OpsTenantsPage() {
                         loading={busy}
                         onClick={() => void impersonate(detail.user.id)}
                       >
-                        Impersonate
+                        {tTenants("impersonate")}
                       </Button>
                     </div>
                   </div>
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-line/50 bg-black/20 p-4">
-                      <h3 className="text-sm font-semibold text-ink">Brand</h3>
+                      <h3 className="text-sm font-semibold text-ink">
+                        {tTenants("brand")}
+                      </h3>
                       {detail.brand ? (
                         <dl className="mt-2 space-y-1 text-sm text-ink-muted">
-                          <div>wordmark: {detail.brand.wordmark || "—"}</div>
-                          <div>theme: {detail.brand.themePreset || "—"}</div>
                           <div>
-                            primary: {detail.brand.primaryColor || "—"}
+                            {tTenants("wordmark", {
+                              value: detail.brand.wordmark || "—",
+                            })}
+                          </div>
+                          <div>
+                            {tTenants("theme", {
+                              value: detail.brand.themePreset || "—",
+                            })}
+                          </div>
+                          <div>
+                            {tTenants("primary", {
+                              value: detail.brand.primaryColor || "—",
+                            })}
                           </div>
                         </dl>
                       ) : (
-                        <p className="mt-2 text-sm text-ink-muted">None</p>
+                        <p className="mt-2 text-sm text-ink-muted">
+                          {tTenants("none")}
+                        </p>
                       )}
                     </div>
                     <div className="rounded-2xl border border-line/50 bg-black/20 p-4">
                       <h3 className="text-sm font-semibold text-ink">
-                        Media prefs
+                        {tTenants("mediaPrefs")}
                       </h3>
                       {detail.mediaPrefs ? (
                         <dl className="mt-2 space-y-1 text-sm text-ink-muted">
                           <div>
-                            video: {detail.mediaPrefs.videoEffect} (blur{" "}
-                            {detail.mediaPrefs.blurRadius})
+                            {tTenants("videoEffect", {
+                              effect: detail.mediaPrefs.videoEffect,
+                              blur: detail.mediaPrefs.blurRadius,
+                            })}
                           </div>
                           <div>
-                            NS {String(detail.mediaPrefs.noiseSuppression)} · EC{" "}
-                            {String(detail.mediaPrefs.echoCancellation)} · AGC{" "}
-                            {String(detail.mediaPrefs.autoGainControl)}
+                            {tTenants("audioFlags", {
+                              ns: String(detail.mediaPrefs.noiseSuppression),
+                              ec: String(detail.mediaPrefs.echoCancellation),
+                              agc: String(detail.mediaPrefs.autoGainControl),
+                            })}
                           </div>
                         </dl>
                       ) : (
-                        <p className="mt-2 text-sm text-ink-muted">Defaults</p>
+                        <p className="mt-2 text-sm text-ink-muted">
+                          {tTenants("defaults")}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -601,7 +656,7 @@ export default function OpsTenantsPage() {
 
                 <div className="rounded-3xl glass p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
-                    Rooms ({rooms?.length ?? 0})
+                    {tTenants("roomsHeading", { count: rooms?.length ?? 0 })}
                   </h3>
                   <ul className="mt-3 divide-y divide-line/50">
                     {(rooms ?? []).map((r) => (
@@ -617,14 +672,18 @@ export default function OpsTenantsPage() {
                       </li>
                     ))}
                     {rooms?.length === 0 && (
-                      <li className="py-2 text-sm text-ink-muted">No rooms</li>
+                      <li className="py-2 text-sm text-ink-muted">
+                        {tTenants("noRooms")}
+                      </li>
                     )}
                   </ul>
                 </div>
 
                 <div className="rounded-3xl glass p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
-                    Meetings ({meetings?.length ?? 0})
+                    {tTenants("meetingsHeading", {
+                      count: meetings?.length ?? 0,
+                    })}
                   </h3>
                   <ul className="mt-3 divide-y divide-line/50">
                     {(meetings ?? []).map((m) => (
@@ -636,11 +695,13 @@ export default function OpsTenantsPage() {
                         <div>
                           <div className="font-medium text-ink">{m.title}</div>
                           <div className="text-xs text-ink-muted">
-                            {fmtDate(m.startedAt)} · /{m.slug}
+                            {fmtDate(m.startedAt, locale)} · /{m.slug}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {m.hasSummary && <Badge>summary</Badge>}
+                          {m.hasSummary && (
+                            <Badge>{tTenants("summaryBadge")}</Badge>
+                          )}
                           <Badge
                             className={cn(
                               m.status === "active" && "!text-amber-200",
@@ -653,7 +714,7 @@ export default function OpsTenantsPage() {
                     ))}
                     {meetings?.length === 0 && (
                       <li className="py-2 text-sm text-ink-muted">
-                        No meetings
+                        {tTenants("noMeetings")}
                       </li>
                     )}
                   </ul>
@@ -676,15 +737,27 @@ export default function OpsTenantsPage() {
                         {meetingDetail.meeting.title}
                       </h2>
                       <p className="text-sm text-ink-muted">
-                        {meetingDetail.meeting.status} · started{" "}
-                        {fmtDate(meetingDetail.meeting.startedAt)}
+                        {meetingDetail.meeting.status} ·{" "}
+                        {tMeeting("started", {
+                          date: fmtDate(
+                            meetingDetail.meeting.startedAt,
+                            locale,
+                          ),
+                        })}
                         {meetingDetail.meeting.endedAt
-                          ? ` · ended ${fmtDate(meetingDetail.meeting.endedAt)}`
+                          ? ` · ${tMeeting("ended", {
+                              date: fmtDate(
+                                meetingDetail.meeting.endedAt,
+                                locale,
+                              ),
+                            })}`
                           : ""}
                       </p>
                       <p className="mt-1 text-xs text-ink-muted">
                         {meetingDetail.meeting.livekitRoomName} ·{" "}
-                        {meetingDetail.transcriptCount} transcript segments
+                        {tMeeting("transcriptSegments", {
+                          count: meetingDetail.transcriptCount,
+                        })}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <a
@@ -693,7 +766,7 @@ export default function OpsTenantsPage() {
                           rel="noreferrer"
                           className="text-sm text-brand-primary underline-offset-2 hover:underline"
                         >
-                          Open summary page ↗
+                          {tMeeting("openSummary")}
                         </a>
                       </div>
                     </div>
@@ -707,7 +780,7 @@ export default function OpsTenantsPage() {
                           void endMeeting(view.tenantId, view.meetingId)
                         }
                       >
-                        End meeting
+                        {tMeeting("endMeeting")}
                       </Button>
                     )}
                   </div>
@@ -715,7 +788,9 @@ export default function OpsTenantsPage() {
 
                 <div className="rounded-3xl glass p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
-                    Participants ({meetingDetail.participants.length})
+                    {tMeeting("participants", {
+                      count: meetingDetail.participants.length,
+                    })}
                   </h3>
                   <ul className="mt-3 space-y-2 text-sm">
                     {meetingDetail.participants.map((p) => (
@@ -728,20 +803,26 @@ export default function OpsTenantsPage() {
                           <span className="text-ink-muted">({p.role})</span>
                         </span>
                         <span className="text-xs text-ink-muted">
-                          {fmtDate(p.joinedAt)}
-                          {p.leftAt ? ` → ${fmtDate(p.leftAt)}` : " · in"}
+                          {fmtDate(p.joinedAt, locale)}
+                          {p.leftAt
+                            ? ` → ${fmtDate(p.leftAt, locale)}`
+                            : ` · ${tMeeting("inCall")}`}
                         </span>
                       </li>
                     ))}
                     {meetingDetail.participants.length === 0 && (
-                      <li className="text-ink-muted">No participants</li>
+                      <li className="text-ink-muted">
+                        {tMeeting("noParticipants")}
+                      </li>
                     )}
                   </ul>
                 </div>
 
                 <div className="rounded-3xl glass p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
-                    Recordings ({meetingDetail.recordings.length})
+                    {tMeeting("recordings", {
+                      count: meetingDetail.recordings.length,
+                    })}
                   </h3>
                   <ul className="mt-3 space-y-2 text-sm">
                     {meetingDetail.recordings.map((r) => (
@@ -756,19 +837,21 @@ export default function OpsTenantsPage() {
                           {r.bytes != null
                             ? `${Math.round(r.bytes / 1024)} KB`
                             : "—"}{" "}
-                          · {fmtDate(r.createdAt)}
+                          · {fmtDate(r.createdAt, locale)}
                         </span>
                       </li>
                     ))}
                     {meetingDetail.recordings.length === 0 && (
-                      <li className="text-ink-muted">No recordings</li>
+                      <li className="text-ink-muted">
+                        {tMeeting("noRecordings")}
+                      </li>
                     )}
                   </ul>
                 </div>
 
                 <div className="rounded-3xl glass p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
-                    Summary
+                    {tMeeting("summary")}
                   </h3>
                   {meetingDetail.summary ? (
                     <pre className="mt-3 max-h-[480px] overflow-auto whitespace-pre-wrap rounded-2xl bg-black/30 p-4 text-sm text-ink">
@@ -776,8 +859,9 @@ export default function OpsTenantsPage() {
                     </pre>
                   ) : (
                     <p className="mt-3 text-sm text-ink-muted">
-                      No summary yet (status:{" "}
-                      {meetingDetail.meeting.summaryStatus})
+                      {tMeeting("noSummary", {
+                        status: meetingDetail.meeting.summaryStatus,
+                      })}
                     </p>
                   )}
                 </div>

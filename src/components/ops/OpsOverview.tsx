@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Badge, Skeleton } from "@/components/ui/Surface";
 import { cn } from "@/lib/utils";
 
@@ -89,7 +90,17 @@ function Sparkline({
   );
 }
 
-function HealthDot({ ok, label }: { ok: boolean; label: string }) {
+function HealthDot({
+  ok,
+  label,
+  okLabel,
+  downLabel,
+}: {
+  ok: boolean;
+  label: string;
+  okLabel: string;
+  downLabel: string;
+}) {
   return (
     <span className="inline-flex items-center gap-2 text-sm text-ink-muted">
       <span
@@ -100,7 +111,7 @@ function HealthDot({ ok, label }: { ok: boolean; label: string }) {
         aria-hidden
       />
       <span className="text-ink">{label}</span>
-      <span className="text-ink-faint">{ok ? "ok" : "down"}</span>
+      <span className="text-ink-faint">{ok ? okLabel : downLabel}</span>
     </span>
   );
 }
@@ -132,6 +143,7 @@ export function OpsOverview({
 }: {
   onLoadedVersion?: (version: string) => void;
 }) {
+  const t = useTranslations("ops.overview");
   const [stats, setStats] = useState<OpsStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +181,7 @@ export function OpsOverview({
   if (error && !stats) {
     return (
       <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4 text-sm text-rose-100">
-        Failed to load ops stats: {error}
+        {t("statsFailed", { error })}
       </div>
     );
   }
@@ -191,59 +203,77 @@ export function OpsOverview({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-ink">Platform health</h2>
-          <p className="text-sm text-ink-muted">
-            Live snapshot · refreshed every 30s
-          </p>
+          <h2 className="text-lg font-semibold text-ink">{t("platformHealth")}</h2>
+          <p className="text-sm text-ink-muted">{t("liveSnapshot")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={healthAll ? "success" : "danger"}>
-            {healthAll ? "Healthy" : "Degraded"}
+            {healthAll ? t("healthy") : t("degraded")}
           </Badge>
           <Badge>v{stats.version}</Badge>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-2xl border border-line bg-white/[0.03] px-4 py-3">
-        <HealthDot ok={stats.health.postgres} label="Postgres" />
-        <HealthDot ok={stats.health.livekit} label="LiveKit" />
-        <HealthDot ok={stats.health.agent} label="Agent" />
+        <HealthDot
+          ok={stats.health.postgres}
+          label="Postgres"
+          okLabel={t("statusOk")}
+          downLabel={t("statusDown")}
+        />
+        <HealthDot
+          ok={stats.health.livekit}
+          label="LiveKit"
+          okLabel={t("statusOk")}
+          downLabel={t("statusDown")}
+        />
+        <HealthDot
+          ok={stats.health.agent}
+          label="Agent"
+          okLabel={t("statusOk")}
+          downLabel={t("statusDown")}
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Meetings now"
+          label={t("meetingsNow")}
           value={stats.now.meetingsActive}
           hint={
             stats.now.livekitRooms != null
-              ? `LiveKit rooms: ${stats.now.livekitRooms}`
-              : "LiveKit room count unavailable"
+              ? t("livekitRooms", { count: stats.now.livekitRooms })
+              : t("livekitUnavailable")
           }
         />
         <StatCard
-          label="Participants now"
+          label={t("participantsNow")}
           value={stats.now.participantsConnected}
         />
         <StatCard
-          label="Users"
+          label={t("users")}
           value={stats.users.total}
           hint={Object.entries(stats.users.byCreatedVia)
             .map(([k, v]) => `${k}: ${v}`)
             .join(" · ")}
         />
         <StatCard
-          label="Meetings ended"
+          label={t("meetingsEnded")}
           value={stats.meetings.endedToday}
-          hint={`7d: ${stats.meetings.ended7d} · 30d: ${stats.meetings.ended30d}`}
+          hint={t("endedHint", {
+            ended7d: stats.meetings.ended7d,
+            ended30d: stats.meetings.ended30d,
+          })}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-line bg-white/[0.04] p-4">
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">New users · 30d</h3>
+            <h3 className="text-sm font-semibold text-ink">{t("newUsers30d")}</h3>
             <span className="text-xs text-ink-faint">
-              {stats.users.series30d.reduce((a, b) => a + b.count, 0)} total
+              {t("total", {
+                count: stats.users.series30d.reduce((a, b) => a + b.count, 0),
+              })}
             </span>
           </div>
           <Sparkline series={stats.users.series30d} className="mt-3" />
@@ -251,10 +281,10 @@ export function OpsOverview({
         <div className="rounded-2xl border border-line bg-white/[0.04] p-4">
           <div className="flex items-baseline justify-between gap-2">
             <h3 className="text-sm font-semibold text-ink">
-              Meetings ended · 30d
+              {t("meetingsEnded30d")}
             </h3>
             <span className="text-xs text-ink-faint">
-              {stats.meetings.ended30d} total
+              {t("total", { count: stats.meetings.ended30d })}
             </span>
           </div>
           <Sparkline series={stats.meetings.series30d} className="mt-3" />
@@ -263,13 +293,13 @@ export function OpsOverview({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-line bg-white/[0.04] p-4">
-          <h3 className="text-sm font-semibold text-ink">Recordings</h3>
+          <h3 className="text-sm font-semibold text-ink">{t("recordings")}</h3>
           <p className="mt-1 text-xs text-ink-muted">
-            Storage {formatBytes(stats.recordings.totalBytes)}
+            {t("storage", { size: formatBytes(stats.recordings.totalBytes) })}
           </p>
           <ul className="mt-3 space-y-1.5 text-sm text-ink-muted">
             {Object.keys(stats.recordings.byStatus).length === 0 ? (
-              <li>No recordings yet</li>
+              <li>{t("noRecordingsYet")}</li>
             ) : (
               Object.entries(stats.recordings.byStatus).map(([status, n]) => (
                 <li key={status} className="flex justify-between gap-3">
@@ -281,16 +311,19 @@ export function OpsOverview({
           </ul>
         </div>
         <div className="rounded-2xl border border-line bg-white/[0.04] p-4">
-          <h3 className="text-sm font-semibold text-ink">LLM usage · 30d</h3>
+          <h3 className="text-sm font-semibold text-ink">{t("llmUsage30d")}</h3>
           <ul className="mt-3 space-y-1.5 text-sm text-ink-muted">
             {stats.llm.length === 0 ? (
-              <li>No LLM calls recorded</li>
+              <li>{t("noLlmCalls")}</li>
             ) : (
               stats.llm.map((row) => (
                 <li key={row.feature} className="flex justify-between gap-3">
                   <span>{row.feature}</span>
                   <span className="text-ink">
-                    {row.calls} calls · {row.inputTokens + row.outputTokens} tok
+                    {t("llmRow", {
+                      calls: row.calls,
+                      tokens: row.inputTokens + row.outputTokens,
+                    })}
                   </span>
                 </li>
               ))
