@@ -21,6 +21,7 @@
       "logout": "Salir",
       "cancel": "Cancelar",
       "close": "Cerrar",
+      "dismiss": "Descartar notificación",
       "save": "Guardar",
       "saveToken": "Guardar token",
       "create": "Crear",
@@ -700,7 +701,8 @@
       "leave": "Salir"
     },
     "captions": {
-      "dragHint": "Arrastre para reposicionar · doble clic para restablecer"
+      "dragHint": "Arrastre para reposicionar · doble clic para restablecer",
+      "hide": "Ocultar subtítulos"
     },
     "stage": {
       "empty": "Nadie en la sala todavía"

@@ -21,6 +21,7 @@
       "logout": "Sair",
       "cancel": "Cancelar",
       "close": "Fechar",
+      "dismiss": "Dispensar notificação",
       "save": "Guardar",
       "saveToken": "Salvar token",
       "create": "Criar",
@@ -706,7 +707,8 @@
       "leave": "Sair"
     },
     "captions": {
-      "dragHint": "Arrastar para reposicionar · duplo-clique para resetar"
+      "dragHint": "Arrastar para reposicionar · duplo-clique para resetar",
+      "hide": "Ocultar legendas"
     },
     "stage": {
       "empty": "Ninguém na sala ainda"

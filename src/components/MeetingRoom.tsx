@@ -1202,7 +1202,11 @@ function RoomShell({
             raisedIdentities={raisedIdentities}
           />
           <ReactionBurstOverlay bursts={reactionBursts} />
-          <CaptionsOverlay captions={captions} visible={captionsOn} />
+          <CaptionsOverlay
+            captions={captions}
+            visible={captionsOn}
+            onHide={() => setCaptionsOn(false)}
+          />
           {!isLgUp ? (
             <SidePanel
               panel={panel}

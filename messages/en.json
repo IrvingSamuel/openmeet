@@ -21,6 +21,7 @@
       "logout": "Log out",
       "cancel": "Cancel",
       "close": "Close",
+      "dismiss": "Dismiss notification",
       "save": "Save",
       "saveToken": "Save token",
       "create": "Create",
@@ -716,7 +717,8 @@
       "leave": "Leave"
     },
     "captions": {
-      "dragHint": "Drag to reposition · double-click to reset"
+      "dragHint": "Drag to reposition · double-click to reset",
+      "hide": "Hide captions"
     },
     "stage": {
       "empty": "No one in the room yet"

@@ -21,6 +21,7 @@
       "logout": "Abmelden",
       "cancel": "Abbrechen",
       "close": "Schließen",
+      "dismiss": "Benachrichtigung schließen",
       "save": "Speichern",
       "saveToken": "Token speichern",
       "create": "Erstellen",
@@ -700,7 +701,8 @@
       "leave": "Verlassen"
     },
     "captions": {
-      "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen"
+      "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen",
+      "hide": "Untertitel ausblenden"
     },
     "stage": {
       "empty": "Noch niemand im Raum"

@@ -21,6 +21,7 @@
       "logout": "Déconnexion",
       "cancel": "Annuler",
       "close": "Fermer",
+      "dismiss": "Ignorer la notification",
       "save": "Enregistrer",
       "saveToken": "Enregistrer le jeton",
       "create": "Créer",
@@ -700,7 +701,8 @@
       "leave": "Quitter"
     },
     "captions": {
-      "dragHint": "Glisser pour repositionner · double-clic pour réinitialiser"
+      "dragHint": "Glisser pour repositionner · double-clic pour réinitialiser",
+      "hide": "Masquer les sous-titres"
     },
     "stage": {
       "empty": "Personne dans la salle pour l'instant"

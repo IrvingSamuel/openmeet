@@ -102,9 +102,10 @@ export function SidePanel({
             {titles[panel]}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label={t("close")}
-            className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-white/10 hover:text-ink"
+            className="grid h-8 w-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-white/10 hover:text-ink"
           >
             <svg
               viewBox="0 0 20 20"
@@ -113,6 +114,7 @@ export function SidePanel({
               stroke="currentColor"
               strokeWidth="1.8"
               strokeLinecap="round"
+              aria-hidden
             >
               <path d="M5 5l10 10M15 5L5 15" />
             </svg>
