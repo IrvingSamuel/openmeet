@@ -210,7 +210,7 @@ export async function syncRoomMetadata(
   await ensureAgentDispatch(livekitRoomName);
 }
 
-export type RoomRole = "host" | "participant" | "agent";
+export type RoomRole = "host" | "moderator" | "participant" | "agent";
 
 export async function mintRoomToken(opts: {
   roomName: string;
@@ -223,11 +223,12 @@ export async function mintRoomToken(opts: {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: opts.identity,
     name: opts.name,
+    metadata: JSON.stringify({ role: opts.role }),
     ttl: opts.ttlSeconds ?? 60 * 60 * 6,
   });
 
   const canPublish = opts.role !== "agent";
-  const roomAdmin = opts.role === "host";
+  const roomAdmin = opts.role === "host" || opts.role === "moderator";
 
   at.addGrant({
     roomJoin: true,
@@ -242,6 +243,28 @@ export async function mintRoomToken(opts: {
   // Agent dispatch is exclusively via ensureAgentDispatch (token mint).
   // roomConfig.agents here caused a second concurrent job / identity clash.
   return at.toJwt();
+}
+
+/** Update an active participant's moderation grant and role metadata. */
+export async function updateParticipantRole(opts: {
+  livekitRoomName: string;
+  identity: string;
+  role: "moderator" | "participant";
+}) {
+  const client = getRoomServiceClient();
+  return client.updateParticipant(opts.livekitRoomName, opts.identity, {
+    metadata: JSON.stringify({ role: opts.role }),
+    permission: {
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+      canUpdateMetadata: true,
+      canSubscribeMetrics: true,
+      hidden: false,
+      recorder: false,
+      agent: false,
+    },
+  });
 }
 
 export function getWebhookReceiver() {

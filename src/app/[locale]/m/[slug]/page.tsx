@@ -34,7 +34,7 @@ type Session = {
   token: string;
   serverUrl: string;
   meetingId?: string;
-  role: "host" | "participant" | "agent";
+  role: "host" | "moderator" | "participant" | "agent";
   displayName: string;
   video: boolean;
   audio: boolean;
@@ -176,7 +176,10 @@ export default function MeetingJoinPage() {
         token: json.token,
         serverUrl: json.serverUrl,
         meetingId: json.meetingId,
-        role: json.role === "host" ? "host" : "participant",
+        role:
+          json.role === "host" || json.role === "moderator"
+            ? json.role
+            : "participant",
         displayName: opts.displayName,
         video: opts.videoEnabled,
         audio: opts.audioEnabled,

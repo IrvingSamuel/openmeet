@@ -48,6 +48,7 @@ export function SidePanel({
   roomSlug,
   meetingId,
   isHost,
+  canModerate = false,
   copilotDisplayName,
   copilotIdentity,
   overlay = false,
@@ -71,6 +72,7 @@ export function SidePanel({
   roomSlug?: string;
   meetingId?: string;
   isHost?: boolean;
+  canModerate?: boolean;
   copilotDisplayName?: string;
   copilotIdentity?: string;
   /** Below lg: render as full-height overlay so the stage keeps full width. */
@@ -131,6 +133,7 @@ export function SidePanel({
               roomSlug={roomSlug}
               meetingId={meetingId}
               isHost={isHost}
+              canModerate={canModerate}
               joinRequests={joinRequests}
               joinBusyId={joinBusyId}
               onJoinDecide={onJoinDecide}
@@ -369,10 +372,23 @@ function ChatBubble({ message }: { message: ReceivedChatMessage }) {
   );
 }
 
+type ParticipantRole = "host" | "moderator" | "participant";
+
+function roleFromMetadata(metadata: string | undefined): ParticipantRole {
+  try {
+    const role = (JSON.parse(metadata || "{}") as { role?: unknown }).role;
+    if (role === "host" || role === "moderator") return role;
+  } catch {
+    // Ignore metadata owned by integrations that is not JSON.
+  }
+  return "participant";
+}
+
 function PeoplePanel({
   roomSlug,
   meetingId,
   isHost,
+  canModerate,
   joinRequests,
   joinBusyId,
   onJoinDecide,
@@ -381,6 +397,7 @@ function PeoplePanel({
   roomSlug?: string;
   meetingId?: string;
   isHost?: boolean;
+  canModerate?: boolean;
   joinRequests?: JoinRequest[];
   joinBusyId?: string | null;
   onJoinDecide?: (
@@ -402,7 +419,7 @@ function PeoplePanel({
     identity: string,
     action: "mute" | "camera_off" | "remove",
   ) {
-    if (!roomSlug || !isHost) return;
+    if (!roomSlug || !canModerate) return;
     if (action === "remove") {
       const ok = window.confirm(t("removeConfirm"));
       if (!ok) return;
@@ -429,9 +446,41 @@ function PeoplePanel({
     }
   }
 
+  async function changeRole(
+    identity: string,
+    role: "moderator" | "participant",
+  ) {
+    if (!roomSlug || !isHost) return;
+    setBusyId(`${identity}:role`);
+    try {
+      const res = await fetch(
+        `/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/participants/role`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identity, role }),
+        },
+      );
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || t("roleChangeFailed"));
+        return;
+      }
+      toast.push(
+        role === "moderator"
+          ? t("moderatorGranted")
+          : t("moderatorRemoved"),
+      );
+    } catch {
+      toast.error(tErrors("networkModerate"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {isHost && roomSlug && onJoinDecide ? (
+      {canModerate && roomSlug && onJoinDecide ? (
         <WaitingQueue
           requests={joinRequests ?? []}
           busyId={joinBusyId ?? null}
@@ -443,7 +492,16 @@ function PeoplePanel({
           {humans.map((p) => {
             const name = p.name || p.identity;
             const hue = hueFromString(p.identity);
-            const canModerate = Boolean(isHost && !p.isLocal && roomSlug);
+            const participantRole = roleFromMetadata(p.metadata);
+            const canModerateParticipant = Boolean(
+              canModerate && !p.isLocal && roomSlug,
+            );
+            const canChangeRole = Boolean(
+              isHost &&
+                !p.isLocal &&
+                roomSlug &&
+                participantRole !== "host",
+            );
             const handRaised = raisedIdentities.has(p.identity);
             return (
               <motion.li
@@ -473,9 +531,12 @@ function PeoplePanel({
                       />
                     ) : null}
                     {p.isLocal ? ` ${tLabels("youParen")}` : ""}
-                    {p.isLocal && isHost ? (
+                    {participantRole === "host" ||
+                    participantRole === "moderator" ? (
                       <span className="ml-1.5 text-[10px] uppercase tracking-wide text-brand-secondary">
-                        {tLabels("host")}
+                        {participantRole === "host"
+                          ? tLabels("host")
+                          : tLabels("moderator")}
                       </span>
                     ) : null}
                   </span>
@@ -488,8 +549,27 @@ function PeoplePanel({
                       ? ` · ${tLabels("screenShare")}`
                       : ""}
                   </span>
+                  {canChangeRole ? (
+                    <button
+                      type="button"
+                      disabled={busyId?.startsWith(p.identity)}
+                      onClick={() =>
+                        void changeRole(
+                          p.identity,
+                          participantRole === "moderator"
+                            ? "participant"
+                            : "moderator",
+                        )
+                      }
+                      className="mt-1 block text-left text-[11px] font-medium text-brand-secondary hover:underline disabled:opacity-40"
+                    >
+                      {participantRole === "moderator"
+                        ? t("removeModerator")
+                        : t("makeModerator")}
+                    </button>
+                  ) : null}
                 </span>
-                {canModerate ? (
+                {canModerateParticipant ? (
                   <span className="flex shrink-0 gap-1">
                     <button
                       type="button"

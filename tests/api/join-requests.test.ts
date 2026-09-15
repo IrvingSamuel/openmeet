@@ -21,6 +21,11 @@ vi.mock("@/lib/session", () => ({
   getSession: async () => session,
 }));
 
+vi.mock("@/lib/host-entry", () => ({
+  hasHostEntryGrant: vi.fn(async () => false),
+  hostEntryDisplayName: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/db", () => ({
   db: {
     query: {

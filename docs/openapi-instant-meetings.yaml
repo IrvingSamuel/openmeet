@@ -1049,7 +1049,7 @@ components:
                         type: string
                       role:
                         type: string
-                        enum: [host, participant]
+                        enum: [host, moderator, participant]
                       identityId:
                         type: string
                         format: uuid

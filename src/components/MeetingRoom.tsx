@@ -71,7 +71,7 @@ import { useMediaPrefs } from "@/hooks/useMediaPrefs";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
-type RoomRole = "host" | "participant" | "agent";
+type RoomRole = "host" | "moderator" | "participant" | "agent";
 
 const ROOM_OPTIONS: RoomOptions = {
   adaptiveStream: { pauseVideoInBackground: true },
@@ -389,7 +389,7 @@ export function MeetingRoom({
           roomSlug={roomSlug}
           logoUrl={logoUrl}
           meetingId={meetingId}
-          isHost={role === "host"}
+          initialRole={role}
           recordingConfig={recordingConfig}
           redirectAfterMeet={redirectAfterMeet}
           externalInviteUrl={externalInviteUrl}
@@ -423,7 +423,7 @@ function RoomShell({
   roomSlug,
   logoUrl,
   meetingId,
-  isHost,
+  initialRole,
   recordingConfig,
   redirectAfterMeet,
   externalInviteUrl,
@@ -443,7 +443,7 @@ function RoomShell({
   roomSlug: string;
   logoUrl?: string | null;
   meetingId?: string;
-  isHost: boolean;
+  initialRole: RoomRole;
   recordingConfig: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
   externalInviteUrl?: string | null;
@@ -467,6 +467,9 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  const isHost = initialRole === "host";
+  const [localRole, setLocalRole] = useState<RoomRole>(initialRole);
+  const canModerate = localRole === "host" || localRole === "moderator";
   const mediaPrefsApi = useMediaPrefs();
   useMeetingEffects(
     room,
@@ -480,7 +483,7 @@ function RoomShell({
   const recorder = useMeetingRecorder({
     room,
     meetingId,
-    isHost,
+    isHost: canModerate,
     config: recordingConfig,
   });
   const declineAsk = recorder.declineAsk;
@@ -511,7 +514,32 @@ function RoomShell({
     requests: joinRequests,
     busyId: joinBusyId,
     decide: decideJoin,
-  } = useJoinRequests(roomSlug, isHost);
+  } = useJoinRequests(roomSlug, canModerate);
+
+  useEffect(() => {
+    const localParticipant = room.localParticipant;
+    const syncRole = () => {
+      try {
+        const metadata = JSON.parse(localParticipant.metadata || "{}") as {
+          role?: unknown;
+        };
+        if (
+          metadata.role === "host" ||
+          metadata.role === "moderator" ||
+          metadata.role === "participant"
+        ) {
+          setLocalRole(metadata.role);
+        }
+      } catch {
+        // Ignore unrelated or malformed participant metadata.
+      }
+    };
+    syncRole();
+    localParticipant.on(ParticipantEvent.ParticipantMetadataChanged, syncRole);
+    return () => {
+      localParticipant.off(ParticipantEvent.ParticipantMetadataChanged, syncRole);
+    };
+  }, [room]);
 
   const { raisedIdentities, localHandRaised, toggleHand } = useHandRaise(room);
 
@@ -677,7 +705,7 @@ function RoomShell({
 
   // Join request chime always; toast when People panel is closed
   useEffect(() => {
-    if (!isHost) return;
+    if (!canModerate) return;
     const isInitial = !joinAlertsReady.current;
     joinAlertsReady.current = true;
 
@@ -697,7 +725,7 @@ function RoomShell({
     } else {
       toast.push(tToast("joinRequestMany", { count: toNotify.length }));
     }
-  }, [joinRequests, panel, isHost, toast, tToast]);
+  }, [joinRequests, panel, canModerate, toast, tToast]);
 
   const pendingLeaveAlerts = useRef<Map<string, number>>(new Map());
 
@@ -1095,9 +1123,9 @@ function RoomShell({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium tracking-tight text-ink">
               {roomTitle || room.name}
-              {isHost ? (
+              {canModerate ? (
                 <span className="ml-2 hidden text-[11px] font-normal text-ink-faint sm:inline">
-                  · {tLabels("host")}
+                  · {localRole === "host" ? tLabels("host") : tLabels("moderator")}
                 </span>
               ) : null}
             </p>
@@ -1182,6 +1210,7 @@ function RoomShell({
               roomSlug={roomSlug}
               meetingId={meetingId}
               isHost={isHost}
+              canModerate={canModerate}
               captions={captions}
               insights={insights}
               insightsLoading={insightsLoading}
@@ -1211,6 +1240,7 @@ function RoomShell({
             roomSlug={roomSlug}
             meetingId={meetingId}
             isHost={isHost}
+            canModerate={canModerate}
             captions={captions}
             insights={insights}
             insightsLoading={insightsLoading}

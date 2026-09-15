@@ -86,6 +86,34 @@ export async function assertMeetingHost(opts: {
   return { ok: false, status: 401, error: "unauthorized" };
 }
 
+/** Host or active moderator. Does not confer meeting ownership. */
+export async function assertMeetingModerator(opts: {
+  meetingId: string;
+  session: SessionData;
+}): Promise<HostAuthResult> {
+  const hostAuth = await assertMeetingHost(opts);
+  if (hostAuth.ok || hostAuth.status !== 403 || !opts.session.identityId) {
+    return hostAuth;
+  }
+
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.id, opts.meetingId),
+  });
+  if (!meeting) {
+    return { ok: false, status: 404, error: "not_found" };
+  }
+  const moderatorRow = await db.query.participants.findFirst({
+    where: and(
+      eq(participants.meetingId, opts.meetingId),
+      eq(participants.identityId, opts.session.identityId),
+      eq(participants.role, "moderator"),
+      isNull(participants.leftAt),
+    ),
+  });
+  if (!moderatorRow) return hostAuth;
+  return { ok: true, room: meetingAsHostContext(meeting), meeting };
+}
+
 /** Brand-template room host (owner), optionally with an active meeting host role. */
 export async function assertRoomHost(opts: {
   slug: string;
@@ -149,6 +177,22 @@ export async function assertMeetingSlugHost(opts: {
     return { ok: false, status: 404, error: "not_found" };
   }
   return assertMeetingHost({ meetingId: meeting.id, session: opts.session });
+}
+
+export async function assertMeetingSlugModerator(opts: {
+  slug: string;
+  session: SessionData;
+}): Promise<HostAuthResult> {
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.slug, opts.slug),
+  });
+  if (!meeting) {
+    return { ok: false, status: 404, error: "not_found" };
+  }
+  return assertMeetingModerator({
+    meetingId: meeting.id,
+    session: opts.session,
+  });
 }
 
 /** @deprecated use assertMeetingSlugHost — kept for waiting-room room routes during migration */
