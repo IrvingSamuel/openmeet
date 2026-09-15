@@ -43,7 +43,7 @@ type Session = {
   recording?: {
     enabled: boolean;
     engine: "egress" | "browser";
-    controlMode: "manual" | "auto";
+    controlMode: "manual" | "auto" | "ask";
     autoRecordingId?: string | null;
   } | null;
 };

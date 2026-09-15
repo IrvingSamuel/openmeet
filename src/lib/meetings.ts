@@ -35,6 +35,8 @@ export type CreateMeetingInput = {
   emptyTimeoutSec?: number | null;
   /** Absolute http(s) URL after leave/end. */
   redirectAfterMeet?: string | null;
+  /** Absolute http(s) URL for outbound meeting artifacts. */
+  webhookUrl?: string | null;
   /**
    * Wait in lobby until a host is present. Defaults to false;
    * public API sets true for invite when omitted.
@@ -223,6 +225,7 @@ export async function createMeetingWithBrand(
       status: "scheduled",
       emptyTimeoutSec: input.emptyTimeoutSec ?? null,
       redirectAfterMeet: input.redirectAfterMeet ?? null,
+      webhookUrl: input.webhookUrl ?? null,
       waitForHost,
       hostEntryTokenHash,
     })

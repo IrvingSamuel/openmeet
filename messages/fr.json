@@ -537,7 +537,10 @@
     "enableAudio": "Cliquez pour activer l'audio",
     "reconnectBanner": "Reconnexion… les contrôles restent actifs",
     "disconnectNotice": "Connexion interrompue — reconnexion en cours.",
-    "backToMeeting": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
+    "backToMeeting": "Vous êtes de retour dans la réunion.",
+    "backToMeetingClosed": "Vous êtes de retour dans la réunion. Micro et caméra désactivés pour la confidentialité.",
+    "backToMeetingRestored": "Vous êtes de retour dans la réunion. Micro et caméra restaurés.",
+    "backToMeetingOpened": "Vous êtes de retour dans la réunion. Micro et caméra activés.",
     "mediaDeviceError": "Impossible d'accéder à la caméra/au micro ({label}). Vérifiez les permissions et si une autre app utilise l'appareil.",
     "mediaUnavailable": "périphérique média indisponible",
     "endForAllFailed": "Impossible de terminer la réunion pour tout le monde. Réessayez.",
@@ -547,6 +550,11 @@
     "recordingScreenDenied": "Vous devez partager cet onglet/écran de réunion pour enregistrer.",
     "recordingScreenPrompt": "L'enregistrement automatique doit capturer l'écran de cette réunion. Choisissez cet onglet lorsque le navigateur le demande.",
     "recordingScreenPromptCta": "Démarrer l'enregistrement",
+    "recordingAskTitle": "Enregistrer cette réunion ?",
+    "recordingAskBody": "L'enregistrement n'est pas obligatoire. Vous pouvez le démarrer maintenant ou plus tard depuis la barre de commandes.",
+    "recordingAskYes": "Oui",
+    "recordingAskNotNow": "Pas maintenant",
+    "recordingHint": "Démarrez l'enregistrement ici",
     "controlBar": {
       "muteMic": "Couper le micro",
       "unmuteMic": "Activer le micro",
@@ -571,7 +579,48 @@
       "stopRecording": "Arrêter l'enregistrement",
       "raiseHand": "Lever la main",
       "lowerHand": "Baisser la main",
-      "reactions": "Réactions"
+      "reactions": "Réactions",
+      "selectMic": "Sélectionner le microphone et le haut-parleur",
+      "selectCam": "Sélectionner la caméra",
+      "microphone": "Microphone",
+      "speaker": "Haut-parleur",
+      "camera": "Caméra",
+      "options": "Options",
+      "optionsEllipsis": "Options…",
+      "optionsDescription": "Choisissez le microphone, le haut-parleur, la caméra et les effets utilisés dans cette réunion.",
+      "closeOptions": "Fermer les options",
+      "cameraPreviewOff": "Caméra désactivée",
+      "micLevel": "Niveau du microphone",
+      "noDevices": "Aucun appareil trouvé",
+      "micN": "Microphone {n}",
+      "cameraN": "Caméra {n}",
+      "speakerN": "Haut-parleur {n}",
+      "speakerUnsupported": "La sélection du haut-parleur n'est pas prise en charge dans ce navigateur.",
+      "effectsTitle": "Effets",
+      "effectsNone": "Aucun",
+      "effectsBlur": "Flou d'arrière-plan",
+      "effectsVirtual": "Arrière-plan virtuel",
+      "effectsBlurRadius": "Intensité du flou",
+      "effectsUnsupported": "Les effets d'arrière-plan ne sont pas pris en charge dans ce navigateur.",
+      "effectsAudioTitle": "Traitement audio",
+      "effectsNoise": "Suppression du bruit",
+      "effectsEcho": "Annulation d'écho",
+      "effectsAgc": "Contrôle automatique du gain",
+      "effectsUpload": "Téléverser un arrière-plan personnalisé",
+      "effectsUploading": "Téléversement…",
+      "effectsUploadOk": "Arrière-plan téléversé",
+      "effectsUploadFailed": "Impossible de téléverser l'arrière-plan ({label})",
+      "effectsUploadLogin": "Connectez-vous pour téléverser un arrière-plan personnalisé.",
+      "effectsCustomBg": "Arrière-plan personnalisé",
+      "effectsSavedAccount": "Enregistré sur votre compte",
+      "effectsSavedBrowser": "Enregistré uniquement dans ce navigateur",
+      "effectsSaving": "Enregistrement…",
+      "presetOffice": "Bureau",
+      "presetLiving": "Salon",
+      "presetBookshelf": "Bibliothèque",
+      "presetGradient": "Dégradé",
+      "presetNature": "Nature",
+      "presetAbstract": "Abstrait"
     },
     "reactions": {
       "pickReaction": "Envoyer une réaction",
@@ -661,6 +710,7 @@
     "tabReport": "Résumé",
     "tabTranscript": "Transcription",
     "tabRecordings": "Enregistrements",
+    "tabAttendance": "Présence",
     "tabTasks": "Tâches suggérées",
     "tabsAria": "Sections du résumé de réunion",
     "personalBoard": "personnel",
@@ -696,7 +746,18 @@
     "recordingsHeading": "Enregistrements",
     "recordingsEmpty": "Aucun enregistrement pour le moment.",
     "downloadRecording": "Télécharger",
-    "playRecording": "Lire"
+    "playRecording": "Lire",
+    "attendanceHeading": "Liste de présence",
+    "attendanceEmpty": "Aucun participant n’était présent à cette réunion.",
+    "attendanceName": "Nom",
+    "attendanceRole": "Rôle",
+    "attendanceJoined": "Arrivée",
+    "attendanceLeft": "Départ",
+    "attendanceDuration": "Durée",
+    "attendanceRoleHost": "Hôte",
+    "attendanceRoleParticipant": "Participant",
+    "attendanceDownloadCsv": "Télécharger CSV",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "Système",
@@ -704,6 +765,7 @@
     "description": "Configurez la langue, les clés IA, l'enregistrement des réunions et les webhooks sortants pour intégrer Meet à des plateformes tierces.",
     "tabs": {
       "general": "Général",
+      "access": "Accès",
       "ai": "IA",
       "webhooks": "Webhooks",
       "recording": "Enregistrement",
@@ -764,7 +826,39 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "tabReturnTitle": "En quittant l’onglet",
+      "tabReturnHint": "Lorsqu’elle est activée, quitter l’onglet coupe le micro et la caméra pour la confidentialité. Au retour, la politique ci-dessous s’applique.",
+      "tabReturnEnabled": "Protection hors onglet",
+      "tabReturnEnabledOptions": {
+        "on": "Activé",
+        "off": "Désactivé"
+      },
+      "tabReturnMic": "Micro au retour",
+      "tabReturnCamera": "Caméra au retour",
+      "tabReturnOptions": {
+        "open": "Ouvert",
+        "closed": "Fermé",
+        "restore": "Comme avant"
+      },
       "save": "Enregistrer"
+    },
+    "access": {
+      "body": "Définissez si l’accueil, le tableau de bord et les paramètres sont accessibles. S’ils sont désactivés, les visiteurs sont redirigés. Avec une clé de requête, ils peuvent déverrouiller via /unlock.",
+      "requestKey": "Clé de requête (déverrouillage)",
+      "requestKeyHint": "Facultatif. Quiconque saisit cette clé sur /unlock accède aux pages désactivées.",
+      "requestKeyConfigured": "Clé configurée : {preview}. Laissez vide pour la conserver.",
+      "requestKeyPlaceholder": "Nouvelle clé…",
+      "enabled": "Accessible",
+      "redirectTo": "Rediriger vers",
+      "redirectHint": "Chemin relatif (ex. /login ou /unlock) ou URL absolue.",
+      "unlockHint": "Page de déverrouillage : {path}",
+      "pages": {
+        "home": "Accueil (landing)",
+        "dashboard": "Tableau de bord",
+        "settings": "Paramètres / marque"
+      },
+      "save": "Enregistrer l’accès",
+      "clearKey": "Supprimer la clé"
     },
     "ai": {
       "groqEnabled": "Utiliser Groq / API compatible OpenAI (remplace Gemini si actif)",
@@ -820,6 +914,10 @@
         "recording": {
           "label": "Enregistrement prêt",
           "description": "Métadonnées et lien de téléchargement lorsque l'enregistrement est disponible."
+        },
+        "attendance": {
+          "label": "Liste de présence",
+          "description": "Participants présents avec heure d’arrivée et de départ."
         }
       },
       "save": "Enregistrer les webhooks",
@@ -840,6 +938,7 @@
       "controlLabel": "Contrôle",
       "controlManual": "Manuel — l'hôte démarre et arrête dans la salle",
       "controlAuto": "Automatique — démarre à l'arrivée de l'hôte (sans arrêt)",
+      "controlAsk": "Toujours demander — invite à l'arrivée de l'hôte",
       "storageLabel": "Stockage",
       "storageLocal": "Disque local du serveur",
       "storageS3": "Compatible S3 (MinIO / Hetzner / AWS)",
@@ -871,7 +970,9 @@
       "allowSignup": "Allow public signup",
       "preview": "Preview",
       "uploadLogo": "Téléverser le logo",
-      "uploadFavicon": "Téléverser le favicon"
+      "uploadFavicon": "Téléverser le favicon",
+      "copyHex": "Copier l’hexadécimal",
+      "hexCopied": "Hexadécimal copié"
     }
   },
   "settings": {
@@ -893,6 +994,18 @@
     "notFound": "Modèle introuvable",
     "startFailed": "Impossible de démarrer la réunion.",
     "startNetworkFailed": "Erreur réseau lors du démarrage de la réunion."
+  },
+  "accessUnlock": {
+    "title": "Déverrouiller l’accès",
+    "body": "Saisissez la clé de requête fournie par l’administration pour ouvrir les pages restreintes.",
+    "keyLabel": "Clé de requête",
+    "keyPlaceholder": "Clé…",
+    "submit": "Déverrouiller",
+    "submitting": "Vérification…",
+    "success": "Accès déverrouillé.",
+    "invalidKey": "Clé invalide.",
+    "notConfigured": "Aucune clé de déverrouillage n’est configurée.",
+    "failed": "Impossible de déverrouiller."
   },
   "auth": {
     "loginTitle": "Sign in",

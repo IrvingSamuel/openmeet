@@ -1,5 +1,6 @@
 import {
   AccessToken,
+  AgentDispatchClient,
   RoomServiceClient,
   TrackSource,
   WebhookReceiver,
@@ -7,6 +8,15 @@ import {
 import { getLiveKitEmptyTimeoutSec } from "@/lib/meeting-timeouts";
 
 export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
+
+/** Explicit worker name — required when multiple products share one LiveKit. */
+export function getLiveKitAgentName(): string {
+  return (
+    process.env.LIVEKIT_AGENT_NAME?.trim() ||
+    process.env.AGENT_NAME?.trim() ||
+    "openmeet"
+  );
+}
 
 export function getLiveKitCreds() {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -64,12 +74,93 @@ export function getRoomServiceClient() {
   return new RoomServiceClient(getLiveKitHttpHost(), apiKey, apiSecret);
 }
 
+function getAgentDispatchClient() {
+  const { apiKey, apiSecret } = getLiveKitCreds();
+  return new AgentDispatchClient(getLiveKitHttpHost(), apiKey, apiSecret);
+}
+
 export type RoomMetadataPayload = {
   meetingId: string;
   roomId: string;
   slug: string;
   boardId?: string | null;
 };
+
+/**
+ * Ensure the named OpenMeet worker is dispatched (and foreign auto-agents are out).
+ * Safe to call on every token mint. Single dispatch path — do not also add
+ * agents on createRoom or AccessToken.roomConfig (causes duplicate jobs).
+ */
+export async function ensureAgentDispatch(livekitRoomName: string) {
+  const agentName = getLiveKitAgentName();
+  if (!agentName) return;
+
+  const dispatchClient = getAgentDispatchClient();
+  const roomClient = getRoomServiceClient();
+
+  let agentPresent = false;
+  try {
+    const participants = await roomClient.listParticipants(livekitRoomName);
+    agentPresent = participants.some(
+      (p) => p.identity === AGENT_LIVEKIT_IDENTITY,
+    );
+  } catch {
+    // Room may not exist yet — createDispatch below still applies after createRoom.
+  }
+
+  try {
+    const existing = await dispatchClient.listDispatch(livekitRoomName);
+    const ours = existing.filter((d) => d.agentName === agentName);
+    const already = ours.length > 0;
+
+    // Redispatch whenever the agent participant is missing. Do not trust
+    // zombie JS_RUNNING jobs — they blocked redispatch in production.
+    if (!agentPresent) {
+      for (const d of ours) {
+        try {
+          await dispatchClient.deleteDispatch(d.id, livekitRoomName);
+        } catch {
+          // ignore — create below is what matters
+        }
+      }
+      await dispatchClient.createDispatch(livekitRoomName, agentName);
+      console.info(
+        "[openmeet] ensureAgentDispatch %s agent=%s room=%s",
+        already ? "redispatched" : "created",
+        agentName,
+        livekitRoomName,
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[openmeet] ensureAgentDispatch failed room=%s agent=%s err=%s",
+      livekitRoomName,
+      agentName,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+
+  // Shared LiveKit: remove wrong-product agents so only OpenMeet captions run.
+  try {
+    const participants = await roomClient.listParticipants(livekitRoomName);
+    await Promise.all(
+      participants
+        .filter(
+          (p) =>
+            (p.identity.startsWith("agent-") ||
+              p.identity.startsWith("agent_")) &&
+            p.identity !== AGENT_LIVEKIT_IDENTITY,
+        )
+        .map((p) =>
+          roomClient
+            .removeParticipant(livekitRoomName, p.identity)
+            .catch(() => undefined),
+        ),
+    );
+  } catch {
+    // Room may be empty / gone — ignore.
+  }
+}
 
 /** Ensure the LiveKit room exists and carries meeting metadata for the agent. */
 export async function syncRoomMetadata(
@@ -82,15 +173,19 @@ export async function syncRoomMetadata(
   const metadata = JSON.stringify(meta);
   const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
   try {
+    // No agents on createRoom — that dispatches into empty rooms; the agent
+    // then self-exits and leaves a stale dispatch. Dispatch only via
+    // ensureAgentDispatch when a participant mints a join token.
     await client.createRoom({
       name: livekitRoomName,
       metadata,
       emptyTimeout,
     });
     console.info(
-      "[openmeet] syncRoomMetadata createRoom ok host=%s room=%s",
+      "[openmeet] syncRoomMetadata createRoom ok host=%s room=%s agent=%s",
       httpHost,
       livekitRoomName,
+      getLiveKitAgentName() || "(auto)",
     );
   } catch (err) {
     try {
@@ -111,6 +206,8 @@ export async function syncRoomMetadata(
       throw updateErr;
     }
   }
+
+  await ensureAgentDispatch(livekitRoomName);
 }
 
 export type RoomRole = "host" | "participant" | "agent";
@@ -142,6 +239,8 @@ export async function mintRoomToken(opts: {
     canUpdateOwnMetadata: true,
   });
 
+  // Agent dispatch is exclusively via ensureAgentDispatch (token mint).
+  // roomConfig.agents here caused a second concurrent job / identity clash.
   return at.toJwt();
 }
 

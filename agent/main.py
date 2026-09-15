@@ -542,13 +542,15 @@ async def entrypoint(ctx: JobContext) -> None:
 
     @room.on("participant_disconnected")
     def on_participant_disconnected(participant: rtc.RemoteParticipant) -> None:
-        if humans_remaining() == 0:
-            logger.info(
-                "last human left room=%s — shutting down agent",
-                room.name,
-            )
-            ctx.shutdown(reason="last_human_left")
-            shutdown_event.set()
+        # Do not shut down immediately — brief disconnects (refresh/rejoin)
+        # used to kill the captions agent while humans were returning.
+        # watch_empty handles true empty rooms with a grace period.
+        logger.info(
+            "participant_disconnected identity=%s humans=%d room=%s",
+            participant.identity,
+            humans_remaining(),
+            room.name,
+        )
 
     # Attach mics already subscribed at connect time (missed track_subscribed).
     for participant in list(room.remote_participants.values()):
@@ -563,13 +565,20 @@ async def entrypoint(ctx: JobContext) -> None:
             start_mic_transcription(track, participant, publication)
 
     async def watch_empty() -> None:
+        empty_ticks = 0
         while not shutdown_event.is_set():
             await asyncio.sleep(5)
             if humans_remaining() == 0:
-                logger.info("no humans in room=%s — shutting down", room.name)
-                ctx.shutdown(reason="no_humans")
-                shutdown_event.set()
-                return
+                empty_ticks += 1
+                # ~45s grace so token re-mint / refresh can redispatch without
+                # racing a dead agent job.
+                if empty_ticks >= 9:
+                    logger.info("no humans in room=%s — shutting down", room.name)
+                    ctx.shutdown(reason="no_humans")
+                    shutdown_event.set()
+                    return
+            else:
+                empty_ticks = 0
 
     async def resolve_meeting_id_background() -> None:
         nonlocal meeting_id

@@ -35,6 +35,8 @@ export type CreateRoomInput = {
   ui?: BrandFieldsInput;
   /** When true (default), seed from identity_brands if no `ui` provided. */
   useIdentityBrand?: boolean;
+  /** Absolute http(s) URL for outbound meeting artifacts. */
+  webhookUrl?: string | null;
 };
 
 export type CreatedRoomResult = {
@@ -122,6 +124,7 @@ export async function createRoomWithBrand(
       accessPolicy,
       kind,
       livekitRoomName: `meet_${slug}`,
+      webhookUrl: input.webhookUrl ?? null,
     })
     .returning();
 

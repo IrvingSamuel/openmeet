@@ -9,6 +9,7 @@ import {
 } from "@/lib/api-brand";
 import { createRoomWithBrand } from "@/lib/rooms";
 import { resolveV1Owner } from "@/lib/v1-auth";
+import { parseWebhookUrl } from "@/lib/webhook-url";
 
 const schema = z.object({
   /** Nome de identificação do template (não é o título da reunião). */
@@ -27,6 +28,7 @@ const schema = z.object({
   identity: brandIdentitySchema.optional(),
   palette: brandPaletteSchema.optional(),
   advanced: brandAdvancedSchema.optional(),
+  webhook_url: z.string().max(2000).nullable().optional(),
 });
 
 /**
@@ -53,6 +55,14 @@ export async function POST(req: NextRequest) {
   });
   if (owner instanceof NextResponse) return owner;
 
+  let webhookUrl: string | null = null;
+  try {
+    webhookUrl = parseWebhookUrl(body.webhook_url);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : "webhook_url_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   const ui = brandGroupsToFields({
     identity: body.identity,
     palette: body.palette,
@@ -70,6 +80,7 @@ export async function POST(req: NextRequest) {
       ui,
       // Platform defaults when no personalization — not owner identity brand.
       useIdentityBrand: false,
+      webhookUrl,
     });
 
     return NextResponse.json(
@@ -80,6 +91,7 @@ export async function POST(req: NextRequest) {
         url,
         join_path: joinPath,
         access_policy: room.accessPolicy,
+        webhook_url: room.webhookUrl ?? null,
         brand: brandRowToPublic(brand as unknown as Record<string, unknown>),
       },
       { status: 201 },

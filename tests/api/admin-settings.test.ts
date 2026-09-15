@@ -71,6 +71,12 @@ function jsonRequest(body: unknown, method = "PUT") {
 const baseRow = {
   id: "00000000-0000-0000-0000-000000000001",
   locale: "pt-BR",
+  deploymentMode: "platform",
+  allowSignup: true,
+  tabReturnEnabled: true,
+  tabReturnMic: "closed",
+  tabReturnCamera: "closed",
+  pageAccess: null,
   geminiApiKey: null,
   geminiModel: null,
   geminiSummaryModel: null,
@@ -87,6 +93,7 @@ const baseRow = {
     summary: true,
     tasks: true,
     recording: true,
+    attendance: true,
   },
   recordingEnabled: false,
   recordingEngine: "browser",
@@ -190,6 +197,7 @@ describe("GET /api/admin/settings", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.locale).toBe("pt-BR");
+    expect(json.tabReturnEnabled).toBe(true);
     expect(json.geminiApiKey.configured).toBe(true);
     expect(json.geminiApiKey.preview).toBe("••••1234");
     expect(json.webhookUrl).toBe("https://hooks.example/meet");
@@ -231,6 +239,33 @@ describe("GET /api/admin/settings", () => {
     expect(json.recordingEngine).toBe("egress");
     expect(json.recordingControlMode).toBe("auto");
   });
+
+  it("updates recording control mode to ask", async () => {
+    session.isLoggedIn = true;
+    session.email = "admin@chronos.com.pt";
+    updateReturning.mockResolvedValue([
+      {
+        ...baseRow,
+        recordingEnabled: true,
+        recordingControlMode: "ask",
+        updatedAt: new Date(),
+      },
+    ]);
+    resolveRecordingConfig.mockResolvedValue({
+      ...baseRecording,
+      enabled: true,
+      controlMode: "ask",
+    });
+    const res = await PUT(
+      jsonRequest({
+        recordingEnabled: true,
+        recordingControlMode: "ask",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.recordingControlMode).toBe("ask");
+  });
 });
 
 describe("PUT /api/admin/settings", () => {
@@ -250,6 +285,18 @@ describe("PUT /api/admin/settings", () => {
     const json = await res.json();
     expect(json.ok).toBe(true);
     expect(json.locale).toBe("en");
+  });
+
+  it("updates tab-return privacy toggle for admin", async () => {
+    session.isLoggedIn = true;
+    session.email = "admin@chronos.com.pt";
+    updateReturning.mockResolvedValue([
+      { ...baseRow, tabReturnEnabled: false, updatedAt: new Date() },
+    ]);
+    const res = await PUT(jsonRequest({ tabReturnEnabled: false }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.tabReturnEnabled).toBe(false);
   });
 });
 

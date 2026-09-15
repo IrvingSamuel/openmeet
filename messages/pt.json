@@ -537,7 +537,10 @@
     "enableAudio": "Clique para habilitar o áudio",
     "reconnectBanner": "Reconectando… os controles continuam ativos",
     "disconnectNotice": "Conexão interrompida — tentando reconectar.",
-    "backToMeeting": "Você voltou à reunião. Microfone e câmera desligados por privacidade.",
+    "backToMeeting": "Você voltou à reunião.",
+    "backToMeetingClosed": "Você voltou à reunião. Microfone e câmara desligados por privacidade.",
+    "backToMeetingRestored": "Você voltou à reunião. Microfone e câmara restaurados.",
+    "backToMeetingOpened": "Você voltou à reunião. Microfone e câmara ligados.",
     "mediaDeviceError": "Não foi possível acessar câmera/microfone ({label}). Verifique permissões e se outro app está usando o device.",
     "mediaUnavailable": "dispositivo de mídia indisponível",
     "endForAllFailed": "Não foi possível encerrar a reunião para todos. Tente novamente.",
@@ -547,6 +550,11 @@
     "recordingScreenDenied": "É necessário partilhar o ecrã/separador da reunião para gravar.",
     "recordingScreenPrompt": "A gravação automática precisa de capturar o ecrã desta reunião. Escolha este separador quando o browser pedir.",
     "recordingScreenPromptCta": "Iniciar gravação",
+    "recordingAskTitle": "Gravar esta reunião?",
+    "recordingAskBody": "A gravação não é obrigatória. Pode iniciar agora ou mais tarde pelo botão na barra de controlos.",
+    "recordingAskYes": "Sim",
+    "recordingAskNotNow": "Agora não",
+    "recordingHint": "Inicie a gravação aqui",
     "controlBar": {
       "muteMic": "Silenciar microfone",
       "unmuteMic": "Ativar microfone",
@@ -571,7 +579,48 @@
       "stopRecording": "Parar gravação",
       "raiseHand": "Levantar a mão",
       "lowerHand": "Baixar a mão",
-      "reactions": "Reações"
+      "reactions": "Reações",
+      "selectMic": "Selecionar microfone e alto-falante",
+      "selectCam": "Selecionar câmera",
+      "microphone": "Microfone",
+      "speaker": "Alto-falante",
+      "camera": "Câmera",
+      "options": "Opções",
+      "optionsEllipsis": "Opções…",
+      "optionsDescription": "Escolha o microfone, o alto-falante, a câmera e os efeitos usados nesta reunião.",
+      "closeOptions": "Fechar opções",
+      "cameraPreviewOff": "Câmera desligada",
+      "micLevel": "Nível do microfone",
+      "noDevices": "Nenhum dispositivo encontrado",
+      "micN": "Microfone {n}",
+      "cameraN": "Câmera {n}",
+      "speakerN": "Alto-falante {n}",
+      "speakerUnsupported": "A seleção de alto-falante não é suportada neste navegador.",
+      "effectsTitle": "Efeitos",
+      "effectsNone": "Nenhum",
+      "effectsBlur": "Borrão de fundo",
+      "effectsVirtual": "Fundo virtual",
+      "effectsBlurRadius": "Intensidade do borrão",
+      "effectsUnsupported": "Efeitos de fundo não são suportados neste navegador.",
+      "effectsAudioTitle": "Processamento de áudio",
+      "effectsNoise": "Supressão de ruído",
+      "effectsEcho": "Cancelamento de eco",
+      "effectsAgc": "Controlo automático de ganho",
+      "effectsUpload": "Carregar fundo personalizado",
+      "effectsUploading": "A carregar…",
+      "effectsUploadOk": "Fundo carregado",
+      "effectsUploadFailed": "Não foi possível carregar o fundo ({label})",
+      "effectsUploadLogin": "Inicie sessão para carregar um fundo personalizado.",
+      "effectsCustomBg": "Fundo personalizado",
+      "effectsSavedAccount": "Guardado na sua conta",
+      "effectsSavedBrowser": "Guardado só neste browser",
+      "effectsSaving": "A guardar…",
+      "presetOffice": "Escritório",
+      "presetLiving": "Sala",
+      "presetBookshelf": "Estante",
+      "presetGradient": "Gradiente",
+      "presetNature": "Natureza",
+      "presetAbstract": "Abstrato"
     },
     "reactions": {
       "pickReaction": "Enviar uma reação",
@@ -661,6 +710,7 @@
     "tabReport": "Resumo",
     "tabTranscript": "Transcrição",
     "tabRecordings": "Gravações",
+    "tabAttendance": "Presença",
     "tabTasks": "Tarefas sugeridas",
     "tabsAria": "Secções do resumo da reunião",
     "personalBoard": "pessoal",
@@ -696,7 +746,18 @@
     "recordingsHeading": "Gravações",
     "recordingsEmpty": "Ainda não há gravações.",
     "downloadRecording": "Descarregar",
-    "playRecording": "Reproduzir"
+    "playRecording": "Reproduzir",
+    "attendanceHeading": "Lista de presença",
+    "attendanceEmpty": "Nenhum participante presente nesta reunião.",
+    "attendanceName": "Nome",
+    "attendanceRole": "Papel",
+    "attendanceJoined": "Entrada",
+    "attendanceLeft": "Saída",
+    "attendanceDuration": "Duração",
+    "attendanceRoleHost": "Anfitrião",
+    "attendanceRoleParticipant": "Participante",
+    "attendanceDownloadCsv": "Descarregar CSV",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "Sistema",
@@ -704,6 +765,7 @@
     "description": "Configure idioma, chaves de IA, gravação de reuniões e webhooks de saída para integrar o Meet com plataformas de terceiros.",
     "tabs": {
       "general": "Geral",
+      "access": "Acesso",
       "ai": "IA",
       "webhooks": "Webhooks",
       "recording": "Gravação",
@@ -764,7 +826,39 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "tabReturnTitle": "Ao ausentar da guia",
+      "tabReturnHint": "Quando ativada, ao sair da aba o microfone e a câmara são desligados por privacidade. Ao voltar, aplica-se a política abaixo.",
+      "tabReturnEnabled": "Proteção ao ausentar",
+      "tabReturnEnabledOptions": {
+        "on": "Ativado",
+        "off": "Desativado"
+      },
+      "tabReturnMic": "Microfone ao voltar",
+      "tabReturnCamera": "Câmara ao voltar",
+      "tabReturnOptions": {
+        "open": "Aberto",
+        "closed": "Fechado",
+        "restore": "Como estava"
+      },
       "save": "Guardar"
+    },
+    "access": {
+      "body": "Defina se a home, o dashboard e as definições estão acessíveis. Se estiverem desactivadas, os visitantes são redireccionados. Com uma chave de pedido, podem desbloquear em /unlock.",
+      "requestKey": "Chave de pedido (desbloqueio)",
+      "requestKeyHint": "Opcional. Quem digitar esta chave em /unlock acede às páginas desactivadas.",
+      "requestKeyConfigured": "Chave configurada: {preview}. Deixe vazio para manter.",
+      "requestKeyPlaceholder": "Nova chave…",
+      "enabled": "Acessível",
+      "redirectTo": "Redireccionar para",
+      "redirectHint": "Caminho relativo (ex.: /login ou /unlock) ou URL absoluta.",
+      "unlockHint": "Página de desbloqueio: {path}",
+      "pages": {
+        "home": "Home (landing)",
+        "dashboard": "Dashboard",
+        "settings": "Definições / marca"
+      },
+      "save": "Guardar acesso",
+      "clearKey": "Remover chave"
     },
     "ai": {
       "groqEnabled": "Usar Groq / API OpenAI-compatible (substitui Gemini quando activo)",
@@ -820,6 +914,10 @@
         "recording": {
           "label": "Gravação pronta",
           "description": "Metadados e link de download quando a gravação fica disponível."
+        },
+        "attendance": {
+          "label": "Lista de presença",
+          "description": "Participantes presentes com horário de entrada e saída."
         }
       },
       "save": "Guardar webhooks",
@@ -840,6 +938,7 @@
       "controlLabel": "Controlo",
       "controlManual": "Manual — o moderador inicia e para na sala",
       "controlAuto": "Automático — inicia ao entrar o moderador (sem parar)",
+      "controlAsk": "Sempre perguntar — pop-up ao entrar o anfitrião",
       "storageLabel": "Armazenamento",
       "storageLocal": "Disco local do servidor",
       "storageS3": "S3-compatível (MinIO / Hetzner / AWS)",
@@ -858,20 +957,22 @@
     },
     "ui": {
       "title": "Aparência do sistema",
-      "primary": "Primary",
-      "secondary": "Secondary",
-      "tertiary": "Tertiary",
-      "background": "Background",
-      "ink": "Text",
+      "primary": "Primária",
+      "secondary": "Secundária",
+      "tertiary": "Terciária",
+      "background": "Fundo",
+      "ink": "Texto",
       "wordmark": "Nome da plataforma",
       "logoUrl": "URL do logo da plataforma",
       "faviconUrl": "URL do favicon da plataforma",
-      "fontFamily": "Font family",
+      "fontFamily": "Família tipográfica",
       "deploymentMode": "Modo de implantação",
       "allowSignup": "Permitir registo público",
       "preview": "Pré-visualização",
       "uploadLogo": "Carregar logo",
-      "uploadFavicon": "Carregar favicon"
+      "uploadFavicon": "Carregar favicon",
+      "copyHex": "Copiar hexadecimal",
+      "hexCopied": "Hexadecimal copiado"
     }
   },
   "settings": {
@@ -893,6 +994,18 @@
     "notFound": "Modelo não encontrado",
     "startFailed": "Não foi possível iniciar a reunião.",
     "startNetworkFailed": "Falha de rede ao iniciar a reunião."
+  },
+  "accessUnlock": {
+    "title": "Desbloquear acesso",
+    "body": "Introduza a chave de pedido fornecida pela administração para abrir páginas restritas.",
+    "keyLabel": "Chave de pedido",
+    "keyPlaceholder": "Chave…",
+    "submit": "Desbloquear",
+    "submitting": "A verificar…",
+    "success": "Acesso desbloqueado.",
+    "invalidKey": "Chave inválida.",
+    "notConfigured": "Nenhuma chave de desbloqueio está configurada.",
+    "failed": "Não foi possível desbloquear."
   },
   "auth": {
     "loginTitle": "Entrar",

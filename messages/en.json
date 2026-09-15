@@ -547,7 +547,10 @@
     "enableAudio": "Click to enable audio",
     "reconnectBanner": "Reconnecting… controls stay active",
     "disconnectNotice": "Connection interrupted — trying to reconnect.",
-    "backToMeeting": "You're back in the meeting. Microphone and camera were turned off for privacy.",
+    "backToMeeting": "You're back in the meeting.",
+    "backToMeetingClosed": "You're back in the meeting. Microphone and camera were turned off for privacy.",
+    "backToMeetingRestored": "You're back in the meeting. Microphone and camera were restored.",
+    "backToMeetingOpened": "You're back in the meeting. Microphone and camera were turned on.",
     "mediaDeviceError": "Could not access camera/microphone ({label}). Check permissions and whether another app is using the device.",
     "mediaUnavailable": "media device unavailable",
     "endForAllFailed": "Could not end the meeting for everyone. Please try again.",
@@ -557,6 +560,11 @@
     "recordingScreenDenied": "You must share this meeting tab/screen to record.",
     "recordingScreenPrompt": "Automatic recording needs to capture this meeting screen. Choose this tab when the browser prompts you.",
     "recordingScreenPromptCta": "Start recording",
+    "recordingAskTitle": "Record this meeting?",
+    "recordingAskBody": "Recording is optional. You can start now or later from the control bar.",
+    "recordingAskYes": "Yes",
+    "recordingAskNotNow": "Not now",
+    "recordingHint": "Start recording here",
     "controlBar": {
       "muteMic": "Mute microphone",
       "unmuteMic": "Unmute microphone",
@@ -581,7 +589,48 @@
       "stopRecording": "Stop recording",
       "raiseHand": "Raise hand",
       "lowerHand": "Lower hand",
-      "reactions": "Reactions"
+      "reactions": "Reactions",
+      "selectMic": "Select microphone and speaker",
+      "selectCam": "Select camera",
+      "microphone": "Microphone",
+      "speaker": "Speaker",
+      "camera": "Camera",
+      "options": "Options",
+      "optionsEllipsis": "Options…",
+      "optionsDescription": "Choose the microphone, speaker, camera, and media effects used in this meeting.",
+      "closeOptions": "Close options",
+      "cameraPreviewOff": "Camera is off",
+      "micLevel": "Microphone level",
+      "noDevices": "No devices found",
+      "micN": "Microphone {n}",
+      "cameraN": "Camera {n}",
+      "speakerN": "Speaker {n}",
+      "speakerUnsupported": "Speaker selection is not supported in this browser.",
+      "effectsTitle": "Effects",
+      "effectsNone": "None",
+      "effectsBlur": "Background blur",
+      "effectsVirtual": "Virtual background",
+      "effectsBlurRadius": "Blur strength",
+      "effectsUnsupported": "Background effects are not supported in this browser.",
+      "effectsAudioTitle": "Audio processing",
+      "effectsNoise": "Noise suppression",
+      "effectsEcho": "Echo cancellation",
+      "effectsAgc": "Auto gain control",
+      "effectsUpload": "Upload custom background",
+      "effectsUploading": "Uploading…",
+      "effectsUploadOk": "Background uploaded",
+      "effectsUploadFailed": "Could not upload background ({label})",
+      "effectsUploadLogin": "Sign in to upload a custom background.",
+      "effectsCustomBg": "Custom background",
+      "effectsSavedAccount": "Saved to your account",
+      "effectsSavedBrowser": "Saved in this browser only",
+      "effectsSaving": "Saving…",
+      "presetOffice": "Office",
+      "presetLiving": "Living room",
+      "presetBookshelf": "Bookshelf",
+      "presetGradient": "Gradient",
+      "presetNature": "Nature",
+      "presetAbstract": "Abstract"
     },
     "reactions": {
       "pickReaction": "Send a reaction",
@@ -671,6 +720,7 @@
     "tabReport": "Summary",
     "tabTranscript": "Transcript",
     "tabRecordings": "Recordings",
+    "tabAttendance": "Attendance",
     "tabTasks": "Suggested tasks",
     "tabsAria": "Meeting summary sections",
     "personalBoard": "personal",
@@ -706,7 +756,18 @@
     "recordingsHeading": "Recordings",
     "recordingsEmpty": "No recordings yet.",
     "downloadRecording": "Download",
-    "playRecording": "Play"
+    "playRecording": "Play",
+    "attendanceHeading": "Attendance list",
+    "attendanceEmpty": "No participants were present in this meeting.",
+    "attendanceName": "Name",
+    "attendanceRole": "Role",
+    "attendanceJoined": "Joined",
+    "attendanceLeft": "Left",
+    "attendanceDuration": "Duration",
+    "attendanceRoleHost": "Host",
+    "attendanceRoleParticipant": "Participant",
+    "attendanceDownloadCsv": "Download CSV",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "System",
@@ -714,6 +775,7 @@
     "description": "Configure locale, AI keys, meeting recording, and outbound webhooks to integrate Meet with third-party platforms.",
     "tabs": {
       "general": "General",
+      "access": "Access",
       "ai": "AI",
       "webhooks": "Webhooks",
       "recording": "Recording",
@@ -774,7 +836,39 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "tabReturnTitle": "When leaving the tab",
+      "tabReturnHint": "When enabled, leaving the tab turns mic and camera off for privacy. On return, the policy below is applied.",
+      "tabReturnEnabled": "Tab-away protection",
+      "tabReturnEnabledOptions": {
+        "on": "Enabled",
+        "off": "Disabled"
+      },
+      "tabReturnMic": "Microphone on return",
+      "tabReturnCamera": "Camera on return",
+      "tabReturnOptions": {
+        "open": "Open",
+        "closed": "Closed",
+        "restore": "As it was"
+      },
       "save": "Save"
+    },
+    "access": {
+      "body": "Choose whether home, dashboard, and settings are publicly reachable. When disabled, visitors are redirected. With a request key, they can unlock at /unlock.",
+      "requestKey": "Request key (unlock)",
+      "requestKeyHint": "Optional. Anyone who enters this key at /unlock can open disabled pages.",
+      "requestKeyConfigured": "Key configured: {preview}. Leave empty to keep it.",
+      "requestKeyPlaceholder": "New key…",
+      "enabled": "Accessible",
+      "redirectTo": "Redirect to",
+      "redirectHint": "Relative path (e.g. /login or /unlock) or absolute URL.",
+      "unlockHint": "Unlock page: {path}",
+      "pages": {
+        "home": "Home (landing)",
+        "dashboard": "Dashboard",
+        "settings": "Settings / brand"
+      },
+      "save": "Save access",
+      "clearKey": "Remove key"
     },
     "ai": {
       "groqEnabled": "Use Groq / OpenAI-compatible API (replaces Gemini when active)",
@@ -830,6 +924,10 @@
         "recording": {
           "label": "Recording ready",
           "description": "Metadata and download link when the recording is available."
+        },
+        "attendance": {
+          "label": "Attendance list",
+          "description": "Present participants with join and leave times."
         }
       },
       "save": "Save webhooks",
@@ -850,6 +948,7 @@
       "controlLabel": "Control",
       "controlManual": "Manual — host starts and stops in the room",
       "controlAuto": "Automatic — starts when the host joins (no stop)",
+      "controlAsk": "Always ask — prompt when the host joins",
       "storageLabel": "Storage",
       "storageLocal": "Local disk on the server",
       "storageS3": "S3-compatible (MinIO / Hetzner / AWS)",
@@ -881,7 +980,9 @@
       "allowSignup": "Allow public signup",
       "preview": "Preview",
       "uploadLogo": "Upload logo",
-      "uploadFavicon": "Upload favicon"
+      "uploadFavicon": "Upload favicon",
+      "copyHex": "Copy hex",
+      "hexCopied": "Hex copied"
     }
   },
   "roomTemplate": {
@@ -893,6 +994,18 @@
     "notFound": "Template not found",
     "startFailed": "Could not start the meeting.",
     "startNetworkFailed": "Network error starting the meeting."
+  },
+  "accessUnlock": {
+    "title": "Unlock access",
+    "body": "Enter the request key provided by your administrator to open restricted pages.",
+    "keyLabel": "Request key",
+    "keyPlaceholder": "Key…",
+    "submit": "Unlock",
+    "submitting": "Checking…",
+    "success": "Access unlocked.",
+    "invalidKey": "Invalid key.",
+    "notConfigured": "No unlock key is configured.",
+    "failed": "Could not unlock."
   },
   "auth": {
     "loginTitle": "Sign in",

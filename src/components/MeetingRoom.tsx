@@ -54,6 +54,19 @@ import { useJoinRequests } from "@/hooks/useJoinRequests";
 import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
 import { useRoomVisibility } from "@/hooks/useRoomVisibility";
+import {
+  DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  normalizeTabReturnEnabled,
+  normalizeTabReturnMediaPolicy,
+  type TabReturnMediaPrefs,
+  type TabReturnMediaPolicy,
+} from "@/lib/tab-return-media";
+import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
+import {
+  audioOptionsFromPrefs,
+  useMeetingEffects,
+} from "@/hooks/useMeetingEffects";
+import { useMediaPrefs } from "@/hooks/useMediaPrefs";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
@@ -448,6 +461,11 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  const mediaPrefsApi = useMediaPrefs();
+  useMeetingEffects(
+    room,
+    mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+  );
   // Cleared on tab-return so reconnect backup does not re-open mic/cam.
   const [mediaWanted, setMediaWanted] = useState({
     video: wantVideo,
@@ -459,6 +477,29 @@ function RoomShell({
     isHost,
     config: recordingConfig,
   });
+  const declineAsk = recorder.declineAsk;
+  const [recordingHint, setRecordingHint] = useState(false);
+  const recordingHintTimerRef = useRef<number | null>(null);
+
+  const declineRecordingAsk = useCallback(() => {
+    declineAsk();
+    setRecordingHint(true);
+    if (recordingHintTimerRef.current) {
+      window.clearTimeout(recordingHintTimerRef.current);
+    }
+    recordingHintTimerRef.current = window.setTimeout(() => {
+      setRecordingHint(false);
+      recordingHintTimerRef.current = null;
+    }, 5000);
+  }, [declineAsk]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingHintTimerRef.current) {
+        window.clearTimeout(recordingHintTimerRef.current);
+      }
+    };
+  }, []);
 
   const {
     requests: joinRequests,
@@ -717,8 +758,13 @@ function RoomShell({
     if (leavingRef.current) return;
     const gen = ++mediaEnsureGen.current;
     const lp = room.localParticipant;
-    const videoOpts = videoDeviceId ? { deviceId: videoDeviceId } : undefined;
-    const audioOpts = audioDeviceId ? { deviceId: audioDeviceId } : undefined;
+    const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+    const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
+    const videoOpts = videoId ? { deviceId: videoId } : undefined;
+    const audioOpts = audioOptionsFromPrefs(
+      mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+      audioId,
+    );
 
     void (async () => {
       try {
@@ -749,6 +795,10 @@ function RoomShell({
     videoDeviceId,
     audioDeviceId,
     leavingRef,
+    mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.noiseSuppression,
+    mediaPrefsApi.prefs.echoCancellation,
+    mediaPrefsApi.prefs.autoGainControl,
   ]);
 
   const muteLocalMediaForPrivacy = useCallback(() => {
@@ -767,6 +817,141 @@ function RoomShell({
       }
     })();
   }, [room, leavingRef]);
+
+  const [tabReturnPrefs, setTabReturnPrefs] = useState<TabReturnMediaPrefs>(
+    DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  );
+  const tabMediaSnapshot = useRef<{ audio: boolean; video: boolean } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/system/room-prefs", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (data: {
+          tabReturnMedia?: {
+            enabled?: boolean;
+            mic?: string;
+            camera?: string;
+          };
+        } | null) => {
+          if (cancelled || !data?.tabReturnMedia) return;
+          setTabReturnPrefs({
+            enabled: normalizeTabReturnEnabled(data.tabReturnMedia.enabled),
+            mic: normalizeTabReturnMediaPolicy(data.tabReturnMedia.mic),
+            camera: normalizeTabReturnMediaPolicy(data.tabReturnMedia.camera),
+          });
+        },
+      )
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyDevicePolicy = useCallback(
+    async (
+      policy: TabReturnMediaPolicy,
+      kind: "audio" | "video",
+      snapOn: boolean,
+    ) => {
+      const lp = room.localParticipant;
+      const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+      const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
+      const videoOpts = videoId ? { deviceId: videoId } : undefined;
+      const audioOpts = audioOptionsFromPrefs(
+        mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        audioId,
+      );
+      let want = false;
+      if (policy === "open") want = true;
+      else if (policy === "restore") want = snapOn;
+      else want = false;
+
+      if (kind === "audio") {
+        await lp.setMicrophoneEnabled(want, audioOpts);
+      } else {
+        await lp.setCameraEnabled(want, videoOpts);
+      }
+      return want;
+    },
+    [
+      room,
+      videoDeviceId,
+      audioDeviceId,
+      mediaPrefsApi.ready,
+      mediaPrefsApi.prefs.noiseSuppression,
+      mediaPrefsApi.prefs.echoCancellation,
+      mediaPrefsApi.prefs.autoGainControl,
+    ],
+  );
+
+  const onTabHidden = useCallback(() => {
+    if (leavingRef.current) return;
+    if (!tabReturnPrefs.enabled) return;
+    const lp = room.localParticipant;
+    tabMediaSnapshot.current = {
+      audio: lp.isMicrophoneEnabled,
+      video: lp.isCameraEnabled,
+    };
+    muteLocalMediaForPrivacy();
+  }, [room, leavingRef, muteLocalMediaForPrivacy, tabReturnPrefs.enabled]);
+
+  const onTabVisible = useCallback(() => {
+    if (leavingRef.current) return;
+    if (!tabReturnPrefs.enabled) return;
+    const snap = tabMediaSnapshot.current ?? {
+      audio: wantAudio,
+      video: wantVideo,
+    };
+    mediaEnsureGen.current += 1;
+    const gen = mediaEnsureGen.current;
+
+    void (async () => {
+      try {
+        const audioWant = await applyDevicePolicy(
+          tabReturnPrefs.mic,
+          "audio",
+          snap.audio,
+        );
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        const videoWant = await applyDevicePolicy(
+          tabReturnPrefs.camera,
+          "video",
+          snap.video,
+        );
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        setMediaWanted({ audio: audioWant, video: videoWant });
+
+        const bothClosed =
+          tabReturnPrefs.mic === "closed" && tabReturnPrefs.camera === "closed";
+        const bothOpen =
+          tabReturnPrefs.mic === "open" && tabReturnPrefs.camera === "open";
+        const bothRestore =
+          tabReturnPrefs.mic === "restore" &&
+          tabReturnPrefs.camera === "restore";
+        if (bothClosed) toast.push(t("backToMeetingClosed"));
+        else if (bothOpen) toast.push(t("backToMeetingOpened"));
+        else if (bothRestore) toast.push(t("backToMeetingRestored"));
+        else toast.push(t("backToMeeting"));
+      } catch (err) {
+        console.error("[openmeet] tab-return media policy failed", err);
+        toast.push(t("backToMeeting"));
+      }
+    })();
+  }, [
+    leavingRef,
+    wantAudio,
+    wantVideo,
+    applyDevicePolicy,
+    tabReturnPrefs.enabled,
+    tabReturnPrefs.mic,
+    tabReturnPrefs.camera,
+    toast,
+    t,
+  ]);
 
   // Keep reconnect backup in sync with in-call toggles after a privacy mute.
   useEffect(() => {
@@ -789,10 +974,7 @@ function RoomShell({
     };
   }, [room]);
 
-  useRoomVisibility(room, () => {
-    muteLocalMediaForPrivacy();
-    toast.push(t("backToMeeting"));
-  });
+  useRoomVisibility(room, onTabVisible, onTabHidden);
 
   useEffect(() => {
     if (state === ConnectionState.Connected) hasConnectedOnce.current = true;
@@ -1012,6 +1194,8 @@ function RoomShell({
             recordingActive={recorder.active}
             recordingBusy={recorder.busy}
             canToggleRecording={recorder.canToggle}
+            highlightRecording={recordingHint}
+            recordingHint={recordingHint ? t("recordingHint") : undefined}
             onToggleRecording={() => {
               if (recorder.active) void recorder.stop();
               else void recorder.start();
@@ -1021,11 +1205,51 @@ function RoomShell({
             handRaised={localHandRaised}
             onToggleHand={toggleHand}
             onSendReaction={sendReaction}
+            mediaPrefs={mediaPrefsApi.prefs}
+            mediaPrefsReady={mediaPrefsApi.ready}
+            mediaPrefsAccountBound={mediaPrefsApi.accountBound}
+            mediaPrefsSaving={mediaPrefsApi.saving}
+            onMediaPrefsChange={mediaPrefsApi.updatePrefs}
+            onUploadVirtualBackground={mediaPrefsApi.uploadVirtualBackground}
           />
         </div>
       </div>
 
       <AnimatePresence>
+        {recorder.needsAskPrompt ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[55] grid place-items-center bg-[var(--brand-bg)]/92 px-6 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md rounded-3xl glass-strong p-8 text-center shadow-lift">
+              <h2 className="text-xl font-semibold tracking-tight">
+                {t("recordingAskTitle")}
+              </h2>
+              <p className="mt-2 text-sm text-ink-muted">
+                {t("recordingAskBody")}
+              </p>
+              <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button
+                  size="lg"
+                  loading={recorder.busy}
+                  onClick={() => recorder.acceptAsk()}
+                >
+                  {t("recordingAskYes")}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  disabled={recorder.busy}
+                  onClick={declineRecordingAsk}
+                >
+                  {t("recordingAskNotNow")}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
         {recorder.needsScreenCaptureConfirm ? (
           <motion.div
             initial={{ opacity: 0 }}

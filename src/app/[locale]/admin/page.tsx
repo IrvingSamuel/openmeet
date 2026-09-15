@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -11,7 +11,8 @@ import {
   morphTransition,
 } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/Button";
-import { Input, Select, Textarea } from "@/components/ui/Field";
+import { ColorField, Input, Select, Textarea } from "@/components/ui/Field";
+import { DEFAULT_SYSTEM_UI } from "@/lib/system-ui";
 import { Badge, Skeleton } from "@/components/ui/Surface";
 import { useToast } from "@/components/ui/Toast";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
@@ -28,6 +29,7 @@ import {
   IconVideo,
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { PAGE_ACCESS_IDS } from "@/lib/page-access-types";
 import {
   exampleWebhookHeaders,
   exampleWebhookPayload,
@@ -46,12 +48,24 @@ type WebhookEvents = {
   summary: boolean;
   tasks: boolean;
   recording: boolean;
+  attendance: boolean;
 };
 
 type AdminSettings = {
   locale: string;
   deploymentMode?: "server" | "platform";
   allowSignup?: boolean;
+  tabReturnEnabled?: boolean;
+  tabReturnMic?: "open" | "closed" | "restore";
+  tabReturnCamera?: "open" | "closed" | "restore";
+  pageAccess?: {
+    requestKey: SecretMask;
+    pages: {
+      home: { enabled: boolean; redirectTo: string };
+      dashboard: { enabled: boolean; redirectTo: string };
+      settings: { enabled: boolean; redirectTo: string };
+    };
+  };
   uiPrimary?: string;
   uiSecondary?: string;
   uiTertiary?: string;
@@ -81,7 +95,7 @@ type AdminSettings = {
   webhookEvents: WebhookEvents;
   recordingEnabled: boolean;
   recordingEngine: "egress" | "browser";
-  recordingControlMode: "manual" | "auto";
+  recordingControlMode: "manual" | "auto" | "ask";
   recordingStorage: "local" | "s3";
   recordingLocalDir: string;
   recordingS3Endpoint: string;
@@ -104,6 +118,7 @@ type Me = {
 
 const TABS = [
   { key: "general", icon: IconSettings },
+  { key: "access", icon: IconShield },
   { key: "ui", icon: IconSparkles },
   { key: "ai", icon: IconSparkles },
   { key: "recording", icon: IconVideo },
@@ -122,6 +137,7 @@ const EVENT_META: Array<{
   { key: "summary", event: "summary.ready" },
   { key: "tasks", event: "tasks.generated" },
   { key: "recording", event: "recording.ready" },
+  { key: "attendance", event: "attendance.ready" },
 ];
 
 const AI_LOCALES = ["pt-BR", "en", "es", "fr", "de"] as const;
@@ -129,6 +145,7 @@ const AI_LOCALES = ["pt-BR", "en", "es", "fr", "de"] as const;
 export default function AdminPage() {
   const t = useTranslations("admin");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const toast = useToast();
   const [me, setMe] = useState<Me | null>(null);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
@@ -143,6 +160,7 @@ export default function AdminPage() {
   const [webhookSecretDraft, setWebhookSecretDraft] = useState("");
   const [s3AccessDraft, setS3AccessDraft] = useState("");
   const [s3SecretDraft, setS3SecretDraft] = useState("");
+  const [pageAccessKeyDraft, setPageAccessKeyDraft] = useState("");
   const [exampleEvent, setExampleEvent] =
     useState<OutboundWebhookEvent>("summary.ready");
   const [apiTokenOnce, setApiTokenOnce] = useState<string | null>(null);
@@ -202,6 +220,7 @@ export default function AdminPage() {
       setWebhookSecretDraft("");
       setS3AccessDraft("");
       setS3SecretDraft("");
+      setPageAccessKeyDraft("");
       toast.success(t("saved"));
     } catch {
       toast.error(t("networkFailed"));
@@ -216,6 +235,9 @@ export default function AdminPage() {
       locale: settings.locale,
       deploymentMode: settings.deploymentMode || "platform",
       allowSignup: settings.allowSignup !== false,
+      tabReturnEnabled: settings.tabReturnEnabled !== false,
+      tabReturnMic: settings.tabReturnMic || "closed",
+      tabReturnCamera: settings.tabReturnCamera || "closed",
     });
   }
 
@@ -231,6 +253,51 @@ export default function AdminPage() {
       uiLogoUrl: settings.uiLogoUrl || null,
       uiFaviconUrl: settings.uiFaviconUrl || null,
       uiFontFamily: settings.uiFontFamily,
+    });
+  }
+
+  async function saveAccess() {
+    if (!settings) return;
+    const pages = settings.pageAccess?.pages ?? {
+      home: { enabled: true, redirectTo: "/login" },
+      dashboard: { enabled: true, redirectTo: "/login" },
+      settings: { enabled: true, redirectTo: "/login" },
+    };
+    const patch: Record<string, unknown> = {
+      pageAccess: {
+        pages,
+        requestKey: pageAccessKeyDraft.trim()
+          ? pageAccessKeyDraft.trim()
+          : undefined,
+      },
+    };
+    await save(patch);
+  }
+
+  function updatePageAccessRule(
+    id: (typeof PAGE_ACCESS_IDS)[number],
+    patch: Partial<{ enabled: boolean; redirectTo: string }>,
+  ) {
+    setSettings((s) => {
+      if (!s) return s;
+      const pages = s.pageAccess?.pages ?? {
+        home: { enabled: true, redirectTo: "/login" },
+        dashboard: { enabled: true, redirectTo: "/login" },
+        settings: { enabled: true, redirectTo: "/login" },
+      };
+      return {
+        ...s,
+        pageAccess: {
+          requestKey: s.pageAccess?.requestKey ?? {
+            configured: false,
+            preview: null,
+          },
+          pages: {
+            ...pages,
+            [id]: { ...pages[id], ...patch },
+          },
+        },
+      };
     });
   }
 
@@ -596,9 +663,196 @@ export default function AdminPage() {
                   />
                   {t("ui.allowSignup")}
                 </label>
+                <div className="space-y-3 rounded-2xl border border-line bg-black/20 p-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                      {t("general.tabReturnTitle")}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-faint">
+                      {t("general.tabReturnHint")}
+                    </p>
+                  </div>
+                  <Select
+                    label={t("general.tabReturnEnabled")}
+                    value={settings.tabReturnEnabled === false ? "off" : "on"}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        tabReturnEnabled: e.target.value === "on",
+                      })
+                    }
+                  >
+                    <option value="on">
+                      {t("general.tabReturnEnabledOptions.on")}
+                    </option>
+                    <option value="off">
+                      {t("general.tabReturnEnabledOptions.off")}
+                    </option>
+                  </Select>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Select
+                      label={t("general.tabReturnMic")}
+                      value={settings.tabReturnMic || "closed"}
+                      disabled={settings.tabReturnEnabled === false}
+                      className={
+                        settings.tabReturnEnabled === false
+                          ? "opacity-50"
+                          : undefined
+                      }
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          tabReturnMic: e.target.value as
+                            | "open"
+                            | "closed"
+                            | "restore",
+                        })
+                      }
+                    >
+                      <option value="closed">
+                        {t("general.tabReturnOptions.closed")}
+                      </option>
+                      <option value="open">
+                        {t("general.tabReturnOptions.open")}
+                      </option>
+                      <option value="restore">
+                        {t("general.tabReturnOptions.restore")}
+                      </option>
+                    </Select>
+                    <Select
+                      label={t("general.tabReturnCamera")}
+                      value={settings.tabReturnCamera || "closed"}
+                      disabled={settings.tabReturnEnabled === false}
+                      className={
+                        settings.tabReturnEnabled === false
+                          ? "opacity-50"
+                          : undefined
+                      }
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          tabReturnCamera: e.target.value as
+                            | "open"
+                            | "closed"
+                            | "restore",
+                        })
+                      }
+                    >
+                      <option value="closed">
+                        {t("general.tabReturnOptions.closed")}
+                      </option>
+                      <option value="open">
+                        {t("general.tabReturnOptions.open")}
+                      </option>
+                      <option value="restore">
+                        {t("general.tabReturnOptions.restore")}
+                      </option>
+                    </Select>
+                  </div>
+                </div>
                 <Button onClick={saveGeneral} disabled={saving}>
                   {saving ? t("saving") : t("general.save")}
                 </Button>
+              </div>
+            ) : null}
+
+            {tab === "access" ? (
+              <div className="max-w-xl space-y-5">
+                <p className="text-sm text-ink-muted">{t("access.body")}</p>
+                <Input
+                  label={t("access.requestKey")}
+                  type="password"
+                  autoComplete="new-password"
+                  value={pageAccessKeyDraft}
+                  onChange={(e) => setPageAccessKeyDraft(e.target.value)}
+                  hint={
+                    settings.pageAccess?.requestKey?.configured
+                      ? t("access.requestKeyConfigured", {
+                          preview:
+                            settings.pageAccess.requestKey.preview || "••••",
+                        })
+                      : t("access.requestKeyHint")
+                  }
+                  placeholder={t("access.requestKeyPlaceholder")}
+                />
+                <div className="space-y-4">
+                  {PAGE_ACCESS_IDS.map((id) => {
+                    const rule = settings.pageAccess?.pages?.[id] ?? {
+                      enabled: true,
+                      redirectTo: "/login",
+                    };
+                    return (
+                      <div
+                        key={id}
+                        className="space-y-3 rounded-2xl border border-line bg-black/20 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-ink">
+                            {t(`access.pages.${id}`)}
+                          </p>
+                          <label className="flex items-center gap-2 text-sm text-ink-muted">
+                            <input
+                              type="checkbox"
+                              checked={rule.enabled}
+                              onChange={(e) =>
+                                updatePageAccessRule(id, {
+                                  enabled: e.target.checked,
+                                })
+                              }
+                            />
+                            {t("access.enabled")}
+                          </label>
+                        </div>
+                        <Input
+                          label={t("access.redirectTo")}
+                          value={rule.redirectTo}
+                          onChange={(e) =>
+                            updatePageAccessRule(id, {
+                              redirectTo: e.target.value,
+                            })
+                          }
+                          hint={t("access.redirectHint")}
+                          disabled={rule.enabled}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-ink-faint">
+                  {t("access.unlockHint", { path: `/${locale}/unlock` })}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={saveAccess} disabled={saving}>
+                    {saving ? t("saving") : t("access.save")}
+                  </Button>
+                  {settings.pageAccess?.requestKey?.configured ? (
+                    <Button
+                      variant="outline"
+                      disabled={saving}
+                      onClick={() =>
+                        void save({
+                          pageAccess: {
+                            pages:
+                              settings.pageAccess?.pages ?? {
+                                home: { enabled: true, redirectTo: "/login" },
+                                dashboard: {
+                                  enabled: true,
+                                  redirectTo: "/login",
+                                },
+                                settings: {
+                                  enabled: true,
+                                  redirectTo: "/login",
+                                },
+                              },
+                            requestKey: null,
+                          },
+                        })
+                      }
+                    >
+                      {t("access.clearKey")}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
 
@@ -608,21 +862,22 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {(
                     [
-                      ["uiPrimary", "primary"],
-                      ["uiSecondary", "secondary"],
-                      ["uiTertiary", "tertiary"],
-                      ["uiBackground", "background"],
-                      ["uiInk", "ink"],
+                      ["uiPrimary", "primary", DEFAULT_SYSTEM_UI.primary],
+                      ["uiSecondary", "secondary", DEFAULT_SYSTEM_UI.secondary],
+                      ["uiTertiary", "tertiary", DEFAULT_SYSTEM_UI.tertiary],
+                      ["uiBackground", "background", DEFAULT_SYSTEM_UI.background],
+                      ["uiInk", "ink", DEFAULT_SYSTEM_UI.ink],
                     ] as const
-                  ).map(([field, labelKey]) => (
-                    <Input
+                  ).map(([field, labelKey, fallback]) => (
+                    <ColorField
                       key={field}
                       label={t(`ui.${labelKey}`)}
-                      type="color"
-                      value={settings[field] || "#0ea5e9"}
-                      onChange={(e) =>
-                        setSettings({ ...settings, [field]: e.target.value })
+                      value={settings[field] || fallback}
+                      onChange={(value) =>
+                        setSettings({ ...settings, [field]: value })
                       }
+                      copyLabel={t("ui.copyHex")}
+                      copiedLabel={t("ui.hexCopied")}
                     />
                   ))}
                 </div>
@@ -959,12 +1214,16 @@ export default function AdminPage() {
                   onChange={(e) =>
                     setSettings({
                       ...settings,
-                      recordingControlMode: e.target.value as "manual" | "auto",
+                      recordingControlMode: e.target.value as
+                        | "manual"
+                        | "auto"
+                        | "ask",
                     })
                   }
                 >
                   <option value="manual">{t("recording.controlManual")}</option>
                   <option value="auto">{t("recording.controlAuto")}</option>
+                  <option value="ask">{t("recording.controlAsk")}</option>
                 </Select>
                 <Select
                   label={t("recording.storageLabel")}

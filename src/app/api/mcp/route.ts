@@ -13,6 +13,7 @@ import {
 } from "@/lib/api-brand";
 import { parseRedirectAfterMeet } from "@/lib/host-entry";
 import { createMeetingWithBrand } from "@/lib/meetings";
+import { parseWebhookUrl } from "@/lib/webhook-url";
 import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
@@ -69,6 +70,7 @@ async function meetCreateRoom(
     identity?: z.infer<typeof brandIdentitySchema>;
     palette?: z.infer<typeof brandPaletteSchema>;
     advanced?: z.infer<typeof brandAdvancedSchema>;
+    webhook_url?: string | null;
   },
   defaultOwnerId: string | null | undefined,
 ) {
@@ -90,12 +92,14 @@ async function meetCreateRoom(
     accessPolicy: args.access_policy || "public",
     ui,
     useIdentityBrand: false,
+    webhookUrl: parseWebhookUrl(args.webhook_url),
   });
   return {
     room_id: room.id,
     name: room.title,
     slug: room.slug,
     url,
+    webhook_url: room.webhookUrl ?? null,
     brand: brandRowToPublic(brand as unknown as Record<string, unknown>),
   };
 }
@@ -107,6 +111,7 @@ async function meetCreateMeetingFromRoom(args: {
   empty_timeout_sec?: number;
   board_id?: string;
   redirect_after_meet?: string | null;
+  webhook_url?: string | null;
   wait_for_host?: boolean;
 }) {
   const room = await db.query.rooms.findFirst({
@@ -116,6 +121,10 @@ async function meetCreateMeetingFromRoom(args: {
 
   const emptyTimeoutSec = clampEmptyTimeoutSec(args.empty_timeout_sec);
   const redirectAfterMeet = parseRedirectAfterMeet(args.redirect_after_meet);
+  const webhookUrl =
+    args.webhook_url !== undefined
+      ? parseWebhookUrl(args.webhook_url)
+      : (room.webhookUrl ?? null);
   const accessPolicy =
     args.access_policy ||
     (room.accessPolicy as "public" | "members" | "invite");
@@ -133,6 +142,7 @@ async function meetCreateMeetingFromRoom(args: {
       useIdentityBrand: false,
       emptyTimeoutSec,
       redirectAfterMeet,
+      webhookUrl,
       waitForHost,
       issueHostEntry: true,
     });
@@ -148,6 +158,7 @@ async function meetCreateMeetingFromRoom(args: {
     brand_room_id: meeting.roomId,
     empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
     redirect_after_meet: meeting.redirectAfterMeet ?? null,
+    webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
   };
 }
@@ -163,6 +174,7 @@ async function meetCreateInstantMeeting(
     access_policy?: "public" | "members" | "invite";
     empty_timeout_sec?: number;
     redirect_after_meet?: string | null;
+    webhook_url?: string | null;
     wait_for_host?: boolean;
     identity?: z.infer<typeof brandIdentitySchema>;
     palette?: z.infer<typeof brandPaletteSchema>;
@@ -181,6 +193,7 @@ async function meetCreateInstantMeeting(
     `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
   const emptyTimeoutSec = clampEmptyTimeoutSec(args.empty_timeout_sec);
   const redirectAfterMeet = parseRedirectAfterMeet(args.redirect_after_meet);
+  const webhookUrl = parseWebhookUrl(args.webhook_url);
   const accessPolicy = args.access_policy || "public";
   const waitForHost =
     args.wait_for_host !== undefined
@@ -197,6 +210,7 @@ async function meetCreateInstantMeeting(
       useIdentityBrand: !ui,
       emptyTimeoutSec,
       redirectAfterMeet,
+      webhookUrl,
       waitForHost,
       issueHostEntry: true,
     });
@@ -212,6 +226,7 @@ async function meetCreateInstantMeeting(
     brand_room_id: meeting.roomId,
     empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
     redirect_after_meet: meeting.redirectAfterMeet ?? null,
+    webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
   };
 }
@@ -301,6 +316,11 @@ export async function POST(req: NextRequest) {
                 identity: { type: "object" },
                 palette: { type: "object" },
                 advanced: { type: "object" },
+                webhook_url: {
+                  type: "string",
+                  description:
+                    "Absolute http(s) URL for outbound meeting artifacts (inherited by meetings from this room)",
+                },
               },
               required: ["name"],
             },
@@ -323,6 +343,11 @@ export async function POST(req: NextRequest) {
                 redirect_after_meet: {
                   type: "string",
                   description: "Absolute http(s) URL after leave/end",
+                },
+                webhook_url: {
+                  type: "string",
+                  description:
+                    "Absolute http(s) URL for outbound meeting artifacts (omit to inherit from the room)",
                 },
                 wait_for_host: {
                   type: "boolean",
@@ -351,6 +376,10 @@ export async function POST(req: NextRequest) {
                 },
                 empty_timeout_sec: { type: "integer" },
                 redirect_after_meet: { type: "string" },
+                webhook_url: {
+                  type: "string",
+                  description: "Absolute http(s) URL for outbound meeting artifacts",
+                },
                 wait_for_host: { type: "boolean" },
                 identity: { type: "object" },
                 palette: { type: "object" },
@@ -391,6 +420,7 @@ export async function POST(req: NextRequest) {
             identity: brandIdentitySchema.optional(),
             palette: brandPaletteSchema.optional(),
             advanced: brandAdvancedSchema.optional(),
+            webhook_url: z.string().max(2000).nullable().optional(),
             ...ownerFields,
           })
           .refine((v) => Boolean(v.name || v.title), {
@@ -412,6 +442,9 @@ export async function POST(req: NextRequest) {
             access_policy: z.enum(["public", "members", "invite"]).optional(),
             empty_timeout_sec: z.number().int().optional(),
             board_id: z.string().optional(),
+            redirect_after_meet: z.string().max(2000).nullable().optional(),
+            webhook_url: z.string().max(2000).nullable().optional(),
+            wait_for_host: z.boolean().optional(),
           })
           .parse(args);
         result = await meetCreateMeetingFromRoom(parsed);
@@ -423,6 +456,9 @@ export async function POST(req: NextRequest) {
             room_id: z.string().uuid().optional(),
             access_policy: z.enum(["public", "members", "invite"]).optional(),
             empty_timeout_sec: z.number().int().optional(),
+            redirect_after_meet: z.string().max(2000).nullable().optional(),
+            webhook_url: z.string().max(2000).nullable().optional(),
+            wait_for_host: z.boolean().optional(),
             identity: brandIdentitySchema.optional(),
             palette: brandPaletteSchema.optional(),
             advanced: brandAdvancedSchema.optional(),
