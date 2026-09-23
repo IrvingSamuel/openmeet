@@ -25,6 +25,7 @@ import type { CopilotChatMessage } from "@/lib/copilot-chat-prompt";
 import { isAgentParticipant } from "@/lib/participants";
 import { useToast } from "@/components/ui/Toast";
 import { useCopilotChat } from "@/hooks/useCopilotChat";
+import { useModerateParticipant } from "@/hooks/useModerateParticipant";
 import type { JoinRequest } from "@/hooks/useJoinRequests";
 
 export type ChatSend = (
@@ -412,48 +413,21 @@ function PeoplePanel({
   const toast = useToast();
   const t = useTranslations("room.sidePanel");
   const tLabels = useTranslations("common.labels");
-  const tToast = useTranslations("common.toast");
   const tErrors = useTranslations("common.errors");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const { moderate, busyIdentity: busyId } = useModerateParticipant({
+    roomSlug,
+    meetingId,
+    enabled: Boolean(canModerate && roomSlug),
+  });
+  const [busyRoleId, setBusyRoleId] = useState<string | null>(null);
   const humans = participants.filter((p) => !isAgentParticipant(p));
-
-  async function moderate(
-    identity: string,
-    action: "mute" | "camera_off" | "remove",
-  ) {
-    if (!roomSlug || !canModerate) return;
-    if (action === "remove") {
-      const ok = window.confirm(t("removeConfirm"));
-      if (!ok) return;
-    }
-    setBusyId(`${identity}:${action}`);
-    try {
-      const res = await fetch(`/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/moderate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, identity, meetingId }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast.error(json.error || t("moderateFailed"));
-        return;
-      }
-      if (action === "mute") toast.push(tToast("micMuted"));
-      if (action === "camera_off") toast.push(tToast("cameraOff"));
-      if (action === "remove") toast.push(tToast("participantRemoved"));
-    } catch {
-      toast.error(tErrors("networkModerate"));
-    } finally {
-      setBusyId(null);
-    }
-  }
 
   async function changeRole(
     identity: string,
     role: "moderator" | "participant",
   ) {
     if (!roomSlug || !isHost) return;
-    setBusyId(`${identity}:role`);
+    setBusyRoleId(`${identity}:role`);
     try {
       const res = await fetch(
         `/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/participants/role`,
@@ -476,10 +450,11 @@ function PeoplePanel({
     } catch {
       toast.error(tErrors("networkModerate"));
     } finally {
-      setBusyId(null);
+      setBusyRoleId(null);
     }
   }
 
+  const actionBusy = busyId || busyRoleId;
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       {canModerate && roomSlug && onJoinDecide ? (
@@ -554,7 +529,7 @@ function PeoplePanel({
                   {canChangeRole ? (
                     <button
                       type="button"
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() =>
                         void changeRole(
                           p.identity,
@@ -576,7 +551,7 @@ function PeoplePanel({
                     <button
                       type="button"
                       title={t("muteAction")}
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() => void moderate(p.identity, "mute")}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-40"
                     >
@@ -585,7 +560,7 @@ function PeoplePanel({
                     <button
                       type="button"
                       title={t("cameraOffAction")}
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() => void moderate(p.identity, "camera_off")}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-40"
                     >
@@ -594,7 +569,7 @@ function PeoplePanel({
                     <button
                       type="button"
                       title={t("removeAction")}
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() => void moderate(p.identity, "remove")}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-rose-400/30 text-rose-300 transition-colors hover:bg-rose-500/15 disabled:opacity-40"
                     >

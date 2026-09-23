@@ -736,7 +736,9 @@
       "screenShare": "Screen",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
-      "handRaised": "Hand raised"
+      "handRaised": "Hand raised",
+      "muteParticipant": "Mute participant",
+      "cameraOffParticipant": "Turn participant camera off"
     }
   },
   "summary": {

@@ -726,7 +726,9 @@
       "screenShare": "Tela",
       "fullscreen": "Tela cheia",
       "exitFullscreen": "Sair da tela cheia",
-      "handRaised": "Mão levantada"
+      "handRaised": "Mão levantada",
+      "muteParticipant": "Silenciar participante",
+      "cameraOffParticipant": "Desligar câmera do participante"
     }
   },
   "summary": {

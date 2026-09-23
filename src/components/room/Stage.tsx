@@ -19,6 +19,7 @@ import {
   type StageLayout,
 } from "@/lib/stage";
 import { isAgentParticipant } from "@/lib/participants";
+import { useModerateParticipant } from "@/hooks/useModerateParticipant";
 
 export type { StageLayout };
 
@@ -27,12 +28,23 @@ export function Stage({
   pinnedKey,
   onPin,
   raisedIdentities = new Set<string>(),
+  canModerate = false,
+  roomSlug,
+  meetingId,
 }: {
   layout: StageLayout;
   pinnedKey: string | null;
   onPin: (key: string | null) => void;
   raisedIdentities?: ReadonlySet<string>;
+  canModerate?: boolean;
+  roomSlug?: string;
+  meetingId?: string;
 }) {
+  const { moderate, busyIdentity } = useModerateParticipant({
+    roomSlug,
+    meetingId,
+    enabled: canModerate,
+  });
   const t = useTranslations("room");
   const rootRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
@@ -136,6 +148,14 @@ export function Stage({
           onPin={() =>
             onPin(pinnedKey === trackKey(featured) ? null : trackKey(featured))
           }
+          canModerate={canModerate}
+          onMute={() => void moderate(featured.participant.identity, "mute")}
+          onCameraOff={() =>
+            void moderate(featured.participant.identity, "camera_off")
+          }
+          moderationBusy={busyIdentity?.startsWith(
+            featured.participant.identity,
+          )}
           className="min-h-0 flex-1"
         />
         {others.length > 0 ? (
@@ -153,6 +173,14 @@ export function Stage({
                 pinned={pinnedKey === trackKey(ref)}
                 handRaised={raisedIdentities.has(ref.participant.identity)}
                 onPin={() => onPin(trackKey(ref))}
+                canModerate={canModerate}
+                onMute={() => void moderate(ref.participant.identity, "mute")}
+                onCameraOff={() =>
+                  void moderate(ref.participant.identity, "camera_off")
+                }
+                moderationBusy={busyIdentity?.startsWith(
+                  ref.participant.identity,
+                )}
                 className="aspect-video h-24 shrink-0 lg:h-auto lg:w-full"
               />
             ))}
@@ -180,6 +208,12 @@ export function Stage({
           pinned={pinnedKey === trackKey(ref)}
           handRaised={raisedIdentities.has(ref.participant.identity)}
           onPin={() => onPin(trackKey(ref))}
+          canModerate={canModerate}
+          onMute={() => void moderate(ref.participant.identity, "mute")}
+          onCameraOff={() =>
+            void moderate(ref.participant.identity, "camera_off")
+          }
+          moderationBusy={busyIdentity?.startsWith(ref.participant.identity)}
         />
       ))}
     </motion.div>

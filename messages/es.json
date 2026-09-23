@@ -720,7 +720,9 @@
       "screenShare": "Pantalla",
       "fullscreen": "Pantalla completa",
       "exitFullscreen": "Salir de pantalla completa",
-      "handRaised": "Mano levantada"
+      "handRaised": "Mano levantada",
+      "muteParticipant": "Silenciar participante",
+      "cameraOffParticipant": "Apagar cámara del participante"
     }
   },
   "summary": {

@@ -1243,6 +1243,9 @@ function RoomShell({
             pinnedKey={pinnedKey}
             onPin={handlePin}
             raisedIdentities={raisedIdentities}
+            canModerate={canModerate}
+            roomSlug={roomSlug}
+            meetingId={meetingId}
           />
           <ReactionBurstOverlay bursts={reactionBursts} />
           {/* Hide overlay while disconnected — avoids render work on stale tracks/captions during reconnect. */}

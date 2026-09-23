@@ -720,7 +720,9 @@
       "screenShare": "Bildschirm",
       "fullscreen": "Vollbild",
       "exitFullscreen": "Vollbild beenden",
-      "handRaised": "Hand erhoben"
+      "handRaised": "Hand erhoben",
+      "muteParticipant": "Teilnehmer stummschalten",
+      "cameraOffParticipant": "Kamera des Teilnehmers ausschalten"
     }
   },
   "summary": {
