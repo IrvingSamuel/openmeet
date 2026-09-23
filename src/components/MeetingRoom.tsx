@@ -66,8 +66,10 @@ import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
 import {
   audioOptionsFromPrefs,
   useMeetingEffects,
+  videoOptionsForEffect,
 } from "@/hooks/useMeetingEffects";
 import { useMediaPrefs } from "@/hooks/useMediaPrefs";
+import { detectPerformanceProfile } from "@/lib/device-capability";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
@@ -173,6 +175,8 @@ export function MeetingRoom({
     };
   }, [room]);
 
+  // Initial LiveKitRoom video opts — effects-aware caps applied after
+  // media prefs hydrate via useMeetingEffects / ensure-media.
   const video = useMemo<boolean | VideoCaptureOptions>(() => {
     if (!initialVideo) return false;
     return videoDeviceId ? { deviceId: videoDeviceId } : true;
@@ -216,8 +220,8 @@ export function MeetingRoom({
     }
 
     try {
-      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
       setConnect(true);
+      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
       return true;
     } catch (err) {
       console.error("[openmeet] reconnect failed", err);
@@ -232,6 +236,8 @@ export function MeetingRoom({
     const run = async (attempt: number) => {
       const roomState = () => room.state;
       if (attempt > MAX_AUTO_RECONNECT) {
+        // Stop LiveKitRoom connect-loop so DisconnectRecovery owns the UX.
+        setConnect(false);
         setAutoReconnectBusy(false);
         return;
       }
@@ -357,7 +363,12 @@ export function MeetingRoom({
   const handleReconnect = useCallback(() => {
     autoReconnectAttempts.current = 0;
     setAutoReconnectBusy(true);
-    void performReconnect().finally(() => setAutoReconnectBusy(false));
+    void performReconnect()
+      .then((ok) => {
+        // Keep connect=false so DisconnectRecovery stays in control after a failed manual retry.
+        if (!ok) setConnect(false);
+      })
+      .finally(() => setAutoReconnectBusy(false));
   }, [performReconnect]);
 
   return (
@@ -823,7 +834,14 @@ function RoomShell({
     const lp = room.localParticipant;
     const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
     const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
-    const videoOpts = videoId ? { deviceId: videoId } : undefined;
+    const effect = mediaPrefsApi.ready
+      ? mediaPrefsApi.prefs.videoEffect
+      : undefined;
+    const videoOpts = videoOptionsForEffect(
+      effect,
+      videoId,
+      detectPerformanceProfile(),
+    );
     const audioOpts = audioOptionsFromPrefs(
       mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
       audioId,
@@ -859,6 +877,7 @@ function RoomShell({
     audioDeviceId,
     leavingRef,
     mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.videoEffect,
     mediaPrefsApi.prefs.noiseSuppression,
     mediaPrefsApi.prefs.echoCancellation,
     mediaPrefsApi.prefs.autoGainControl,
@@ -921,7 +940,14 @@ function RoomShell({
       const lp = room.localParticipant;
       const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
       const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
-      const videoOpts = videoId ? { deviceId: videoId } : undefined;
+      const effect = mediaPrefsApi.ready
+        ? mediaPrefsApi.prefs.videoEffect
+        : undefined;
+      const videoOpts = videoOptionsForEffect(
+        effect,
+        videoId,
+        detectPerformanceProfile(),
+      );
       const audioOpts = audioOptionsFromPrefs(
         mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
         audioId,
@@ -943,6 +969,7 @@ function RoomShell({
       videoDeviceId,
       audioDeviceId,
       mediaPrefsApi.ready,
+      mediaPrefsApi.prefs.videoEffect,
       mediaPrefsApi.prefs.noiseSuppression,
       mediaPrefsApi.prefs.echoCancellation,
       mediaPrefsApi.prefs.autoGainControl,
@@ -1064,9 +1091,20 @@ function RoomShell({
         );
       } else if (key === "v") {
         e.preventDefault();
-        room.localParticipant.setCameraEnabled(
-          !room.localParticipant.isCameraEnabled,
-        );
+        const lp = room.localParticipant;
+        const turningOn = !lp.isCameraEnabled;
+        if (turningOn) {
+          const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+          const effect = mediaPrefsApi.ready
+            ? mediaPrefsApi.prefs.videoEffect
+            : undefined;
+          void lp.setCameraEnabled(
+            true,
+            videoOptionsForEffect(effect, videoId, detectPerformanceProfile()),
+          );
+        } else {
+          void lp.setCameraEnabled(false);
+        }
       } else if (key === "g") {
         setLayout((l) => (l === "grid" ? "spotlight" : "grid"));
       } else if (key === "c") {
@@ -1075,7 +1113,12 @@ function RoomShell({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [room]);
+  }, [
+    room,
+    videoDeviceId,
+    mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.videoEffect,
+  ]);
 
   async function copyLink() {
     try {
@@ -1202,11 +1245,14 @@ function RoomShell({
             raisedIdentities={raisedIdentities}
           />
           <ReactionBurstOverlay bursts={reactionBursts} />
-          <CaptionsOverlay
-            captions={captions}
-            visible={captionsOn}
-            onHide={() => setCaptionsOn(false)}
-          />
+          {/* Hide overlay while disconnected — avoids render work on stale tracks/captions during reconnect. */}
+          {captionsOn && state === ConnectionState.Connected ? (
+            <CaptionsOverlay
+              captions={captions}
+              visible
+              onHide={() => setCaptionsOn(false)}
+            />
+          ) : null}
           {!isLgUp ? (
             <SidePanel
               panel={panel}

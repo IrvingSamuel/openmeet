@@ -54,6 +54,7 @@ import {
 import { DeviceSettingsModal } from "@/components/room/DeviceSettingsModal";
 import { canUseBackgroundEffects } from "@/hooks/useMeetingEffects";
 import type { MediaPrefs } from "@/lib/media-prefs-schema";
+import { screenShareCaptureOptions } from "@/lib/screen-share";
 
 export type SidePanel = "none" | "chat" | "people" | "captions" | "copilot";
 
@@ -131,12 +132,14 @@ export function ControlBar({
   const devicesApi = useMeetingDevices(room);
   const deviceMenus = useExclusiveMenus();
   const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
   const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
+  const shareBtnRef = useRef<HTMLButtonElement>(null);
   const recordBtnRef = useRef<HTMLButtonElement>(null);
   const chimesUnlockedRef = useRef(false);
 
@@ -160,7 +163,41 @@ export function ControlBar({
     deviceMenus.closeAll();
     setMoreOpen(false);
     setReactionsOpen(false);
+    setShareMenuOpen(false);
     setOptionsOpen(true);
+  }
+
+  async function startScreenShare(withAudio: boolean) {
+    setShareMenuOpen(false);
+    try {
+      await screen.toggle(true, screenShareCaptureOptions(withAudio));
+    } catch (err) {
+      if (!withAudio) {
+        const label = err instanceof Error ? err.message : String(err);
+        toast.error(tRoom("mediaDeviceError", { label }));
+        return;
+      }
+      // Browser may reject display-audio; fall back to video-only share.
+      try {
+        await screen.toggle(true, screenShareCaptureOptions(false));
+        toast.push(t("shareAudioFallback"), "info");
+      } catch (fallbackErr) {
+        const label =
+          fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        toast.error(tRoom("mediaDeviceError", { label }));
+      }
+    }
+  }
+
+  function onScreenShareClick() {
+    if (screen.enabled) {
+      setShareMenuOpen(false);
+      void screen.toggle(false);
+      return;
+    }
+    setReactionsOpen(false);
+    setMoreOpen(false);
+    setShareMenuOpen((v) => !v);
   }
 
   async function switchSafe(
@@ -321,14 +358,45 @@ export function ControlBar({
         </ControlButton>
 
         <ControlButton
-          active={screen.enabled}
-          onClick={() => {
-            void screen.toggle();
-          }}
+          ref={shareBtnRef}
+          active={screen.enabled || shareMenuOpen}
+          onClick={onScreenShareClick}
           label={screen.enabled ? t("stopShare") : t("startShare")}
+          aria-expanded={!screen.enabled ? shareMenuOpen : undefined}
+          aria-haspopup={!screen.enabled ? "menu" : undefined}
         >
           <IconScreen />
         </ControlButton>
+
+        <FloatingMenu
+          open={shareMenuOpen && !screen.enabled}
+          onClose={() => setShareMenuOpen(false)}
+          anchorRef={shareBtnRef}
+          align="center"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void startScreenShare(false)}
+            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-white/[0.06]"
+          >
+            {t("startShare")}
+            <span className="mt-0.5 block text-[11px] text-ink-faint">
+              {t("startShareHint")}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void startScreenShare(true)}
+            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-white/[0.06]"
+          >
+            {t("startShareAudio")}
+            <span className="mt-0.5 block text-[11px] text-ink-faint">
+              {t("startShareAudioHint")}
+            </span>
+          </button>
+        </FloatingMenu>
 
         <ControlButton
           active={panel === "copilot"}
@@ -664,6 +732,8 @@ const ControlButton = forwardRef(function ControlButton(
     badge,
     badgeTone = "brand",
     className,
+    "aria-expanded": ariaExpanded,
+    "aria-haspopup": ariaHaspopup,
   }: {
     children: ReactNode;
     onClick: () => void;
@@ -674,6 +744,8 @@ const ControlButton = forwardRef(function ControlButton(
     badge?: string;
     badgeTone?: "brand" | "danger";
     className?: string;
+    "aria-expanded"?: boolean;
+    "aria-haspopup"?: boolean | "menu" | "listbox" | "tree" | "grid" | "dialog";
   },
   ref: Ref<HTMLButtonElement>,
 ) {
@@ -684,6 +756,8 @@ const ControlButton = forwardRef(function ControlButton(
       disabled={pending}
       aria-label={label}
       aria-pressed={active}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHaspopup}
       title={label}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.94 }}

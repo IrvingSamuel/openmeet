@@ -441,6 +441,8 @@ export default function MeetingJoinPage() {
           retryLabel={tRoom("retry")}
           leaveLabel={tRoom("leave")}
           onLeave={() => leave("leave")}
+          slug={data.meeting.slug}
+          meetingId={session.meetingId}
         >
           <MeetingRoom
             token={session.token}

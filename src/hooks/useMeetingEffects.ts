@@ -13,10 +13,18 @@ import {
   Room,
   RoomEvent,
   Track,
+  VideoPresets,
   type TrackPublication,
+  type VideoCaptureOptions,
 } from "livekit-client";
 import type { MediaPrefs } from "@/lib/media-prefs-schema";
+import {
+  detectPerformanceProfile,
+  type PerformanceProfile,
+} from "@/lib/device-capability";
 import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
+
+const LOW_EFFECT_FPS = 15;
 
 export function canUseBackgroundEffects(): boolean {
   try {
@@ -26,12 +34,37 @@ export function canUseBackgroundEffects(): boolean {
   }
 }
 
+function effectActive(effect: MediaPrefs["videoEffect"]): boolean {
+  return effect === "blur" || effect === "virtual";
+}
+
+/**
+ * Camera constraints for join / ensure-media / effect sync.
+ * Low-end devices drop to 360p@15 while blur/virtual is on; capable
+ * machines keep browser/LiveKit defaults (high quality).
+ */
+export function videoOptionsForEffect(
+  effect: MediaPrefs["videoEffect"] | null | undefined,
+  deviceId?: string,
+  profile: PerformanceProfile = detectPerformanceProfile(),
+): VideoCaptureOptions | undefined {
+  const base: VideoCaptureOptions = deviceId ? { deviceId } : {};
+  if (profile === "low" && effect && effectActive(effect)) {
+    return {
+      ...base,
+      resolution: VideoPresets.h360.resolution,
+      frameRate: LOW_EFFECT_FPS,
+    };
+  }
+  return deviceId ? base : Object.keys(base).length ? base : undefined;
+}
+
 function audioKey(prefs: MediaPrefs): string {
   return `${prefs.noiseSuppression}|${prefs.echoCancellation}|${prefs.autoGainControl}`;
 }
 
-function videoKey(prefs: MediaPrefs): string {
-  return `${prefs.videoEffect}|${prefs.blurRadius}|${prefs.virtualBackgroundUrl ?? ""}`;
+function videoKey(prefs: MediaPrefs, profile: PerformanceProfile): string {
+  return `${prefs.videoEffect}|${prefs.blurRadius}|${prefs.virtualBackgroundUrl ?? ""}|${profile}`;
 }
 
 async function applyVideoEffect(
@@ -59,6 +92,7 @@ async function applyVideoEffect(
 async function ensureProcessor(
   track: LocalVideoTrack,
   processorRef: { current: BackgroundProcessorWrapper | null },
+  profile: PerformanceProfile,
 ): Promise<BackgroundProcessorWrapper | null> {
   if (!canUseBackgroundEffects()) return null;
   if (processorRef.current) {
@@ -67,16 +101,40 @@ async function ensureProcessor(
     }
     return processorRef.current;
   }
-  const processor = BackgroundProcessor({ mode: "disabled" });
+  const processor = BackgroundProcessor({
+    mode: "disabled",
+    ...(profile === "low" ? { maxFps: LOW_EFFECT_FPS } : {}),
+  });
   await track.setProcessor(processor);
   processorRef.current = processor;
   return processor;
 }
 
+async function detachProcessor(
+  track: LocalVideoTrack | null,
+  processorRef: { current: BackgroundProcessorWrapper | null },
+) {
+  processorRef.current = null;
+  if (!track) return;
+  try {
+    await track.stopProcessor();
+  } catch {
+    /* already stopped */
+  }
+}
+
 function getLocalCameraTrack(room: Room): LocalVideoTrack | null {
   const pub = room.localParticipant.getTrackPublication(Track.Source.Camera);
   const track = pub?.track;
-  if (track && track instanceof LocalVideoTrack) return track;
+  if (!track) return null;
+  // Prefer instanceof; fall back to duck-type for test doubles.
+  if (track instanceof LocalVideoTrack) return track;
+  if (
+    typeof (track as LocalVideoTrack).setProcessor === "function" &&
+    typeof (track as LocalVideoTrack).stopProcessor === "function"
+  ) {
+    return track as LocalVideoTrack;
+  }
   return null;
 }
 
@@ -93,25 +151,70 @@ export function useMeetingEffects(room: Room | null, prefs: MediaPrefs | null) {
   prefsRef.current = prefs;
   const audioKeyRef = useRef("");
   const videoKeyRef = useRef("");
+  const captureModeRef = useRef<"default" | "low-effect">("default");
   const applyingAudioRef = useRef(false);
+  const applyingVideoRef = useRef(false);
 
   const syncVideo = useCallback(async (force = false) => {
     if (!room || !prefsRef.current) return;
-    const track = getLocalCameraTrack(room);
-    if (!track || track.isMuted) return;
+    if (applyingVideoRef.current) return;
 
-    const key = videoKey(prefsRef.current);
-    if (!force && key === videoKeyRef.current && track.getProcessor()) {
-      return;
-    }
+    const prefsNow = prefsRef.current;
+    const profile = detectPerformanceProfile();
+    const key = videoKey(prefsNow, profile);
+    if (!force && key === videoKeyRef.current) return;
 
+    const lp = room.localParticipant;
+    if (!lp.isCameraEnabled) return;
+
+    applyingVideoRef.current = true;
     try {
-      const processor = await ensureProcessor(track, processorRef);
-      if (!processor) return;
-      await applyVideoEffect(track, processor, prefsRef.current);
+      const deviceId = resolveCaptureDeviceId(room, "videoinput");
+      const wantLowCapture =
+        profile === "low" && effectActive(prefsNow.videoEffect);
+      const needCaptureChange =
+        wantLowCapture !== (captureModeRef.current === "low-effect");
+
+      if (needCaptureChange) {
+        const opts = videoOptionsForEffect(
+          prefsNow.videoEffect,
+          deviceId,
+          profile,
+        );
+        // Drop processor before restarting the track so MediaPipe is not
+        // torn down mid-frame against a dying MediaStreamTrack.
+        if (processorRef.current) {
+          await detachProcessor(getLocalCameraTrack(room), processorRef);
+        }
+        await lp.setCameraEnabled(true, opts);
+        captureModeRef.current = wantLowCapture ? "low-effect" : "default";
+      }
+
+      let track = getLocalCameraTrack(room);
+      if (!track || track.isMuted) {
+        videoKeyRef.current = key;
+        return;
+      }
+
+      if (!effectActive(prefsNow.videoEffect)) {
+        await detachProcessor(track, processorRef);
+        videoKeyRef.current = key;
+        return;
+      }
+
+      const processor = await ensureProcessor(track, processorRef, profile);
+      if (!processor) {
+        videoKeyRef.current = key;
+        return;
+      }
+      // Track may have been replaced by setCameraEnabled above.
+      track = getLocalCameraTrack(room) ?? track;
+      await applyVideoEffect(track, processor, prefsNow);
       videoKeyRef.current = key;
     } catch (err) {
       console.error("[openmeet] video effect failed", err);
+    } finally {
+      applyingVideoRef.current = false;
     }
   }, [room]);
 
@@ -206,6 +309,7 @@ export function useMeetingEffects(room: Room | null, prefs: MediaPrefs | null) {
     const onDeviceChanged = (kind: MediaDeviceKind) => {
       if (kind === "videoinput") {
         videoKeyRef.current = "";
+        captureModeRef.current = "default";
         void syncVideo(true);
       }
       // audioinput switch is handled by LiveKit; only re-apply if prefs key

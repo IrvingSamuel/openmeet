@@ -230,23 +230,27 @@ export function CaptionsOverlay({
 }) {
   const t = useTranslations("room.captions");
   const uniqueRecent = (() => {
-    const out: Caption[] = [];
-    for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
-      const c = captions[i];
-      if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
-        continue;
+    try {
+      const out: Caption[] = [];
+      for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
+        const c = captions[i];
+        if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
+          continue;
+        }
+        if (
+          out.length &&
+          out[out.length - 1].speaker !== c.speaker &&
+          captionsSimilar(out[out.length - 1].text, c.text)
+        ) {
+          continue;
+        }
+        out.unshift(c);
       }
-      if (
-        out.length &&
-        out[out.length - 1].speaker !== c.speaker &&
-        captionsSimilar(out[out.length - 1].text, c.text)
-      ) {
-        continue;
-      }
-      out.unshift(c);
+      if (out.length > 1) return out.slice(-1);
+      return out;
+    } catch {
+      return captions.slice(-1);
     }
-    if (out.length > 1) return out.slice(-1);
-    return out;
   })();
 
   const [pos, setPos] = useState<Pos | null>(null);
