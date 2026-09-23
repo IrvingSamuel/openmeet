@@ -46,7 +46,6 @@ type Me = {
   name?: string;
   email?: string;
   isAdmin?: boolean;
-  isLocalRoot?: boolean;
 };
 
 type Room = {
@@ -250,7 +249,7 @@ export default function DashboardPage() {
                 </Button>
               </Link>
             ) : null}
-            {me.isLocalRoot ? (
+            {me.isAdmin ? (
               <Link href="/ops">
                 <Button
                   size="sm"

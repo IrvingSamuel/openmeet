@@ -839,6 +839,7 @@
     "notConfigured": "nicht konfiguriert",
     "viaSource": "via {source}",
     "backToDashboard": "Zurück zum Dashboard",
+    "navOps": "Ops",
     "sessionRequired": {
       "title": "Anmeldung erforderlich",
       "body": "Melden Sie sich mit Ihrem Konto an, um die Administration zu öffnen.",
@@ -1078,8 +1079,8 @@
     }
   },
   "ops": {
-    "eyebrow": "Interne Ops",
-    "eyebrowVersion": "Interne Ops · v{version}",
+    "eyebrow": "OpenMeet Ops",
+    "eyebrowVersion": "OpenMeet Ops · v{version}",
     "tabs": {
       "overview": "Übersicht",
       "tenants": "Tenants"
@@ -1092,7 +1093,7 @@
     },
     "forbidden": {
       "title": "Ops — verboten",
-      "body": "Lokale Root-Admin-Sitzung erforderlich.",
+      "body": "Server-Admin-Zugang erforderlich.",
       "back": "← Dashboard"
     },
     "nav": {

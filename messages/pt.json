@@ -845,6 +845,7 @@
     "notConfigured": "não configurada",
     "viaSource": "via {source}",
     "backToDashboard": "Voltar ao painel",
+    "navOps": "Ops",
     "sessionRequired": {
       "title": "Sessão necessária",
       "body": "Entre com a sua conta para aceder à administração.",
@@ -1084,8 +1085,8 @@
     }
   },
   "ops": {
-    "eyebrow": "Ops interno",
-    "eyebrowVersion": "Ops interno · v{version}",
+    "eyebrow": "OpenMeet Ops",
+    "eyebrowVersion": "OpenMeet Ops · v{version}",
     "tabs": {
       "overview": "Visão geral",
       "tenants": "Tenants"
@@ -1098,7 +1099,7 @@
     },
     "forbidden": {
       "title": "Ops — proibido",
-      "body": "É necessária a sessão do admin root local.",
+      "body": "É necessário acesso de administrador do servidor.",
       "back": "← Dashboard"
     },
     "nav": {

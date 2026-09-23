@@ -14,8 +14,8 @@ type MeImpersonation = {
 };
 
 /**
- * Global banner while an admin is impersonating another account (ops panel).
- * Stop hits /api/ops/impersonate/stop — only present on VPS with the ops module.
+ * Global banner while a server admin is impersonating another account (Ops).
+ * Stop hits /api/ops/impersonate/stop.
  */
 export function ImpersonationBanner() {
   const locale = useLocale();

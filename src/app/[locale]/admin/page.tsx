@@ -1608,6 +1608,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex items-center gap-2">
             <LanguageSwitcher compact />
+            <Link href="/ops">
+              <Button size="sm" variant="ghost">
+                {t("navOps")}
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button size="sm" variant="ghost">
                 {t("backToDashboard")}

@@ -165,7 +165,7 @@ export default function OpsTenantsPage() {
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((me) => {
-        setAllowed(Boolean(me.isLoggedIn && me.isLocalRoot));
+        setAllowed(Boolean(me.isLoggedIn && me.isAdmin));
       })
       .catch(() => setAllowed(false));
   }, []);

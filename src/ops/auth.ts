@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { isLocalRoot } from "@/lib/admin-auth";
+import { isAdmin } from "@/lib/admin-auth";
 import { getSession } from "@/lib/session";
 
 /**
- * Ops panel gate — local root only (users.createdVia === "setup").
- * Granted admins and ADMIN_EMAILS overrides are rejected.
+ * Ops panel gate — any OpenMeet server admin
+ * (DB role admin or ADMIN_EMAILS override).
  */
 export async function requireOpsAdmin() {
   const session = await getSession();
@@ -13,7 +13,7 @@ export async function requireOpsAdmin() {
       error: NextResponse.json({ error: "unauthorized" }, { status: 401 }),
     };
   }
-  if (!(await isLocalRoot(session))) {
+  if (!isAdmin(session)) {
     return {
       error: NextResponse.json({ error: "forbidden" }, { status: 403 }),
     };
