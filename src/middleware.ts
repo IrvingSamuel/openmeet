@@ -29,7 +29,7 @@ function publicOrigin(req: NextRequest): URL {
   const host = (
     req.headers.get("x-forwarded-host") ||
     req.headers.get("host") ||
-    "openmeet.chronos.com.pt"
+    "localhost"
   )
     .split(",")[0]!
     .trim()

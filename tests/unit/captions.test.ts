@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { captionsSimilar, parseCaption } from "@/lib/captions";
+import {
+  captionsSimilar,
+  parseCaption,
+  resetCaptionStripPatternCache,
+} from "@/lib/captions";
 
 function encode(value: unknown) {
   return new TextEncoder().encode(
@@ -47,5 +51,26 @@ describe("parseCaption", () => {
   it("detects similar caption text", () => {
     expect(captionsSimilar("bom dia a todos", "bom dia a todos!")).toBe(true);
     expect(captionsSimilar("contrato", "café")).toBe(false);
+  });
+
+  it("does not throw when Unicode property escapes are unavailable", () => {
+    resetCaptionStripPatternCache();
+    const OriginalRegExp = globalThis.RegExp;
+    globalThis.RegExp = class extends OriginalRegExp {
+      constructor(pattern: string | RegExp, flags?: string) {
+        if (typeof pattern === "string" && pattern.includes("\\p{")) {
+          throw new SyntaxError("Invalid regular expression");
+        }
+        super(pattern, flags);
+      }
+    } as RegExpConstructor;
+    try {
+      expect(captionsSimilar("bom dia a todos", "bom dia a todos!")).toBe(true);
+      expect(captionsSimilar("contrato", "café")).toBe(false);
+      expect(() => captionsSimilar("olá!", "olá")).not.toThrow();
+    } finally {
+      globalThis.RegExp = OriginalRegExp;
+      resetCaptionStripPatternCache();
+    }
   });
 });

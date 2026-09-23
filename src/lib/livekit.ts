@@ -1,5 +1,6 @@
 import {
   AccessToken,
+  AgentDispatchClient,
   RoomServiceClient,
   TrackSource,
   WebhookReceiver,
@@ -7,6 +8,15 @@ import {
 import { getLiveKitEmptyTimeoutSec } from "@/lib/meeting-timeouts";
 
 export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
+
+/** Explicit worker name — required when multiple products share one LiveKit. */
+export function getLiveKitAgentName(): string {
+  return (
+    process.env.LIVEKIT_AGENT_NAME?.trim() ||
+    process.env.AGENT_NAME?.trim() ||
+    "openmeet"
+  );
+}
 
 export function getLiveKitCreds() {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -18,22 +28,55 @@ export function getLiveKitCreds() {
   return { apiKey, apiSecret, url };
 }
 
-/** HTTP base for RoomService (twirp) — prefers loopback on this VPS. */
+function hostnameOf(raw: string | undefined | null): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    const normalized = raw.trim().replace(/^ws/i, "http");
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function isLoopbackHost(host: string | null): boolean {
+  return (
+    host === "127.0.0.1" ||
+    host === "localhost" ||
+    host === "::1" ||
+    host === "[::1]"
+  );
+}
+
+/**
+ * HTTP base for RoomService (twirp).
+ * Prefer LIVEKIT_HTTP_URL, else loopback when LiveKit URL targets this same
+ * public host (Cloudflare/nginx usually deny /twirp from the edge).
+ */
 export function getLiveKitHttpHost() {
-  if (process.env.LIVEKIT_HTTP_URL) return process.env.LIVEKIT_HTTP_URL;
+  if (process.env.LIVEKIT_HTTP_URL?.trim()) {
+    return process.env.LIVEKIT_HTTP_URL.trim().replace(/\/$/, "");
+  }
   const { url } = getLiveKitCreds();
-  if (
-    url.includes("openmeet.chronos.com.pt") ||
-    url.includes("127.0.0.1")
-  ) {
+  const lkHost = hostnameOf(url);
+  const appHost = hostnameOf(process.env.NEXT_PUBLIC_APP_URL);
+
+  if (isLoopbackHost(lkHost)) {
     return "http://127.0.0.1:7880";
   }
-  return url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+  if (lkHost && appHost && lkHost === appHost) {
+    return "http://127.0.0.1:7880";
+  }
+  return url.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:");
 }
 
 export function getRoomServiceClient() {
   const { apiKey, apiSecret } = getLiveKitCreds();
   return new RoomServiceClient(getLiveKitHttpHost(), apiKey, apiSecret);
+}
+
+function getAgentDispatchClient() {
+  const { apiKey, apiSecret } = getLiveKitCreds();
+  return new AgentDispatchClient(getLiveKitHttpHost(), apiKey, apiSecret);
 }
 
 export type RoomMetadataPayload = {
@@ -43,28 +86,131 @@ export type RoomMetadataPayload = {
   boardId?: string | null;
 };
 
+/**
+ * Ensure the named OpenMeet worker is dispatched (and foreign auto-agents are out).
+ * Safe to call on every token mint. Single dispatch path — do not also add
+ * agents on createRoom or AccessToken.roomConfig (causes duplicate jobs).
+ */
+export async function ensureAgentDispatch(livekitRoomName: string) {
+  const agentName = getLiveKitAgentName();
+  if (!agentName) return;
+
+  const dispatchClient = getAgentDispatchClient();
+  const roomClient = getRoomServiceClient();
+
+  let agentPresent = false;
+  try {
+    const participants = await roomClient.listParticipants(livekitRoomName);
+    agentPresent = participants.some(
+      (p) => p.identity === AGENT_LIVEKIT_IDENTITY,
+    );
+  } catch {
+    // Room may not exist yet — createDispatch below still applies after createRoom.
+  }
+
+  try {
+    const existing = await dispatchClient.listDispatch(livekitRoomName);
+    const ours = existing.filter((d) => d.agentName === agentName);
+    const already = ours.length > 0;
+
+    // Redispatch whenever the agent participant is missing. Do not trust
+    // zombie JS_RUNNING jobs — they blocked redispatch in production.
+    if (!agentPresent) {
+      for (const d of ours) {
+        try {
+          await dispatchClient.deleteDispatch(d.id, livekitRoomName);
+        } catch {
+          // ignore — create below is what matters
+        }
+      }
+      await dispatchClient.createDispatch(livekitRoomName, agentName);
+      console.info(
+        "[openmeet] ensureAgentDispatch %s agent=%s room=%s",
+        already ? "redispatched" : "created",
+        agentName,
+        livekitRoomName,
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[openmeet] ensureAgentDispatch failed room=%s agent=%s err=%s",
+      livekitRoomName,
+      agentName,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+
+  // Shared LiveKit: remove wrong-product agents so only OpenMeet captions run.
+  try {
+    const participants = await roomClient.listParticipants(livekitRoomName);
+    await Promise.all(
+      participants
+        .filter(
+          (p) =>
+            (p.identity.startsWith("agent-") ||
+              p.identity.startsWith("agent_")) &&
+            p.identity !== AGENT_LIVEKIT_IDENTITY,
+        )
+        .map((p) =>
+          roomClient
+            .removeParticipant(livekitRoomName, p.identity)
+            .catch(() => undefined),
+        ),
+    );
+  } catch {
+    // Room may be empty / gone — ignore.
+  }
+}
+
 /** Ensure the LiveKit room exists and carries meeting metadata for the agent. */
 export async function syncRoomMetadata(
   livekitRoomName: string,
   meta: RoomMetadataPayload,
   opts?: { emptyTimeout?: number },
 ) {
+  const httpHost = getLiveKitHttpHost();
   const client = getRoomServiceClient();
   const metadata = JSON.stringify(meta);
   const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
   try {
+    // No agents on createRoom — that dispatches into empty rooms; the agent
+    // then self-exits and leaves a stale dispatch. Dispatch only via
+    // ensureAgentDispatch when a participant mints a join token.
     await client.createRoom({
       name: livekitRoomName,
       metadata,
       emptyTimeout,
     });
-  } catch {
-    // Room may already exist — update metadata instead.
-    await client.updateRoomMetadata(livekitRoomName, metadata);
+    console.info(
+      "[openmeet] syncRoomMetadata createRoom ok host=%s room=%s agent=%s",
+      httpHost,
+      livekitRoomName,
+      getLiveKitAgentName() || "(auto)",
+    );
+  } catch (err) {
+    try {
+      await client.updateRoomMetadata(livekitRoomName, metadata);
+      console.info(
+        "[openmeet] syncRoomMetadata update ok host=%s room=%s",
+        httpHost,
+        livekitRoomName,
+      );
+    } catch (updateErr) {
+      console.error(
+        "[openmeet] syncRoomMetadata failed host=%s room=%s create=%s update=%s",
+        httpHost,
+        livekitRoomName,
+        err instanceof Error ? err.message : String(err),
+        updateErr instanceof Error ? updateErr.message : String(updateErr),
+      );
+      throw updateErr;
+    }
   }
+
+  await ensureAgentDispatch(livekitRoomName);
 }
 
-export type RoomRole = "host" | "participant" | "agent";
+export type RoomRole = "host" | "moderator" | "participant" | "agent";
 
 export async function mintRoomToken(opts: {
   roomName: string;
@@ -77,11 +223,12 @@ export async function mintRoomToken(opts: {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: opts.identity,
     name: opts.name,
+    metadata: JSON.stringify({ role: opts.role }),
     ttl: opts.ttlSeconds ?? 60 * 60 * 6,
   });
 
   const canPublish = opts.role !== "agent";
-  const roomAdmin = opts.role === "host";
+  const roomAdmin = opts.role === "host" || opts.role === "moderator";
 
   at.addGrant({
     roomJoin: true,
@@ -93,7 +240,31 @@ export async function mintRoomToken(opts: {
     canUpdateOwnMetadata: true,
   });
 
+  // Agent dispatch is exclusively via ensureAgentDispatch (token mint).
+  // roomConfig.agents here caused a second concurrent job / identity clash.
   return at.toJwt();
+}
+
+/** Update an active participant's moderation grant and role metadata. */
+export async function updateParticipantRole(opts: {
+  livekitRoomName: string;
+  identity: string;
+  role: "moderator" | "participant";
+}) {
+  const client = getRoomServiceClient();
+  return client.updateParticipant(opts.livekitRoomName, opts.identity, {
+    metadata: JSON.stringify({ role: opts.role }),
+    permission: {
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+      canUpdateMetadata: true,
+      canSubscribeMetrics: true,
+      hidden: false,
+      recorder: false,
+      agent: false,
+    },
+  });
 }
 
 export function getWebhookReceiver() {

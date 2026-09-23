@@ -11,6 +11,9 @@ export type SessionData = {
   avatarUrl?: string;
   role?: UserRole | string;
   isLoggedIn: boolean;
+  /** Set while a server admin is impersonating another user (Ops). */
+  impersonatorIdentityId?: string;
+  impersonatorEmail?: string;
 };
 
 export const defaultSession: SessionData = {

@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "OpenMeet — Videoconferencia inteligente white-label",
-    "titleTemplate": "%s · OpenMeet",
-    "description": "Videoconferencia de código abierto con identidad visual propia, subtítulos en vivo y un copiloto que convierte reuniones en resúmenes y webhooks accionables.",
-    "ogTitle": "OpenMeet — Videoconferencia inteligente white-label",
-    "ogDescription": "Salas con la marca de su empresa, subtítulos en vivo y acta automática enviable a herramientas externas vía webhooks.",
+    "title": "{name} — Videoconferencia white-label inteligente",
+    "titleTemplate": "%s · {name}",
+    "description": "Videoconferencia de código abierto con tu identidad visual, subtítulos en vivo y un copiloto de IA que convierte reuniones en resúmenes y webhooks.",
+    "ogTitle": "{name} — Videoconferencia white-label inteligente",
+    "ogDescription": "Salas con la marca de tu empresa, subtítulos en vivo y actas automáticas para herramientas externas vía webhooks.",
     "loadingSummary": "Cargando el resumen…",
     "verifyingSession": "Verificando su sesión…",
     "establishingConnection": "Estableciendo conexión segura…",
@@ -21,6 +21,7 @@
       "logout": "Salir",
       "cancel": "Cancelar",
       "close": "Cerrar",
+      "dismiss": "Descartar notificación",
       "save": "Guardar",
       "saveToken": "Guardar token",
       "create": "Crear",
@@ -172,6 +173,7 @@
     "openMenu": "Abrir menú",
     "closeMenu": "Cerrar menú",
     "admin": "Administración",
+    "ops": "Ops",
     "settings": "Ajustes"
   },
   "landing": {
@@ -346,7 +348,9 @@
       "joinFailed": "No se pudo entrar a la sala.",
       "networkFailed": "Error de red al solicitar acceso.",
       "cancelFailed": "No se pudo cancelar la solicitud. Inténtelo de nuevo."
-    }
+    },
+    "waitingForHostTitle": "Esperando al anfitrión…",
+    "waitingForHostBody": "Entrarás automáticamente cuando el anfitrión se una a la reunión."
   },
   "offline": {
     "title": "Sin conexión de red",
@@ -395,6 +399,8 @@
       "titleLabel": "Título de la reunión",
       "boardIdLabel": "ID de tablero / proyecto externo",
       "boardIdHint": "Pegue el ID del tablero para heredar logo y paleta.",
+      "muteMicOnJoin": "Entrar con el micrófono silenciado",
+      "muteMicOnJoinHint": "Los participantes inician con el micrófono apagado en el lobby (pueden activarlo antes de entrar).",
       "submit": "Crear sala",
       "createFailed": "No se pudo crear la sala.",
       "networkFailed": "Error de red al crear la sala."
@@ -453,7 +459,7 @@
       "save": "Guardar marca",
       "livePreview": "Vista previa en vivo",
       "yourRoom": "Su sala",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "No se pudo cargar la marca.",
       "saveFailed": "No se pudo guardar.",
       "saveNetworkFailed": "Error de red al guardar la marca.",
@@ -535,7 +541,10 @@
     "enableAudio": "Haga clic para habilitar el audio",
     "reconnectBanner": "Reconectando… los controles siguen activos",
     "disconnectNotice": "Conexión interrumpida — intentando reconectar.",
-    "backToMeeting": "Volviste a la reunión. Micrófono y cámara desactivados por privacidad.",
+    "backToMeeting": "Volviste a la reunión.",
+    "backToMeetingClosed": "Volviste a la reunión. Micrófono y cámara desactivados por privacidad.",
+    "backToMeetingRestored": "Volviste a la reunión. Micrófono y cámara restaurados.",
+    "backToMeetingOpened": "Volviste a la reunión. Micrófono y cámara activados.",
     "mediaDeviceError": "No se pudo acceder a la cámara/micrófono ({label}). Compruebe los permisos y si otra app usa el dispositivo.",
     "mediaUnavailable": "dispositivo de medios no disponible",
     "endForAllFailed": "No se pudo terminar la reunión para todos. Inténtelo de nuevo.",
@@ -545,6 +554,11 @@
     "recordingScreenDenied": "Debes compartir esta pestaña/pantalla de la reunión para grabar.",
     "recordingScreenPrompt": "La grabación automática necesita capturar la pantalla de esta reunión. Elige esta pestaña cuando el navegador lo pida.",
     "recordingScreenPromptCta": "Iniciar grabación",
+    "recordingAskTitle": "¿Grabar esta reunión?",
+    "recordingAskBody": "La grabación no es obligatoria. Puedes iniciarla ahora o más tarde desde la barra de controles.",
+    "recordingAskYes": "Sí",
+    "recordingAskNotNow": "Ahora no",
+    "recordingHint": "Inicia la grabación aquí",
     "controlBar": {
       "muteMic": "Silenciar micrófono",
       "unmuteMic": "Activar micrófono",
@@ -552,6 +566,10 @@
       "turnOnCam": "Encender cámara",
       "stopShare": "Dejar de compartir",
       "startShare": "Compartir pantalla",
+      "startShareAudio": "Compartir pantalla + audio",
+      "startShareHint": "Solo vídeo",
+      "startShareAudioHint": "Incluye audio de la pestaña o del sistema si el navegador lo permite",
+      "shareAudioFallback": "El audio de pantalla no está disponible en este navegador — compartiendo solo vídeo",
       "spotlightMode": "Modo destacado",
       "gridMode": "Modo cuadrícula",
       "moreControls": "Más controles",
@@ -569,7 +587,70 @@
       "stopRecording": "Detener grabación",
       "raiseHand": "Levantar la mano",
       "lowerHand": "Bajar la mano",
-      "reactions": "Reacciones"
+      "reactions": "Reacciones",
+      "selectMic": "Seleccionar micrófono y altavoz",
+      "selectCam": "Seleccionar cámara",
+      "microphone": "Micrófono",
+      "speaker": "Altavoz",
+      "camera": "Cámara",
+      "options": "Opciones",
+      "optionsEllipsis": "Opciones…",
+      "optionsDescription": "Elija el micrófono, el altavoz, la cámara y los efectos usados en esta reunión.",
+      "optionsTabs": {
+        "general": "General",
+        "captions": "Subtítulos",
+        "audio": "Audio",
+        "video": "Vídeo"
+      },
+      "captionsStartOn": "Iniciar con subtítulos",
+      "captionsStartOnHint": "Su preferencia reemplaza el valor predeterminado de la plataforma.",
+      "tabReturnHint": "El administrador de la plataforma establece el valor predeterminado. Elija una preferencia para sus reuniones.",
+      "tabReturnEnabled": "Protección al ausentarse",
+      "tabReturnEnabledOptions": {
+        "on": "Activado",
+        "off": "Desactivado"
+      },
+      "tabReturnMic": "Micrófono al volver",
+      "tabReturnCamera": "Cámara al volver",
+      "tabReturnOptions": {
+        "inherit": "Predeterminado de la plataforma",
+        "open": "Abierto",
+        "closed": "Cerrado",
+        "restore": "Como estaba"
+      },
+      "closeOptions": "Cerrar opciones",
+      "cameraPreviewOff": "Cámara apagada",
+      "micLevel": "Nivel del micrófono",
+      "noDevices": "No se encontraron dispositivos",
+      "micN": "Micrófono {n}",
+      "cameraN": "Cámara {n}",
+      "speakerN": "Altavoz {n}",
+      "speakerUnsupported": "La selección de altavoz no es compatible con este navegador.",
+      "effectsTitle": "Efectos",
+      "effectsNone": "Ninguno",
+      "effectsBlur": "Desenfoque de fondo",
+      "effectsVirtual": "Fondo virtual",
+      "effectsBlurRadius": "Intensidad del desenfoque",
+      "effectsUnsupported": "Los efectos de fondo no son compatibles con este navegador.",
+      "effectsAudioTitle": "Procesamiento de audio",
+      "effectsNoise": "Supresión de ruido",
+      "effectsEcho": "Cancelación de eco",
+      "effectsAgc": "Control automático de ganancia",
+      "effectsUpload": "Subir fondo personalizado",
+      "effectsUploading": "Subiendo…",
+      "effectsUploadOk": "Fondo subido",
+      "effectsUploadFailed": "No se pudo subir el fondo ({label})",
+      "effectsUploadLogin": "Inicie sesión para subir un fondo personalizado.",
+      "effectsCustomBg": "Fondo personalizado",
+      "effectsSavedAccount": "Guardado en su cuenta",
+      "effectsSavedBrowser": "Guardado solo en este navegador",
+      "effectsSaving": "Guardando…",
+      "presetOffice": "Oficina",
+      "presetLiving": "Salón",
+      "presetBookshelf": "Estantería",
+      "presetGradient": "Degradado",
+      "presetNature": "Naturaleza",
+      "presetAbstract": "Abstracto"
     },
     "reactions": {
       "pickReaction": "Enviar una reacción",
@@ -627,7 +708,8 @@
       "leave": "Salir"
     },
     "captions": {
-      "dragHint": "Arrastre para reposicionar · doble clic para restablecer"
+      "dragHint": "Arrastre para reposicionar · doble clic para restablecer",
+      "hide": "Ocultar subtítulos"
     },
     "stage": {
       "empty": "Nadie en la sala todavía"
@@ -638,7 +720,9 @@
       "screenShare": "Pantalla",
       "fullscreen": "Pantalla completa",
       "exitFullscreen": "Salir de pantalla completa",
-      "handRaised": "Mano levantada"
+      "handRaised": "Mano levantada",
+      "muteParticipant": "Silenciar participante",
+      "cameraOffParticipant": "Apagar cámara del participante"
     }
   },
   "summary": {
@@ -659,6 +743,7 @@
     "tabReport": "Resumen",
     "tabTranscript": "Transcripción",
     "tabRecordings": "Grabaciones",
+    "tabAttendance": "Asistencia",
     "tabTasks": "Tareas sugeridas",
     "tabsAria": "Secciones del resumen de la reunión",
     "personalBoard": "personal",
@@ -694,7 +779,18 @@
     "recordingsHeading": "Grabaciones",
     "recordingsEmpty": "Aún no hay grabaciones.",
     "downloadRecording": "Descargar",
-    "playRecording": "Reproducir"
+    "playRecording": "Reproducir",
+    "attendanceHeading": "Lista de asistencia",
+    "attendanceEmpty": "Ningún participante estuvo presente en esta reunión.",
+    "attendanceName": "Nombre",
+    "attendanceRole": "Rol",
+    "attendanceJoined": "Entrada",
+    "attendanceLeft": "Salida",
+    "attendanceDuration": "Duración",
+    "attendanceRoleHost": "Anfitrión",
+    "attendanceRoleParticipant": "Participante",
+    "attendanceDownloadCsv": "Descargar CSV",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "Sistema",
@@ -702,10 +798,33 @@
     "description": "Configure idioma, claves de IA, grabación de reuniones y webhooks de salida para integrar Meet con plataformas de terceros.",
     "tabs": {
       "general": "General",
+      "access": "Acceso",
       "ai": "IA",
       "webhooks": "Webhooks",
       "recording": "Grabación",
-      "ui": "UI"
+      "ui": "UI",
+      "api": "API"
+    },
+    "api": {
+      "heading": "Token de la API pública",
+      "body": "Genere un Bearer token para que plataformas terceras usen POST /api/v1/*. El token da acceso completo a la API pública.",
+      "statusLabel": "Estado",
+      "notConfigured": "No configurado",
+      "configured": "Configurado: {preview}",
+      "createdAt": "Creado el {date}",
+      "generate": "Generar token",
+      "rotate": "Rotar token",
+      "revoke": "Revocar",
+      "revokeConfirm": "¿Revocar el token actual? Los clientes dejarán de autenticarse hasta generar otro.",
+      "generatedHeading": "Token generado — cópielo ahora",
+      "generatedWarning": "Este valor solo se muestra una vez. Guárdelo en un lugar seguro.",
+      "copy": "Copiar token",
+      "copied": "Token copiado.",
+      "docsLink": "Abrir documentación de la API",
+      "generateFailed": "No se pudo generar el token.",
+      "revokeFailed": "No se pudo revocar el token.",
+      "revoked": "Token revocado.",
+      "generated": "Token generado. Cópielo ahora."
     },
     "loadFailed": "No se pudo cargar la administración.",
     "saveFailed": "No se pudo guardar.",
@@ -720,6 +839,7 @@
     "notConfigured": "no configurada",
     "viaSource": "vía {source}",
     "backToDashboard": "Volver al panel",
+    "navOps": "Ops",
     "sessionRequired": {
       "title": "Sesión necesaria",
       "body": "Inicie sesión con su cuenta para acceder a la administración.",
@@ -740,7 +860,45 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "captionsDefault": "Subtítulos al iniciar la reunión",
+      "captionsDefaultHint": "Define si los subtítulos se activan de forma predeterminada. Los usuarios pueden reemplazar esta preferencia.",
+      "captionsDefaultOptions": {
+        "on": "Activados",
+        "off": "Desactivados"
+      },
+      "tabReturnTitle": "Al ausentarse de la pestaña",
+      "tabReturnHint": "Si está activa, al salir de la pestaña el micrófono y la cámara se apagan por privacidad. Al volver, se aplica la política siguiente.",
+      "tabReturnEnabled": "Protección al ausentarse",
+      "tabReturnEnabledOptions": {
+        "on": "Activado",
+        "off": "Desactivado"
+      },
+      "tabReturnMic": "Micrófono al volver",
+      "tabReturnCamera": "Cámara al volver",
+      "tabReturnOptions": {
+        "open": "Abierto",
+        "closed": "Cerrado",
+        "restore": "Como estaba"
+      },
       "save": "Guardar"
+    },
+    "access": {
+      "body": "Defina si la home, el dashboard y la configuración son accesibles. Si están desactivadas, los visitantes se redirigen. Con una clave de petición, pueden desbloquear en /unlock.",
+      "requestKey": "Clave de petición (desbloqueo)",
+      "requestKeyHint": "Opcional. Quien escriba esta clave en /unlock accede a las páginas desactivadas.",
+      "requestKeyConfigured": "Clave configurada: {preview}. Déjelo vacío para mantenerla.",
+      "requestKeyPlaceholder": "Nueva clave…",
+      "enabled": "Accesible",
+      "redirectTo": "Redirigir a",
+      "redirectHint": "Ruta relativa (p. ej. /login o /unlock) o URL absoluta.",
+      "unlockHint": "Página de desbloqueo: {path}",
+      "pages": {
+        "home": "Home (landing)",
+        "dashboard": "Dashboard",
+        "settings": "Configuración / marca"
+      },
+      "save": "Guardar acceso",
+      "clearKey": "Quitar clave"
     },
     "ai": {
       "groqEnabled": "Usar Groq / API compatible con OpenAI (reemplaza Gemini cuando está activo)",
@@ -761,7 +919,7 @@
       "modelSummary": "Modelo (resumen)",
       "modelSummaryHint": "Una generación post-reunión — usar un modelo más capaz (p. ej. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
-      "deepgramKeyHint": "El worker de Python sigue leyendo DEEPGRAM_API_KEY del .env.",
+      "deepgramKeyHint": "Se resuelve desde Admin (base de datos) y, si falta, DEEPGRAM_API_KEY en .env. El worker de Python usa el mismo orden.",
       "save": "Guardar IA",
       "clearGemini": "Borrar override de Gemini",
       "clearDeepgram": "Borrar override de Deepgram"
@@ -796,6 +954,10 @@
         "recording": {
           "label": "Grabación lista",
           "description": "Metadatos y enlace de descarga cuando la grabación está disponible."
+        },
+        "attendance": {
+          "label": "Lista de asistencia",
+          "description": "Participantes presentes con hora de entrada y salida."
         }
       },
       "save": "Guardar webhooks",
@@ -816,6 +978,7 @@
       "controlLabel": "Control",
       "controlManual": "Manual — el moderador inicia y detiene en la sala",
       "controlAuto": "Automático — inicia al entrar el moderador (sin detener)",
+      "controlAsk": "Preguntar siempre — aviso al entrar el anfitrión",
       "storageLabel": "Almacenamiento",
       "storageLocal": "Disco local del servidor",
       "storageS3": "Compatible con S3 (MinIO / Hetzner / AWS)",
@@ -839,13 +1002,17 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Nombre de la plataforma",
+      "logoUrl": "URL del logo de la plataforma",
+      "faviconUrl": "URL del favicon de la plataforma",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Subir logo",
+      "uploadFavicon": "Subir favicon",
+      "copyHex": "Copiar hexadecimal",
+      "hexCopied": "Hexadecimal copiado"
     }
   },
   "settings": {
@@ -868,12 +1035,24 @@
     "startFailed": "No se pudo iniciar la reunión.",
     "startNetworkFailed": "Error de red al iniciar la reunión."
   },
+  "accessUnlock": {
+    "title": "Desbloquear acceso",
+    "body": "Introduzca la clave de petición proporcionada por la administración para abrir páginas restringidas.",
+    "keyLabel": "Clave de petición",
+    "keyPlaceholder": "Clave…",
+    "submit": "Desbloquear",
+    "submitting": "Comprobando…",
+    "success": "Acceso desbloqueado.",
+    "invalidKey": "Clave no válida.",
+    "notConfigured": "No hay clave de desbloqueo configurada.",
+    "failed": "No se pudo desbloquear."
+  },
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Usa tu correo y contraseña para acceder a {name}.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Crea la primera cuenta de administrador de esta instancia {name}.",
     "name": "Name",
     "email": "Email",
     "password": "Password",
@@ -898,5 +1077,112 @@
       "auth_failed": "Authentication failed.",
       "setup_failed": "Setup failed."
     }
+  },
+  "ops": {
+    "eyebrow": "OpenMeet Ops",
+    "eyebrowVersion": "OpenMeet Ops · v{version}",
+    "tabs": {
+      "overview": "Resumen",
+      "tenants": "Tenants"
+    },
+    "titles": {
+      "health": "Salud y métricas",
+      "tenants": "Tenants",
+      "tenant": "Tenant",
+      "meeting": "Reunión"
+    },
+    "forbidden": {
+      "title": "Ops — prohibido",
+      "body": "Se requiere acceso de administrador del servidor.",
+      "back": "← Dashboard"
+    },
+    "nav": {
+      "admin": "Administración",
+      "dashboard": "Dashboard",
+      "back": "← Volver"
+    },
+    "overview": {
+      "platformHealth": "Salud de la plataforma",
+      "liveSnapshot": "Instantánea en vivo · actualizado cada 30s",
+      "healthy": "Saludable",
+      "degraded": "Degradado",
+      "statusOk": "ok",
+      "statusDown": "caído",
+      "meetingsNow": "Reuniones ahora",
+      "livekitRooms": "Salas LiveKit: {count}",
+      "livekitUnavailable": "Conteo de salas LiveKit no disponible",
+      "participantsNow": "Participantes ahora",
+      "users": "Usuarios",
+      "meetingsEnded": "Reuniones finalizadas",
+      "endedHint": "7d: {ended7d} · 30d: {ended30d}",
+      "newUsers30d": "Nuevos usuarios · 30d",
+      "meetingsEnded30d": "Reuniones finalizadas · 30d",
+      "total": "{count} en total",
+      "recordings": "Grabaciones",
+      "storage": "Almacenamiento {size}",
+      "noRecordingsYet": "Aún no hay grabaciones",
+      "llmUsage30d": "Uso de LLM · 30d",
+      "noLlmCalls": "Sin llamadas LLM registradas",
+      "llmRow": "{calls} llamadas · {tokens} tok",
+      "statsFailed": "Error al cargar estadísticas: {error}"
+    },
+    "tenants": {
+      "searchPlaceholder": "Buscar email / nombre / id externo",
+      "search": "Buscar",
+      "account": "Cuenta",
+      "role": "Rol",
+      "rooms": "Salas",
+      "meetings": "Reuniones",
+      "active": "Activas",
+      "created": "Creado",
+      "loading": "Cargando…",
+      "empty": "Sin tenants",
+      "loadError": "Error al cargar tenants",
+      "roomsCount": "{count} salas",
+      "meetingsCount": "{count} reuniones",
+      "activeCount": "{count} activas",
+      "via": "vía {channel}",
+      "ext": "ext {id}",
+      "idLabel": "id {id}",
+      "impersonate": "Suplantar",
+      "impersonating": "Suplantando {email}",
+      "impersonateFailed": "Error al suplantar",
+      "roleUpdated": "Rol → {role}",
+      "roleFailed": "Error al actualizar rol",
+      "brand": "Marca",
+      "wordmark": "wordmark: {value}",
+      "theme": "tema: {value}",
+      "primary": "primario: {value}",
+      "none": "Ninguna",
+      "mediaPrefs": "Preferencias de medios",
+      "videoEffect": "vídeo: {effect} (blur {blur})",
+      "audioFlags": "NS {ns} · EC {ec} · AGC {agc}",
+      "defaults": "Valores predeterminados",
+      "roomsHeading": "Salas ({count})",
+      "noRooms": "Sin salas",
+      "meetingsHeading": "Reuniones ({count})",
+      "noMeetings": "Sin reuniones",
+      "summaryBadge": "resumen"
+    },
+    "meeting": {
+      "started": "iniciada {date}",
+      "ended": "finalizada {date}",
+      "transcriptSegments": "{count} segmentos de transcripción",
+      "openSummary": "Abrir página de resumen ↗",
+      "endMeeting": "Finalizar reunión",
+      "endConfirm": "¿Finalizar esta reunión ahora?",
+      "endedOk": "Reunión finalizada",
+      "alreadyEnded": "Ya finalizada",
+      "endFailed": "Error al finalizar",
+      "participants": "Participantes ({count})",
+      "noParticipants": "Sin participantes",
+      "inCall": "en llamada",
+      "recordings": "Grabaciones ({count})",
+      "noRecordings": "Sin grabaciones",
+      "summary": "Resumen",
+      "noSummary": "Aún sin resumen (estado: {status})",
+      "loadError": "Error al cargar reunión"
+    },
+    "detailLoadError": "Error al cargar tenant"
   }
 }

@@ -221,29 +221,36 @@ function loadPos(): Pos | null {
 export function CaptionsOverlay({
   captions,
   visible,
+  onHide,
 }: {
   captions: Caption[];
   visible: boolean;
+  /** Hide live caption overlay (does not clear transcript history). */
+  onHide?: () => void;
 }) {
   const t = useTranslations("room.captions");
   const uniqueRecent = (() => {
-    const out: Caption[] = [];
-    for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
-      const c = captions[i];
-      if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
-        continue;
+    try {
+      const out: Caption[] = [];
+      for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
+        const c = captions[i];
+        if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
+          continue;
+        }
+        if (
+          out.length &&
+          out[out.length - 1].speaker !== c.speaker &&
+          captionsSimilar(out[out.length - 1].text, c.text)
+        ) {
+          continue;
+        }
+        out.unshift(c);
       }
-      if (
-        out.length &&
-        out[out.length - 1].speaker !== c.speaker &&
-        captionsSimilar(out[out.length - 1].text, c.text)
-      ) {
-        continue;
-      }
-      out.unshift(c);
+      if (out.length > 1) return out.slice(-1);
+      return out;
+    } catch {
+      return captions.slice(-1);
     }
-    if (out.length > 1) return out.slice(-1);
-    return out;
   })();
 
   const [pos, setPos] = useState<Pos | null>(null);
@@ -260,6 +267,8 @@ export function CaptionsOverlay({
 
   function onPointerDown(e: ReactPointerEvent) {
     if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("[data-captions-close]")) return;
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     const parent = el.offsetParent as HTMLElement | null;
@@ -317,11 +326,36 @@ export function CaptionsOverlay({
           title={t("dragHint")}
           className={
             pos
-              ? "absolute z-20 w-[min(760px,92vw)] cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 text-center backdrop-blur-md active:cursor-grabbing"
-              : "absolute bottom-24 left-1/2 z-20 w-[min(760px,92vw)] -translate-x-1/2 cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 text-center backdrop-blur-md active:cursor-grabbing"
+              ? "absolute z-20 w-[min(760px,92vw)] cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 pr-10 text-center backdrop-blur-md active:cursor-grabbing"
+              : "absolute bottom-24 left-1/2 z-20 w-[min(760px,92vw)] -translate-x-1/2 cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 pr-10 text-center backdrop-blur-md active:cursor-grabbing"
           }
           aria-live="polite"
         >
+          {onHide ? (
+            <button
+              type="button"
+              data-captions-close
+              onClick={(e) => {
+                e.stopPropagation();
+                onHide();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label={t("hide")}
+              className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M5 5l10 10M15 5L5 15" />
+              </svg>
+            </button>
+          ) : null}
           <span
             aria-hidden
             className="mx-auto mb-1 block h-1 w-8 rounded-full bg-white/30"

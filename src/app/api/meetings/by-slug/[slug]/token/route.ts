@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { participants, joinRequests } from "@/db/schema";
 import { resolveRecordingConfig } from "@/lib/app-settings";
+import {
+  hasHostEntryGrant,
+  hostEntryDisplayName,
+} from "@/lib/host-entry";
+import { meetingHasActiveHost } from "@/lib/hostAuth";
 import { getSession } from "@/lib/session";
-import { mintRoomToken, syncRoomMetadata } from "@/lib/livekit";
+import {
+  mintRoomToken,
+  syncRoomMetadata,
+  type RoomRole,
+} from "@/lib/livekit";
 import {
   activateMeetingIfScheduled,
   loadMeetingBySlugAfterExpiry,
@@ -32,25 +41,68 @@ export async function POST(
     return NextResponse.json({ error: "meeting_ended" }, { status: 410 });
   }
 
+  const viaHostEntry = await hasHostEntryGrant(meeting.id);
   const isOwner =
     Boolean(session.identityId) &&
     session.identityId === meeting.ownerIdentityId;
-  if (meeting.accessPolicy === "members" && !session.isLoggedIn) {
+  const isHost = isOwner || viaHostEntry;
+
+  if (meeting.accessPolicy === "members" && !session.isLoggedIn && !viaHostEntry) {
     return NextResponse.json({ error: "login_required" }, { status: 401 });
   }
 
+  const entryName = viaHostEntry
+    ? await hostEntryDisplayName(meeting.id)
+    : undefined;
   const displayName =
     body.displayName ||
+    entryName ||
     session.name ||
     session.email ||
     `Guest-${Date.now() % 10000}`;
-  const role = isOwner ? "host" : "participant";
   const instance =
     typeof body.clientInstanceId === "string" && body.clientInstanceId.length > 0
       ? body.clientInstanceId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24)
       : Math.random().toString(36).slice(2, 10);
+  const livekitIdentity = session.identityId
+    ? `user_${session.identityId}_${instance}`
+    : viaHostEntry
+      ? `host_${meeting.id.slice(0, 8)}_${instance}`
+      : `guest_${instance}`;
+  const participantIdentityMatch = session.identityId
+    ? or(
+        eq(participants.identityId, session.identityId),
+        eq(participants.livekitIdentity, livekitIdentity),
+      )
+    : eq(participants.livekitIdentity, livekitIdentity);
+  const existingModerator = !isHost
+    ? await db.query.participants.findFirst({
+        where: and(
+          eq(participants.meetingId, meeting.id),
+          participantIdentityMatch,
+          eq(participants.role, "moderator"),
+          isNull(participants.leftAt),
+        ),
+      })
+    : null;
+  const role: RoomRole = isHost
+    ? "host"
+    : existingModerator
+      ? "moderator"
+      : "participant";
+  const canModerate = role === "host" || role === "moderator";
 
-  if (meeting.accessPolicy === "invite" && !isOwner) {
+  // Wait-for-host lobby (API private meetings): guests poll until a host is present.
+  if (meeting.waitForHost && !canModerate) {
+    const hostPresent = await meetingHasActiveHost(meeting.id);
+    if (!hostPresent) {
+      return NextResponse.json({
+        status: "waiting_for_host",
+        meetingId: meeting.id,
+      });
+    }
+    // Host is present — admit without join_requests approval.
+  } else if (meeting.accessPolicy === "invite" && !canModerate) {
     if (body.requestId) {
       const existing = await db.query.joinRequests.findFirst({
         where: and(
@@ -147,13 +199,9 @@ export async function POST(
     }
   }
 
-  const livekitIdentity = session.identityId
-    ? `user_${session.identityId}_${instance}`
-    : `guest_${instance}`;
-
   await db.insert(participants).values({
     meetingId: meeting.id,
-    identityId: session.identityId,
+    identityId: session.identityId ?? null,
     displayName,
     role,
     livekitIdentity,
@@ -215,6 +263,7 @@ export async function POST(
     role,
     identity: livekitIdentity,
     status: "ready",
+    redirectAfterMeet: meeting.redirectAfterMeet ?? null,
     recording: {
       enabled: recordingConfig.enabled,
       engine: recordingConfig.engine,

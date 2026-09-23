@@ -231,6 +231,38 @@ describe("PATCH /api/rooms/[slug]", () => {
     const payload = await res.json();
     expect(payload.room.title).toBe("Novo nome");
   });
+
+  it("updates muteMicOnJoin on an owned room", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-1";
+    roomsFindFirst.mockResolvedValue({
+      id: "r1",
+      slug: "weekly",
+      title: "Weekly",
+      ownerIdentityId: "identity-1",
+      muteMicOnJoin: true,
+    });
+    updateReturning.mockResolvedValue([
+      {
+        id: "r1",
+        slug: "weekly",
+        title: "Weekly",
+        muteMicOnJoin: false,
+      },
+    ]);
+    roomBrandsFindFirst.mockResolvedValue(null);
+
+    const res = await patchRoom(
+      jsonRequest({ muteMicOnJoin: false }, "PATCH"),
+      { params: Promise.resolve({ slug: "weekly" }) },
+    );
+    expect(res.status).toBe(200);
+    const payload = await res.json();
+    expect(payload.room.muteMicOnJoin).toBe(false);
+    expect(brandUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ muteMicOnJoin: false }),
+    );
+  });
 });
 
 describe("DELETE /api/rooms/[slug]", () => {

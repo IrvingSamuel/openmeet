@@ -183,6 +183,7 @@ export function webhookEventsOrDefault(
     summary: events?.summary ?? DEFAULT_WEBHOOK_EVENTS.summary,
     tasks: events?.tasks ?? DEFAULT_WEBHOOK_EVENTS.tasks,
     recording: events?.recording ?? DEFAULT_WEBHOOK_EVENTS.recording,
+    attendance: events?.attendance ?? DEFAULT_WEBHOOK_EVENTS.attendance,
   };
 }
 
@@ -256,7 +257,8 @@ function asEngine(value: string | null | undefined): RecordingEngine {
 }
 
 function asControlMode(value: string | null | undefined): RecordingControlMode {
-  return value === "auto" ? "auto" : "manual";
+  if (value === "auto" || value === "ask") return value;
+  return "manual";
 }
 
 function asStorage(value: string | null | undefined): RecordingStorageBackend {

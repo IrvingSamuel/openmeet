@@ -25,6 +25,7 @@ import type { CopilotChatMessage } from "@/lib/copilot-chat-prompt";
 import { isAgentParticipant } from "@/lib/participants";
 import { useToast } from "@/components/ui/Toast";
 import { useCopilotChat } from "@/hooks/useCopilotChat";
+import { useModerateParticipant } from "@/hooks/useModerateParticipant";
 import type { JoinRequest } from "@/hooks/useJoinRequests";
 
 export type ChatSend = (
@@ -48,6 +49,7 @@ export function SidePanel({
   roomSlug,
   meetingId,
   isHost,
+  canModerate = false,
   copilotDisplayName,
   copilotIdentity,
   overlay = false,
@@ -71,6 +73,7 @@ export function SidePanel({
   roomSlug?: string;
   meetingId?: string;
   isHost?: boolean;
+  canModerate?: boolean;
   copilotDisplayName?: string;
   copilotIdentity?: string;
   /** Below lg: render as full-height overlay so the stage keeps full width. */
@@ -100,9 +103,10 @@ export function SidePanel({
             {titles[panel]}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label={t("close")}
-            className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-white/10 hover:text-ink"
+            className="grid h-8 w-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-white/10 hover:text-ink"
           >
             <svg
               viewBox="0 0 20 20"
@@ -111,6 +115,7 @@ export function SidePanel({
               stroke="currentColor"
               strokeWidth="1.8"
               strokeLinecap="round"
+              aria-hidden
             >
               <path d="M5 5l10 10M15 5L5 15" />
             </svg>
@@ -131,6 +136,7 @@ export function SidePanel({
               roomSlug={roomSlug}
               meetingId={meetingId}
               isHost={isHost}
+              canModerate={canModerate}
               joinRequests={joinRequests}
               joinBusyId={joinBusyId}
               onJoinDecide={onJoinDecide}
@@ -369,10 +375,23 @@ function ChatBubble({ message }: { message: ReceivedChatMessage }) {
   );
 }
 
+type ParticipantRole = "host" | "moderator" | "participant";
+
+function roleFromMetadata(metadata: string | undefined): ParticipantRole {
+  try {
+    const role = (JSON.parse(metadata || "{}") as { role?: unknown }).role;
+    if (role === "host" || role === "moderator") return role;
+  } catch {
+    // Ignore metadata owned by integrations that is not JSON.
+  }
+  return "participant";
+}
+
 function PeoplePanel({
   roomSlug,
   meetingId,
   isHost,
+  canModerate,
   joinRequests,
   joinBusyId,
   onJoinDecide,
@@ -381,6 +400,7 @@ function PeoplePanel({
   roomSlug?: string;
   meetingId?: string;
   isHost?: boolean;
+  canModerate?: boolean;
   joinRequests?: JoinRequest[];
   joinBusyId?: string | null;
   onJoinDecide?: (
@@ -393,45 +413,51 @@ function PeoplePanel({
   const toast = useToast();
   const t = useTranslations("room.sidePanel");
   const tLabels = useTranslations("common.labels");
-  const tToast = useTranslations("common.toast");
   const tErrors = useTranslations("common.errors");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const { moderate, busyIdentity: busyId } = useModerateParticipant({
+    roomSlug,
+    meetingId,
+    enabled: Boolean(canModerate && roomSlug),
+  });
+  const [busyRoleId, setBusyRoleId] = useState<string | null>(null);
   const humans = participants.filter((p) => !isAgentParticipant(p));
 
-  async function moderate(
+  async function changeRole(
     identity: string,
-    action: "mute" | "camera_off" | "remove",
+    role: "moderator" | "participant",
   ) {
     if (!roomSlug || !isHost) return;
-    if (action === "remove") {
-      const ok = window.confirm(t("removeConfirm"));
-      if (!ok) return;
-    }
-    setBusyId(`${identity}:${action}`);
+    setBusyRoleId(`${identity}:role`);
     try {
-      const res = await fetch(`/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/moderate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, identity, meetingId }),
-      });
+      const res = await fetch(
+        `/api/meetings/by-slug/${encodeURIComponent(roomSlug)}/participants/role`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identity, role }),
+        },
+      );
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        toast.error(json.error || t("moderateFailed"));
+        toast.error(json.error || t("roleChangeFailed"));
         return;
       }
-      if (action === "mute") toast.push(tToast("micMuted"));
-      if (action === "camera_off") toast.push(tToast("cameraOff"));
-      if (action === "remove") toast.push(tToast("participantRemoved"));
+      toast.push(
+        role === "moderator"
+          ? t("moderatorGranted")
+          : t("moderatorRemoved"),
+      );
     } catch {
       toast.error(tErrors("networkModerate"));
     } finally {
-      setBusyId(null);
+      setBusyRoleId(null);
     }
   }
 
+  const actionBusy = busyId || busyRoleId;
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      {isHost && roomSlug && onJoinDecide ? (
+      {canModerate && roomSlug && onJoinDecide ? (
         <WaitingQueue
           requests={joinRequests ?? []}
           busyId={joinBusyId ?? null}
@@ -443,7 +469,16 @@ function PeoplePanel({
           {humans.map((p) => {
             const name = p.name || p.identity;
             const hue = hueFromString(p.identity);
-            const canModerate = Boolean(isHost && !p.isLocal && roomSlug);
+            const participantRole = roleFromMetadata(p.metadata);
+            const canModerateParticipant = Boolean(
+              canModerate && !p.isLocal && roomSlug,
+            );
+            const canChangeRole = Boolean(
+              isHost &&
+                !p.isLocal &&
+                roomSlug &&
+                participantRole !== "host",
+            );
             const handRaised = raisedIdentities.has(p.identity);
             return (
               <motion.li
@@ -473,9 +508,12 @@ function PeoplePanel({
                       />
                     ) : null}
                     {p.isLocal ? ` ${tLabels("youParen")}` : ""}
-                    {p.isLocal && isHost ? (
+                    {participantRole === "host" ||
+                    participantRole === "moderator" ? (
                       <span className="ml-1.5 text-[10px] uppercase tracking-wide text-brand-secondary">
-                        {tLabels("host")}
+                        {participantRole === "host"
+                          ? tLabels("host")
+                          : tLabels("moderator")}
                       </span>
                     ) : null}
                   </span>
@@ -488,13 +526,32 @@ function PeoplePanel({
                       ? ` · ${tLabels("screenShare")}`
                       : ""}
                   </span>
+                  {canChangeRole ? (
+                    <button
+                      type="button"
+                      disabled={actionBusy?.startsWith(p.identity)}
+                      onClick={() =>
+                        void changeRole(
+                          p.identity,
+                          participantRole === "moderator"
+                            ? "participant"
+                            : "moderator",
+                        )
+                      }
+                      className="mt-1 block text-left text-[11px] font-medium text-brand-secondary hover:underline disabled:opacity-40"
+                    >
+                      {participantRole === "moderator"
+                        ? t("removeModerator")
+                        : t("makeModerator")}
+                    </button>
+                  ) : null}
                 </span>
-                {canModerate ? (
+                {canModerateParticipant ? (
                   <span className="flex shrink-0 gap-1">
                     <button
                       type="button"
                       title={t("muteAction")}
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() => void moderate(p.identity, "mute")}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-40"
                     >
@@ -503,7 +560,7 @@ function PeoplePanel({
                     <button
                       type="button"
                       title={t("cameraOffAction")}
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() => void moderate(p.identity, "camera_off")}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink-muted transition-colors hover:bg-white/[0.06] hover:text-ink disabled:opacity-40"
                     >
@@ -512,7 +569,7 @@ function PeoplePanel({
                     <button
                       type="button"
                       title={t("removeAction")}
-                      disabled={busyId?.startsWith(p.identity)}
+                      disabled={actionBusy?.startsWith(p.identity)}
                       onClick={() => void moderate(p.identity, "remove")}
                       className="grid h-8 w-8 place-items-center rounded-lg border border-rose-400/30 text-rose-300 transition-colors hover:bg-rose-500/15 disabled:opacity-40"
                     >

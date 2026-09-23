@@ -10,6 +10,7 @@ const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   boardId: z.string().nullable().optional(),
   accessPolicy: z.enum(["public", "members", "invite"]).optional(),
+  muteMicOnJoin: z.boolean().optional(),
 });
 
 export async function GET(
@@ -45,7 +46,8 @@ export async function PATCH(
   if (
     body.title === undefined &&
     body.boardId === undefined &&
-    body.accessPolicy === undefined
+    body.accessPolicy === undefined &&
+    body.muteMicOnJoin === undefined
   ) {
     return NextResponse.json({ error: "nothing_to_update" }, { status: 400 });
   }
@@ -54,12 +56,14 @@ export async function PATCH(
     title?: string;
     boardId?: string | null;
     accessPolicy?: string;
+    muteMicOnJoin?: boolean;
     updatedAt: Date;
   } = { updatedAt: new Date() };
 
   if (body.title !== undefined) patch.title = body.title.trim();
   if (body.boardId !== undefined) patch.boardId = body.boardId;
   if (body.accessPolicy !== undefined) patch.accessPolicy = body.accessPolicy;
+  if (body.muteMicOnJoin !== undefined) patch.muteMicOnJoin = body.muteMicOnJoin;
 
   const [updated] = await db
     .update(rooms)

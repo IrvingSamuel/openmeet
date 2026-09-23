@@ -4,11 +4,14 @@ import {
   actionItems,
   chatMessages,
   copilotChatMessages,
+  DEFAULT_WEBHOOK_EVENTS,
   meetingSummaries,
   meetings,
+  participants,
   transcriptSegments,
   type WebhookEventsConfig,
 } from "@/db/schema";
+import { buildAttendanceList } from "@/lib/attendance";
 import {
   getAppSettings,
   webhookEventsOrDefault,
@@ -20,6 +23,7 @@ import {
   type WebhookMeetingMeta,
 } from "@/lib/webhook-payloads";
 import { buildWebhookHeaders } from "@/lib/webhook-sign";
+import { isDeliverableWebhookUrl } from "@/lib/webhook-url";
 
 export type { OutboundWebhookEvent, WebhookEnvelope, WebhookMeetingMeta };
 export { exampleWebhookPayload } from "@/lib/webhook-payloads";
@@ -34,6 +38,7 @@ const EVENT_TOGGLE: Record<
   "summary.ready": "summary",
   "tasks.generated": "tasks",
   "recording.ready": "recording",
+  "attendance.ready": "attendance",
 };
 
 async function loadMeetingMeta(
@@ -174,6 +179,32 @@ async function buildTasksPayload(
   };
 }
 
+async function buildAttendancePayload(
+  meetingId: string,
+  meta: WebhookMeetingMeta,
+): Promise<WebhookEnvelope> {
+  const [meeting, rows] = await Promise.all([
+    db.query.meetings.findFirst({
+      where: eq(meetings.id, meetingId),
+    }),
+    db.query.participants.findMany({
+      where: eq(participants.meetingId, meetingId),
+      orderBy: [asc(participants.joinedAt)],
+    }),
+  ]);
+  const payload = buildAttendanceList(rows, {
+    startedAt: meeting?.startedAt ?? new Date(meta.startedAt),
+    endedAt: meeting?.endedAt ?? (meta.endedAt ? new Date(meta.endedAt) : null),
+  });
+  return {
+    event: "attendance.ready",
+    version: 1,
+    sentAt: new Date().toISOString(),
+    meeting: meta,
+    data: payload,
+  };
+}
+
 async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms));
 }
@@ -221,71 +252,131 @@ export async function deliverWebhook(opts: {
   return { ok: false, error: lastError };
 }
 
-async function getDeliveryConfig(): Promise<{
+export type WebhookDeliveryTarget = {
   url: string;
   secret: string | null;
   events: WebhookEventsConfig;
-} | null> {
-  const settings = await getAppSettings();
-  if (!settings?.webhookEnabled) return null;
-  const url = settings.webhookUrl?.trim();
-  if (!url) return null;
+};
+
+function normalizeWebhookUrl(url: string): string {
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      return null;
-    }
+    return new URL(url).toString();
   } catch {
-    return null;
+    return url.trim();
   }
-  return {
-    url,
-    secret: settings.webhookSecret?.trim() || null,
-    events: webhookEventsOrDefault(settings.webhookEvents),
-  };
 }
 
-async function deliverIfEnabled(
+/** Resolve per-meeting URL plus (if distinct) the global admin webhook. */
+export async function resolveDeliveryTargets(
+  meetingId: string,
+): Promise<WebhookDeliveryTarget[]> {
+  const [meeting, settings] = await Promise.all([
+    db.query.meetings.findFirst({
+      where: eq(meetings.id, meetingId),
+    }),
+    getAppSettings(),
+  ]);
+  if (!meeting) return [];
+
+  const secret = settings?.webhookSecret?.trim() || null;
+  const targets: WebhookDeliveryTarget[] = [];
+  const seen = new Set<string>();
+
+  const meetingUrl = meeting.webhookUrl?.trim();
+  if (meetingUrl && isDeliverableWebhookUrl(meetingUrl)) {
+    targets.push({
+      url: meetingUrl,
+      secret,
+      events: DEFAULT_WEBHOOK_EVENTS,
+    });
+    seen.add(normalizeWebhookUrl(meetingUrl));
+  }
+
+  if (settings?.webhookEnabled) {
+    const globalUrl = settings.webhookUrl?.trim();
+    if (
+      globalUrl &&
+      isDeliverableWebhookUrl(globalUrl) &&
+      !seen.has(normalizeWebhookUrl(globalUrl))
+    ) {
+      targets.push({
+        url: globalUrl,
+        secret,
+        events: webhookEventsOrDefault(settings.webhookEvents),
+      });
+    }
+  }
+
+  return targets;
+}
+
+async function deliverToTargets(
   event: OutboundWebhookEvent,
   envelope: WebhookEnvelope | null,
+  targets: WebhookDeliveryTarget[],
 ) {
-  if (!envelope) return;
-  const config = await getDeliveryConfig();
-  if (!config) return;
+  if (!envelope || targets.length === 0) return;
   const toggle = EVENT_TOGGLE[event];
-  if (!config.events[toggle]) return;
-  const result = await deliverWebhook({
-    url: config.url,
-    secret: config.secret,
-    envelope,
-  });
-  if (!result.ok) {
-    console.error(
-      `[openmeet] webhook ${event} delivery failed:`,
-      result.error,
-    );
-  }
+  await Promise.all(
+    targets.map(async (target) => {
+      if (!target.events[toggle]) return;
+      const result = await deliverWebhook({
+        url: target.url,
+        secret: target.secret,
+        envelope,
+      });
+      if (!result.ok) {
+        console.error(
+          `[openmeet] webhook ${event} delivery failed:`,
+          result.error,
+        );
+      }
+    }),
+  );
 }
 
-/** Fire transcript + chat webhooks after a meeting ends. */
+function anyTargetWants(
+  targets: WebhookDeliveryTarget[],
+  key: keyof WebhookEventsConfig,
+): boolean {
+  return targets.some((t) => t.events[key]);
+}
+
+/** Fire a pre-built envelope (e.g. recording.ready) to all meeting destinations. */
+export async function dispatchPreparedWebhook(
+  meetingId: string,
+  envelope: WebhookEnvelope,
+) {
+  const targets = await resolveDeliveryTargets(meetingId);
+  await deliverToTargets(envelope.event, envelope, targets);
+}
+
+/** Fire transcript + chat + attendance webhooks after a meeting ends. */
 export async function dispatchMeetingEndedWebhooks(meetingId: string) {
   const meta = await loadMeetingMeta(meetingId);
   if (!meta) return;
-  const config = await getDeliveryConfig();
-  if (!config) return;
+  const targets = await resolveDeliveryTargets(meetingId);
+  if (targets.length === 0) return;
 
   const jobs: Promise<void>[] = [];
-  if (config.events.transcript) {
+  if (anyTargetWants(targets, "transcript")) {
     jobs.push(
       buildTranscriptPayload(meetingId, meta).then((envelope) =>
-        deliverIfEnabled("transcript.ready", envelope),
+        deliverToTargets("transcript.ready", envelope, targets),
       ),
     );
   }
-  if (config.events.chat) {
+  if (anyTargetWants(targets, "chat")) {
     jobs.push(
       buildChatPayload(meetingId, meta).then((envelope) =>
-        deliverIfEnabled("chat.ready", envelope),
+        deliverToTargets("chat.ready", envelope, targets),
+      ),
+    );
+  }
+  if (anyTargetWants(targets, "attendance")) {
+    jobs.push(
+      buildAttendancePayload(meetingId, meta).then((envelope) =>
+        deliverToTargets("attendance.ready", envelope, targets),
       ),
     );
   }
@@ -296,21 +387,21 @@ export async function dispatchMeetingEndedWebhooks(meetingId: string) {
 export async function dispatchSummaryReadyWebhooks(meetingId: string) {
   const meta = await loadMeetingMeta(meetingId);
   if (!meta) return;
-  const config = await getDeliveryConfig();
-  if (!config) return;
+  const targets = await resolveDeliveryTargets(meetingId);
+  if (targets.length === 0) return;
 
   const jobs: Promise<void>[] = [];
-  if (config.events.summary) {
+  if (anyTargetWants(targets, "summary")) {
     jobs.push(
       buildSummaryPayload(meetingId, meta).then((envelope) =>
-        deliverIfEnabled("summary.ready", envelope),
+        deliverToTargets("summary.ready", envelope, targets),
       ),
     );
   }
-  if (config.events.tasks) {
+  if (anyTargetWants(targets, "tasks")) {
     jobs.push(
       buildTasksPayload(meetingId, meta).then((envelope) =>
-        deliverIfEnabled("tasks.generated", envelope),
+        deliverToTargets("tasks.generated", envelope, targets),
       ),
     );
   }

@@ -39,7 +39,7 @@ import { Badge } from "@/components/ui/Surface";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { LogoMark } from "@/components/layout/Logo";
-import { IconCopy, IconCheck } from "@/components/ui/icons";
+import { IconCopy, IconCheck, IconUsers } from "@/components/ui/icons";
 import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 import { isAgentParticipant } from "@/lib/participants";
 import { useIsLgUp } from "@/hooks/useMediaQuery";
@@ -54,10 +54,26 @@ import { useJoinRequests } from "@/hooks/useJoinRequests";
 import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
 import { useRoomVisibility } from "@/hooks/useRoomVisibility";
+import {
+  type TabReturnMediaPolicy,
+} from "@/lib/tab-return-media";
+import {
+  resolveCaptionsDefault,
+  resolveTabReturnPrefs,
+  type PlatformMeetingPrefs,
+} from "@/lib/meeting-prefs";
+import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
+import {
+  audioOptionsFromPrefs,
+  useMeetingEffects,
+  videoOptionsForEffect,
+} from "@/hooks/useMeetingEffects";
+import { useMediaPrefs } from "@/hooks/useMediaPrefs";
+import { detectPerformanceProfile } from "@/lib/device-capability";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
-type RoomRole = "host" | "participant" | "agent";
+type RoomRole = "host" | "moderator" | "participant" | "agent";
 
 const ROOM_OPTIONS: RoomOptions = {
   adaptiveStream: { pauseVideoInBackground: true },
@@ -91,6 +107,8 @@ export function MeetingRoom({
   meetingId,
   role = "participant",
   recordingConfig = null,
+  redirectAfterMeet = null,
+  externalInviteUrl = null,
   onLeave,
   onEndForAll,
   initialVideo = false,
@@ -110,6 +128,8 @@ export function MeetingRoom({
   meetingId?: string;
   role?: RoomRole;
   recordingConfig?: RecordingClientConfig | null;
+  redirectAfterMeet?: string | null;
+  externalInviteUrl?: string | null;
   onLeave?: () => void;
   onEndForAll?: () => void | Promise<void>;
   initialVideo?: boolean;
@@ -155,6 +175,8 @@ export function MeetingRoom({
     };
   }, [room]);
 
+  // Initial LiveKitRoom video opts — effects-aware caps applied after
+  // media prefs hydrate via useMeetingEffects / ensure-media.
   const video = useMemo<boolean | VideoCaptureOptions>(() => {
     if (!initialVideo) return false;
     return videoDeviceId ? { deviceId: videoDeviceId } : true;
@@ -198,8 +220,8 @@ export function MeetingRoom({
     }
 
     try {
-      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
       setConnect(true);
+      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
       return true;
     } catch (err) {
       console.error("[openmeet] reconnect failed", err);
@@ -214,6 +236,8 @@ export function MeetingRoom({
     const run = async (attempt: number) => {
       const roomState = () => room.state;
       if (attempt > MAX_AUTO_RECONNECT) {
+        // Stop LiveKitRoom connect-loop so DisconnectRecovery owns the UX.
+        setConnect(false);
         setAutoReconnectBusy(false);
         return;
       }
@@ -339,7 +363,12 @@ export function MeetingRoom({
   const handleReconnect = useCallback(() => {
     autoReconnectAttempts.current = 0;
     setAutoReconnectBusy(true);
-    void performReconnect().finally(() => setAutoReconnectBusy(false));
+    void performReconnect()
+      .then((ok) => {
+        // Keep connect=false so DisconnectRecovery stays in control after a failed manual retry.
+        if (!ok) setConnect(false);
+      })
+      .finally(() => setAutoReconnectBusy(false));
   }, [performReconnect]);
 
   return (
@@ -371,8 +400,10 @@ export function MeetingRoom({
           roomSlug={roomSlug}
           logoUrl={logoUrl}
           meetingId={meetingId}
-          isHost={role === "host"}
+          initialRole={role}
           recordingConfig={recordingConfig}
+          redirectAfterMeet={redirectAfterMeet}
+          externalInviteUrl={externalInviteUrl}
           forcedExit={forcedExit}
           onLeave={requestLeave}
           onEndForAll={requestEndForAll}
@@ -403,8 +434,10 @@ function RoomShell({
   roomSlug,
   logoUrl,
   meetingId,
-  isHost,
+  initialRole,
   recordingConfig,
+  redirectAfterMeet,
+  externalInviteUrl,
   forcedExit,
   onLeave,
   onEndForAll,
@@ -421,8 +454,10 @@ function RoomShell({
   roomSlug: string;
   logoUrl?: string | null;
   meetingId?: string;
-  isHost: boolean;
+  initialRole: RoomRole;
   recordingConfig: RecordingClientConfig | null;
+  redirectAfterMeet?: string | null;
+  externalInviteUrl?: string | null;
   forcedExit: "ended" | "removed" | null;
   onLeave: () => void;
   onEndForAll: () => void | Promise<void>;
@@ -443,6 +478,14 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  const isHost = initialRole === "host";
+  const [localRole, setLocalRole] = useState<RoomRole>(initialRole);
+  const canModerate = localRole === "host" || localRole === "moderator";
+  const mediaPrefsApi = useMediaPrefs();
+  useMeetingEffects(
+    room,
+    mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+  );
   // Cleared on tab-return so reconnect backup does not re-open mic/cam.
   const [mediaWanted, setMediaWanted] = useState({
     video: wantVideo,
@@ -451,15 +494,63 @@ function RoomShell({
   const recorder = useMeetingRecorder({
     room,
     meetingId,
-    isHost,
+    isHost: canModerate,
     config: recordingConfig,
   });
+  const declineAsk = recorder.declineAsk;
+  const [recordingHint, setRecordingHint] = useState(false);
+  const recordingHintTimerRef = useRef<number | null>(null);
+
+  const declineRecordingAsk = useCallback(() => {
+    declineAsk();
+    setRecordingHint(true);
+    if (recordingHintTimerRef.current) {
+      window.clearTimeout(recordingHintTimerRef.current);
+    }
+    recordingHintTimerRef.current = window.setTimeout(() => {
+      setRecordingHint(false);
+      recordingHintTimerRef.current = null;
+    }, 5000);
+  }, [declineAsk]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingHintTimerRef.current) {
+        window.clearTimeout(recordingHintTimerRef.current);
+      }
+    };
+  }, []);
 
   const {
     requests: joinRequests,
     busyId: joinBusyId,
     decide: decideJoin,
-  } = useJoinRequests(roomSlug, isHost);
+  } = useJoinRequests(roomSlug, canModerate);
+
+  useEffect(() => {
+    const localParticipant = room.localParticipant;
+    const syncRole = () => {
+      try {
+        const metadata = JSON.parse(localParticipant.metadata || "{}") as {
+          role?: unknown;
+        };
+        if (
+          metadata.role === "host" ||
+          metadata.role === "moderator" ||
+          metadata.role === "participant"
+        ) {
+          setLocalRole(metadata.role);
+        }
+      } catch {
+        // Ignore unrelated or malformed participant metadata.
+      }
+    };
+    syncRole();
+    localParticipant.on(ParticipantEvent.ParticipantMetadataChanged, syncRole);
+    return () => {
+      localParticipant.off(ParticipantEvent.ParticipantMetadataChanged, syncRole);
+    };
+  }, [room]);
 
   const { raisedIdentities, localHandRaised, toggleHand } = useHandRaise(room);
 
@@ -534,7 +625,36 @@ function RoomShell({
     prevHasScreenShare.current = hasScreenShare;
   }, [hasScreenShare]);
 
-  const [captionsOn, setCaptionsOn] = useState(true);
+  const [platformMeetingPrefs, setPlatformMeetingPrefs] =
+    useState<PlatformMeetingPrefs | null>(null);
+  const [roomPrefsReady, setRoomPrefsReady] = useState(false);
+  const resolvedCaptionsDefault = useMemo(
+    () =>
+      resolveCaptionsDefault({
+        user: mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        platform: platformMeetingPrefs,
+      }),
+    [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
+  );
+  const [captionsOn, setCaptionsOn] = useState(() =>
+    resolveCaptionsDefault({}),
+  );
+  const captionsDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (
+      captionsDefaultApplied.current ||
+      !roomPrefsReady ||
+      !mediaPrefsApi.ready
+    ) {
+      return;
+    }
+    captionsDefaultApplied.current = true;
+    setCaptionsOn(resolvedCaptionsDefault);
+  }, [mediaPrefsApi.ready, resolvedCaptionsDefault, roomPrefsReady]);
+  const toggleCaptions = useCallback(() => {
+    captionsDefaultApplied.current = true;
+    setCaptionsOn((value) => !value);
+  }, []);
   const [copied, setCopied] = useState(false);
   const [readChat, setReadChat] = useState(0);
   const hasConnectedOnce = useRef(false);
@@ -596,7 +716,7 @@ function RoomShell({
 
   // Join request chime always; toast when People panel is closed
   useEffect(() => {
-    if (!isHost) return;
+    if (!canModerate) return;
     const isInitial = !joinAlertsReady.current;
     joinAlertsReady.current = true;
 
@@ -616,7 +736,7 @@ function RoomShell({
     } else {
       toast.push(tToast("joinRequestMany", { count: toNotify.length }));
     }
-  }, [joinRequests, panel, isHost, toast, tToast]);
+  }, [joinRequests, panel, canModerate, toast, tToast]);
 
   const pendingLeaveAlerts = useRef<Map<string, number>>(new Map());
 
@@ -712,8 +832,20 @@ function RoomShell({
     if (leavingRef.current) return;
     const gen = ++mediaEnsureGen.current;
     const lp = room.localParticipant;
-    const videoOpts = videoDeviceId ? { deviceId: videoDeviceId } : undefined;
-    const audioOpts = audioDeviceId ? { deviceId: audioDeviceId } : undefined;
+    const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+    const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
+    const effect = mediaPrefsApi.ready
+      ? mediaPrefsApi.prefs.videoEffect
+      : undefined;
+    const videoOpts = videoOptionsForEffect(
+      effect,
+      videoId,
+      detectPerformanceProfile(),
+    );
+    const audioOpts = audioOptionsFromPrefs(
+      mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+      audioId,
+    );
 
     void (async () => {
       try {
@@ -744,6 +876,11 @@ function RoomShell({
     videoDeviceId,
     audioDeviceId,
     leavingRef,
+    mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.videoEffect,
+    mediaPrefsApi.prefs.noiseSuppression,
+    mediaPrefsApi.prefs.echoCancellation,
+    mediaPrefsApi.prefs.autoGainControl,
   ]);
 
   const muteLocalMediaForPrivacy = useCallback(() => {
@@ -762,6 +899,147 @@ function RoomShell({
       }
     })();
   }, [room, leavingRef]);
+
+  const tabReturnPrefs = useMemo(
+    () =>
+      resolveTabReturnPrefs({
+        user: mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        platform: platformMeetingPrefs,
+      }),
+    [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
+  );
+  const tabMediaSnapshot = useRef<{ audio: boolean; video: boolean } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/system/room-prefs", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (data: PlatformMeetingPrefs | null) => {
+          if (cancelled) return;
+          if (data) setPlatformMeetingPrefs(data);
+        },
+      )
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setRoomPrefsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applyDevicePolicy = useCallback(
+    async (
+      policy: TabReturnMediaPolicy,
+      kind: "audio" | "video",
+      snapOn: boolean,
+    ) => {
+      const lp = room.localParticipant;
+      const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+      const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
+      const effect = mediaPrefsApi.ready
+        ? mediaPrefsApi.prefs.videoEffect
+        : undefined;
+      const videoOpts = videoOptionsForEffect(
+        effect,
+        videoId,
+        detectPerformanceProfile(),
+      );
+      const audioOpts = audioOptionsFromPrefs(
+        mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        audioId,
+      );
+      let want = false;
+      if (policy === "open") want = true;
+      else if (policy === "restore") want = snapOn;
+      else want = false;
+
+      if (kind === "audio") {
+        await lp.setMicrophoneEnabled(want, audioOpts);
+      } else {
+        await lp.setCameraEnabled(want, videoOpts);
+      }
+      return want;
+    },
+    [
+      room,
+      videoDeviceId,
+      audioDeviceId,
+      mediaPrefsApi.ready,
+      mediaPrefsApi.prefs.videoEffect,
+      mediaPrefsApi.prefs.noiseSuppression,
+      mediaPrefsApi.prefs.echoCancellation,
+      mediaPrefsApi.prefs.autoGainControl,
+    ],
+  );
+
+  const onTabHidden = useCallback(() => {
+    if (leavingRef.current) return;
+    if (!tabReturnPrefs.enabled) return;
+    const lp = room.localParticipant;
+    tabMediaSnapshot.current = {
+      audio: lp.isMicrophoneEnabled,
+      video: lp.isCameraEnabled,
+    };
+    muteLocalMediaForPrivacy();
+  }, [room, leavingRef, muteLocalMediaForPrivacy, tabReturnPrefs.enabled]);
+
+  const onTabVisible = useCallback(() => {
+    if (leavingRef.current) return;
+    if (!tabReturnPrefs.enabled) return;
+    const snap = tabMediaSnapshot.current ?? {
+      audio: wantAudio,
+      video: wantVideo,
+    };
+    mediaEnsureGen.current += 1;
+    const gen = mediaEnsureGen.current;
+
+    void (async () => {
+      try {
+        const audioWant = await applyDevicePolicy(
+          tabReturnPrefs.mic,
+          "audio",
+          snap.audio,
+        );
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        const videoWant = await applyDevicePolicy(
+          tabReturnPrefs.camera,
+          "video",
+          snap.video,
+        );
+        if (leavingRef.current || gen !== mediaEnsureGen.current) return;
+        setMediaWanted({ audio: audioWant, video: videoWant });
+
+        const bothClosed =
+          tabReturnPrefs.mic === "closed" && tabReturnPrefs.camera === "closed";
+        const bothOpen =
+          tabReturnPrefs.mic === "open" && tabReturnPrefs.camera === "open";
+        const bothRestore =
+          tabReturnPrefs.mic === "restore" &&
+          tabReturnPrefs.camera === "restore";
+        if (bothClosed) toast.push(t("backToMeetingClosed"));
+        else if (bothOpen) toast.push(t("backToMeetingOpened"));
+        else if (bothRestore) toast.push(t("backToMeetingRestored"));
+        else toast.push(t("backToMeeting"));
+      } catch (err) {
+        console.error("[openmeet] tab-return media policy failed", err);
+        toast.push(t("backToMeeting"));
+      }
+    })();
+  }, [
+    leavingRef,
+    wantAudio,
+    wantVideo,
+    applyDevicePolicy,
+    tabReturnPrefs.enabled,
+    tabReturnPrefs.mic,
+    tabReturnPrefs.camera,
+    toast,
+    t,
+  ]);
 
   // Keep reconnect backup in sync with in-call toggles after a privacy mute.
   useEffect(() => {
@@ -784,10 +1062,7 @@ function RoomShell({
     };
   }, [room]);
 
-  useRoomVisibility(room, () => {
-    muteLocalMediaForPrivacy();
-    toast.push(t("backToMeeting"));
-  });
+  useRoomVisibility(room, onTabVisible, onTabHidden);
 
   useEffect(() => {
     if (state === ConnectionState.Connected) hasConnectedOnce.current = true;
@@ -816,9 +1091,20 @@ function RoomShell({
         );
       } else if (key === "v") {
         e.preventDefault();
-        room.localParticipant.setCameraEnabled(
-          !room.localParticipant.isCameraEnabled,
-        );
+        const lp = room.localParticipant;
+        const turningOn = !lp.isCameraEnabled;
+        if (turningOn) {
+          const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+          const effect = mediaPrefsApi.ready
+            ? mediaPrefsApi.prefs.videoEffect
+            : undefined;
+          void lp.setCameraEnabled(
+            true,
+            videoOptionsForEffect(effect, videoId, detectPerformanceProfile()),
+          );
+        } else {
+          void lp.setCameraEnabled(false);
+        }
       } else if (key === "g") {
         setLayout((l) => (l === "grid" ? "spotlight" : "grid"));
       } else if (key === "c") {
@@ -827,11 +1113,16 @@ function RoomShell({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [room]);
+  }, [
+    room,
+    videoDeviceId,
+    mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.videoEffect,
+  ]);
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(externalInviteUrl || window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -851,6 +1142,7 @@ function RoomShell({
         kind={forcedExit}
         roomSlug={roomSlug}
         meetingId={meetingId}
+        redirectAfterMeet={redirectAfterMeet}
         onLeave={onConfirmLeave}
       />
       <DisconnectRecovery
@@ -874,9 +1166,9 @@ function RoomShell({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium tracking-tight text-ink">
               {roomTitle || room.name}
-              {isHost ? (
+              {canModerate ? (
                 <span className="ml-2 hidden text-[11px] font-normal text-ink-faint sm:inline">
-                  · {tLabels("host")}
+                  · {localRole === "host" ? tLabels("host") : tLabels("moderator")}
                 </span>
               ) : null}
             </p>
@@ -895,6 +1187,31 @@ function RoomShell({
             </span>
           ) : null}
           <ConnectionBadge state={state} count={humans.length} />
+          <button
+            type="button"
+            onClick={() =>
+              setPanel((p) => (p === "people" ? "none" : "people"))
+            }
+            aria-label={t("controlBar.people")}
+            aria-pressed={panel === "people"}
+            className={cn(
+              "relative grid h-9 w-9 place-items-center rounded-xl border transition-colors",
+              panel === "people"
+                ? "border-brand-primary/60 bg-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] text-ink"
+                : "border-line bg-white/[0.05] text-ink-muted hover:text-ink",
+            )}
+          >
+            <IconUsers className="h-4 w-4" />
+            {joinRequests.length > 0 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-[16px] place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                {joinRequests.length}
+              </span>
+            ) : humans.length > 1 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-[16px] place-items-center rounded-full bg-brand-primary px-1 text-[9px] font-semibold text-white">
+                {humans.length}
+              </span>
+            ) : null}
+          </button>
           <button
             onClick={copyLink}
             aria-label={t("copyMeetingLink")}
@@ -926,9 +1243,19 @@ function RoomShell({
             pinnedKey={pinnedKey}
             onPin={handlePin}
             raisedIdentities={raisedIdentities}
+            canModerate={canModerate}
+            roomSlug={roomSlug}
+            meetingId={meetingId}
           />
           <ReactionBurstOverlay bursts={reactionBursts} />
-          <CaptionsOverlay captions={captions} visible={captionsOn} />
+          {/* Hide overlay while disconnected — avoids render work on stale tracks/captions during reconnect. */}
+          {captionsOn && state === ConnectionState.Connected ? (
+            <CaptionsOverlay
+              captions={captions}
+              visible
+              onHide={() => setCaptionsOn(false)}
+            />
+          ) : null}
           {!isLgUp ? (
             <SidePanel
               panel={panel}
@@ -936,6 +1263,7 @@ function RoomShell({
               roomSlug={roomSlug}
               meetingId={meetingId}
               isHost={isHost}
+              canModerate={canModerate}
               captions={captions}
               insights={insights}
               insightsLoading={insightsLoading}
@@ -965,6 +1293,7 @@ function RoomShell({
             roomSlug={roomSlug}
             meetingId={meetingId}
             isHost={isHost}
+            canModerate={canModerate}
             captions={captions}
             insights={insights}
             insightsLoading={insightsLoading}
@@ -997,7 +1326,7 @@ function RoomShell({
             panel={panel}
             onPanelChange={setPanel}
             captionsOn={captionsOn}
-            onCaptionsToggle={() => setCaptionsOn((v) => !v)}
+            onCaptionsToggle={toggleCaptions}
             unreadChat={unread}
             peopleCount={humans.length}
             pendingJoinRequests={joinRequests.length}
@@ -1006,6 +1335,8 @@ function RoomShell({
             recordingActive={recorder.active}
             recordingBusy={recorder.busy}
             canToggleRecording={recorder.canToggle}
+            highlightRecording={recordingHint}
+            recordingHint={recordingHint ? t("recordingHint") : undefined}
             onToggleRecording={() => {
               if (recorder.active) void recorder.stop();
               else void recorder.start();
@@ -1015,11 +1346,53 @@ function RoomShell({
             handRaised={localHandRaised}
             onToggleHand={toggleHand}
             onSendReaction={sendReaction}
+            mediaPrefs={mediaPrefsApi.prefs}
+            mediaPrefsReady={mediaPrefsApi.ready}
+            mediaPrefsAccountBound={mediaPrefsApi.accountBound}
+            mediaPrefsSaving={mediaPrefsApi.saving}
+            resolvedCaptionsDefault={resolvedCaptionsDefault}
+            onMediaPrefsChange={mediaPrefsApi.updatePrefs}
+            onUploadVirtualBackground={mediaPrefsApi.uploadVirtualBackground}
+            showPeopleInBar={false}
           />
         </div>
       </div>
 
       <AnimatePresence>
+        {recorder.needsAskPrompt ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[55] grid place-items-center bg-[var(--brand-bg)]/92 px-6 backdrop-blur-xl"
+          >
+            <div className="w-full max-w-md rounded-3xl glass-strong p-8 text-center shadow-lift">
+              <h2 className="text-xl font-semibold tracking-tight">
+                {t("recordingAskTitle")}
+              </h2>
+              <p className="mt-2 text-sm text-ink-muted">
+                {t("recordingAskBody")}
+              </p>
+              <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button
+                  size="lg"
+                  loading={recorder.busy}
+                  onClick={() => recorder.acceptAsk()}
+                >
+                  {t("recordingAskYes")}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  disabled={recorder.busy}
+                  onClick={declineRecordingAsk}
+                >
+                  {t("recordingAskNotNow")}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
         {recorder.needsScreenCaptureConfirm ? (
           <motion.div
             initial={{ opacity: 0 }}
@@ -1145,20 +1518,30 @@ function ForcedExitOverlay({
   kind,
   roomSlug,
   meetingId,
+  redirectAfterMeet,
   onLeave,
 }: {
   kind: "ended" | "removed" | null;
   roomSlug: string;
   meetingId?: string;
+  redirectAfterMeet?: string | null;
   onLeave: () => void;
 }) {
   const t = useTranslations("room.forcedExit");
   const tActions = useTranslations("common.actions");
   const router = useRouter();
   const summaryHref =
-    kind === "ended" && meetingId
+    !redirectAfterMeet && kind === "ended" && meetingId
       ? `/m/${roomSlug}/summary?meetingId=${meetingId}`
       : null;
+
+  useEffect(() => {
+    if (!kind || !redirectAfterMeet) return;
+    const timer = window.setTimeout(() => {
+      window.location.assign(redirectAfterMeet);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [kind, redirectAfterMeet]);
 
   return (
     <AnimatePresence>
@@ -1190,7 +1573,13 @@ function ForcedExitOverlay({
               <Button
                 size="lg"
                 variant={summaryHref ? "outline" : undefined}
-                onClick={onLeave}
+                onClick={() => {
+                  if (redirectAfterMeet) {
+                    window.location.assign(redirectAfterMeet);
+                    return;
+                  }
+                  onLeave();
+                }}
               >
                 {tActions("leave")}
               </Button>

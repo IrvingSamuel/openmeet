@@ -44,6 +44,7 @@ export async function POST(
     boardId: room.boardId,
     accessPolicy: body.accessPolicy || (room.accessPolicy as "public" | "members" | "invite"),
     useIdentityBrand: false,
+    webhookUrl: room.webhookUrl ?? null,
   });
 
   return NextResponse.json(
