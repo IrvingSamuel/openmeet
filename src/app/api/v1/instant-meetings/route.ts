@@ -49,6 +49,8 @@ const schema = z.object({
    * access_policy is "invite".
    */
   wait_for_host: z.boolean().optional(),
+  /** When true (default), Lobby starts with mic muted. */
+  mute_mic_on_join: z.boolean().optional(),
 });
 
 function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWithBrand>>) {
@@ -68,6 +70,7 @@ function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWi
     external_invite_url: meeting.externalInviteUrl ?? null,
     webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
+    mute_mic_on_join: meeting.muteMicOnJoin !== false,
   };
 }
 
@@ -160,6 +163,7 @@ export async function POST(req: NextRequest) {
       externalInviteUrl,
       webhookUrl,
       waitForHost,
+      muteMicOnJoin: body.mute_mic_on_join,
       issueHostEntry: true,
     });
 

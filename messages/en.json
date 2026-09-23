@@ -409,6 +409,8 @@
       "titleLabel": "Meeting title",
       "boardIdLabel": "External board / project ID",
       "boardIdHint": "Paste the board ID to inherit logo and palette.",
+      "muteMicOnJoin": "Join with microphone muted",
+      "muteMicOnJoinHint": "Participants start with the mic off in the lobby (they can turn it on before joining).",
       "submit": "Create room",
       "createFailed": "Could not create the room.",
       "networkFailed": "Network error creating the room."

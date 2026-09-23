@@ -46,6 +46,11 @@ export type CreateMeetingInput = {
   waitForHost?: boolean;
   /** Issue a host entry token / host_url (default false — enable for public API). */
   issueHostEntry?: boolean;
+  /**
+   * When true (default), Lobby starts with mic muted. Inherited from the
+   * brand room when omitted and roomId is set.
+   */
+  muteMicOnJoin?: boolean;
 };
 
 export type CreatedMeetingResult = {
@@ -210,6 +215,7 @@ export async function createMeetingWithBrand(
   const slug = (input.slug || nanoid(10)).toLowerCase();
   let boardId = input.boardId ?? null;
   let accessPolicy = input.accessPolicy || "public";
+  let muteMicOnJoin = input.muteMicOnJoin !== false;
   const roomId = input.roomId ?? null;
 
   if (roomId) {
@@ -219,6 +225,9 @@ export async function createMeetingWithBrand(
     if (!room) throw new Error("room_template_not_found");
     if (boardId === null && room.boardId) boardId = room.boardId;
     if (!input.accessPolicy) accessPolicy = room.accessPolicy as typeof accessPolicy;
+    if (input.muteMicOnJoin === undefined) {
+      muteMicOnJoin = room.muteMicOnJoin !== false;
+    }
   }
 
   const brandValues = await resolveBrandValues({
@@ -250,6 +259,7 @@ export async function createMeetingWithBrand(
       externalInviteUrl: input.externalInviteUrl ?? null,
       webhookUrl: input.webhookUrl ?? null,
       waitForHost,
+      muteMicOnJoin,
       hostEntryTokenHash,
     })
     .returning();

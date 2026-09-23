@@ -400,6 +400,8 @@
       "titleLabel": "Título da reunião",
       "boardIdLabel": "ID de quadro / projeto externo",
       "boardIdHint": "Cole o ID do quadro para herdar logo e paleta.",
+      "muteMicOnJoin": "Entrar com microfone silenciado",
+      "muteMicOnJoinHint": "Os participantes iniciam com o microfone desligado no lobby (podem ligá-lo antes de entrar).",
       "submit": "Criar sala",
       "createFailed": "Não foi possível criar a sala.",
       "networkFailed": "Falha de rede ao criar a sala."

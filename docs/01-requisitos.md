@@ -9,6 +9,7 @@
 
 ### RF-02 Salas
 - Criar sala (slug único, título, política de acesso).
+- Preferência `muteMicOnJoin` (default true): Lobby inicia com microfone silenciado; o organizador pode desligar isto nas definições da sala.
 - Entrar em sala existente (host ou participante).
 - Lobby com pré-flight de câmera/microfone.
 - Emitir access token LiveKit com grants por papel.

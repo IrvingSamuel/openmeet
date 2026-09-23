@@ -77,6 +77,24 @@ describe("Lobby", () => {
     expect(stop).not.toHaveBeenCalled();
   });
 
+  it("starts with mic on when defaultAudioEnabled is true", async () => {
+    const onJoin = vi.fn();
+    mockDevices();
+    render(
+      <Lobby title="Sala" defaultAudioEnabled onJoin={onJoin} />,
+    );
+    await userEvent.type(screen.getByLabelText("Seu nome"), "Ana");
+    await userEvent.click(
+      screen.getByRole("button", { name: /entrar na reunião/i }),
+    );
+    expect(onJoin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audioEnabled: true,
+        videoEnabled: false,
+      }),
+    );
+  });
+
   it("restores the preview after a join error when permission was lost", async () => {
     const getUserMedia = mockDevices();
     const { rerender } = render(

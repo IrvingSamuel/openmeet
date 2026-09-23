@@ -30,6 +30,8 @@ export type CreateRoomInput = {
   boardId?: string | null;
   accessPolicy?: "public" | "members" | "invite";
   kind?: RoomKind;
+  /** When true (default), Lobby starts with mic muted. */
+  muteMicOnJoin?: boolean;
   themePreset?: string;
   /** Full UI override (API). When set, wins over identity default / themePreset. */
   ui?: BrandFieldsInput;
@@ -113,6 +115,7 @@ export async function createRoomWithBrand(
   const kind = input.kind || "persistent";
   const accessPolicy =
     input.accessPolicy || (kind === "instant" ? "public" : "members");
+  const muteMicOnJoin = input.muteMicOnJoin !== false;
 
   const [room] = await db
     .insert(rooms)
@@ -122,6 +125,7 @@ export async function createRoomWithBrand(
       ownerIdentityId: input.ownerIdentityId,
       boardId: input.boardId ?? null,
       accessPolicy,
+      muteMicOnJoin,
       kind,
       livekitRoomName: `meet_${slug}`,
       webhookUrl: input.webhookUrl ?? null,

@@ -25,6 +25,7 @@ const schema = z.object({
   external_invite_url: z.string().max(2000).nullable().optional(),
   webhook_url: z.string().max(2000).nullable().optional(),
   wait_for_host: z.boolean().optional(),
+  mute_mic_on_join: z.boolean().optional(),
 });
 
 /**
@@ -116,6 +117,10 @@ export async function POST(
       body.wait_for_host !== undefined
         ? body.wait_for_host
         : accessPolicy === "invite";
+    const muteMicOnJoin =
+      body.mute_mic_on_join !== undefined
+        ? body.mute_mic_on_join
+        : undefined;
 
     const { meeting, url, joinPath, hostUrl, hostPath } =
       await createMeetingWithBrand({
@@ -130,6 +135,7 @@ export async function POST(
         externalInviteUrl,
         webhookUrl,
         waitForHost,
+        muteMicOnJoin,
         issueHostEntry: true,
       });
 
@@ -149,6 +155,7 @@ export async function POST(
         external_invite_url: meeting.externalInviteUrl ?? null,
         webhook_url: meeting.webhookUrl ?? null,
         wait_for_host: meeting.waitForHost,
+        mute_mic_on_join: meeting.muteMicOnJoin !== false,
       },
       { status: 201 },
     );

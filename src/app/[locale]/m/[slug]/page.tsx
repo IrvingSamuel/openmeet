@@ -26,6 +26,7 @@ type MeetingPayload = {
     redirectAfterMeet?: string | null;
     externalInviteUrl?: string | null;
     waitForHost?: boolean;
+    muteMicOnJoin?: boolean;
   };
   brand: (BrandTokens & { customCss?: string | null; faviconUrl?: string | null }) | null;
 };
@@ -496,6 +497,7 @@ export default function MeetingJoinPage() {
           waiting={Boolean(waitingRequestId) || waitingForHost}
           waitingForHost={waitingForHost}
           error={error}
+          defaultAudioEnabled={data.meeting.muteMicOnJoin === false}
           onJoin={join}
           onCancelWait={() => {
             void cancelWait();

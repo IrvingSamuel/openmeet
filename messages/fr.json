@@ -399,6 +399,8 @@
       "titleLabel": "Titre de la réunion",
       "boardIdLabel": "ID de tableau / projet externe",
       "boardIdHint": "Collez l'ID du tableau pour hériter du logo et de la palette.",
+      "muteMicOnJoin": "Entrer avec le micro coupé",
+      "muteMicOnJoinHint": "Les participants démarrent avec le micro désactivé dans le lobby (ils peuvent l'activer avant d'entrer).",
       "submit": "Créer la salle",
       "createFailed": "Impossible de créer la salle.",
       "networkFailed": "Erreur réseau lors de la création de la salle."

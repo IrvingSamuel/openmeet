@@ -70,6 +70,8 @@ export const rooms = pgTable(
       .references(() => users.id),
     boardId: text("board_id"),
     accessPolicy: text("access_policy").notNull().default("members"),
+    /** When true, Lobby starts with mic off (participants can still unmute). */
+    muteMicOnJoin: boolean("mute_mic_on_join").notNull().default(true),
     kind: text("kind").notNull().default("persistent"),
     livekitRoomName: text("livekit_room_name").notNull(),
     /** Absolute http(s) URL for outbound meeting artifacts (inherited by meetings). */
@@ -204,6 +206,8 @@ export const meetings = pgTable(
      * until a host participant is present — no manual approval queue.
      */
     waitForHost: boolean("wait_for_host").notNull().default(false),
+    /** Snapshot of room preference: Lobby starts with mic off when true. */
+    muteMicOnJoin: boolean("mute_mic_on_join").notNull().default(true),
     /** SHA-256 hex of the one-time host entry token (API host_url). */
     hostEntryTokenHash: text("host_entry_token_hash"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */

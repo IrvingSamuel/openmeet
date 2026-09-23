@@ -28,6 +28,7 @@ export async function GET(
       redirectAfterMeet: meeting.redirectAfterMeet ?? null,
       externalInviteUrl: meeting.externalInviteUrl ?? null,
       waitForHost: meeting.waitForHost,
+      muteMicOnJoin: meeting.muteMicOnJoin !== false,
     },
     brand,
   });

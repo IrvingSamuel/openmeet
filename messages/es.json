@@ -399,6 +399,8 @@
       "titleLabel": "Título de la reunión",
       "boardIdLabel": "ID de tablero / proyecto externo",
       "boardIdHint": "Pegue el ID del tablero para heredar logo y paleta.",
+      "muteMicOnJoin": "Entrar con el micrófono silenciado",
+      "muteMicOnJoinHint": "Los participantes inician con el micrófono apagado en el lobby (pueden activarlo antes de entrar).",
       "submit": "Crear sala",
       "createFailed": "No se pudo crear la sala.",
       "networkFailed": "Error de red al crear la sala."

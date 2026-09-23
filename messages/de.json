@@ -399,6 +399,8 @@
       "titleLabel": "Meeting-Titel",
       "boardIdLabel": "Externe Board-/Projekt-ID",
       "boardIdHint": "Board-ID einfügen, um Logo und Palette zu erben.",
+      "muteMicOnJoin": "Mit stummgeschaltetem Mikrofon beitreten",
+      "muteMicOnJoinHint": "Teilnehmer starten im Lobby mit ausgeschaltetem Mikrofon (können es vor dem Beitritt einschalten).",
       "submit": "Raum erstellen",
       "createFailed": "Raum konnte nicht erstellt werden.",
       "networkFailed": "Netzwerkfehler beim Erstellen des Raums."

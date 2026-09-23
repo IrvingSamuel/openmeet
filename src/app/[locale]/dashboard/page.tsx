@@ -55,6 +55,7 @@ type Room = {
   title: string;
   boardId?: string | null;
   accessPolicy?: string;
+  muteMicOnJoin?: boolean;
   kind?: string;
   createdAt: string;
 };
@@ -977,6 +978,7 @@ function CreateRoomModal({
   const [accessPolicy, setAccessPolicy] = useState<
     "public" | "members" | "invite"
   >("members");
+  const [muteMicOnJoin, setMuteMicOnJoin] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -992,6 +994,7 @@ function CreateRoomModal({
           title,
           boardId: boardId || undefined,
           accessPolicy,
+          muteMicOnJoin,
         }),
       });
       const json = await res.json();
@@ -1002,6 +1005,7 @@ function CreateRoomModal({
       setTitle("");
       setBoardId("");
       setAccessPolicy("members");
+      setMuteMicOnJoin(true);
       onCreated(json.room?.slug ?? "");
     } catch {
       setError(t("networkFailed"));
@@ -1052,6 +1056,20 @@ function CreateRoomModal({
           <option value="public">{tCommon("accessPolicy.public")}</option>
           <option value="invite">{tCommon("accessPolicy.invite")}</option>
         </Select>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 text-sm text-ink-muted">
+          <input
+            type="checkbox"
+            checked={muteMicOnJoin}
+            onChange={(e) => setMuteMicOnJoin(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[var(--brand-primary)]"
+          />
+          <span>
+            <span className="block text-ink">{t("muteMicOnJoin")}</span>
+            <span className="mt-1 block text-xs text-ink-faint">
+              {t("muteMicOnJoinHint")}
+            </span>
+          </span>
+        </label>
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -1073,14 +1091,20 @@ function RenameRoomModal({
 }: {
   room: Room | null;
   onClose: () => void;
-  onRenamed: (patch: { title: string; accessPolicy?: string }) => void;
+  onRenamed: (patch: {
+    title: string;
+    accessPolicy?: string;
+    muteMicOnJoin?: boolean;
+  }) => void;
 }) {
   const t = useTranslations("dashboard.renameModal");
+  const tCreate = useTranslations("dashboard.createModal");
   const tCommon = useTranslations("common");
   const [title, setTitle] = useState("");
   const [accessPolicy, setAccessPolicy] = useState<
     "public" | "members" | "invite"
   >("members");
+  const [muteMicOnJoin, setMuteMicOnJoin] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1090,6 +1114,7 @@ function RenameRoomModal({
       setAccessPolicy(
         (room.accessPolicy as "public" | "members" | "invite") || "members",
       );
+      setMuteMicOnJoin(room.muteMicOnJoin !== false);
       setError(null);
     }
   }, [room]);
@@ -1099,7 +1124,8 @@ function RenameRoomModal({
     if (!room) return;
     const next = title.trim();
     const policyChanged = accessPolicy !== (room.accessPolicy || "members");
-    if ((!next || next === room.title) && !policyChanged) {
+    const muteChanged = muteMicOnJoin !== (room.muteMicOnJoin !== false);
+    if ((!next || next === room.title) && !policyChanged && !muteChanged) {
       onClose();
       return;
     }
@@ -1112,6 +1138,7 @@ function RenameRoomModal({
         body: JSON.stringify({
           title: next !== room.title ? next : undefined,
           accessPolicy: policyChanged ? accessPolicy : undefined,
+          muteMicOnJoin: muteChanged ? muteMicOnJoin : undefined,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -1122,6 +1149,7 @@ function RenameRoomModal({
       onRenamed({
         title: json.room?.title ?? next,
         accessPolicy: json.room?.accessPolicy ?? accessPolicy,
+        muteMicOnJoin: json.room?.muteMicOnJoin ?? muteMicOnJoin,
       });
     } catch {
       setError(t("networkFailed"));
@@ -1159,6 +1187,20 @@ function RenameRoomModal({
           <option value="public">{tCommon("accessPolicy.public")}</option>
           <option value="invite">{tCommon("accessPolicy.invite")}</option>
         </Select>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 text-sm text-ink-muted">
+          <input
+            type="checkbox"
+            checked={muteMicOnJoin}
+            onChange={(e) => setMuteMicOnJoin(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[var(--brand-primary)]"
+          />
+          <span>
+            <span className="block text-ink">{tCreate("muteMicOnJoin")}</span>
+            <span className="mt-1 block text-xs text-ink-faint">
+              {tCreate("muteMicOnJoinHint")}
+            </span>
+          </span>
+        </label>
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -1170,7 +1212,8 @@ function RenameRoomModal({
             disabled={
               !title.trim() ||
               (title.trim() === room?.title &&
-                accessPolicy === (room?.accessPolicy || "members"))
+                accessPolicy === (room?.accessPolicy || "members") &&
+                muteMicOnJoin === (room?.muteMicOnJoin !== false))
             }
           >
             {t("submit")}

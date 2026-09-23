@@ -50,6 +50,7 @@ export function Lobby({
   waiting,
   waitingForHost,
   error,
+  defaultAudioEnabled = false,
   onCancelWait,
 }: {
   title: string;
@@ -67,6 +68,8 @@ export function Lobby({
   /** Guests wait until a host joins (API wait_for_host). */
   waitingForHost?: boolean;
   error?: string | null;
+  /** Initial Lobby mic toggle — from meeting.muteMicOnJoin (inverted). */
+  defaultAudioEnabled?: boolean;
   onJoin: (opts: JoinOptions) => void;
   onCancelWait?: () => void;
 }) {
@@ -75,9 +78,9 @@ export function Lobby({
   const [devices, setDevices] = useState<Devices>({ cameras: [], mics: [] });
   const [videoDeviceId, setVideoDeviceId] = useState("");
   const [audioDeviceId, setAudioDeviceId] = useState("");
-  // Privacy-first: join muted / camera off unless the user opts in.
+  // Privacy-first default is muted; room setting may open mic on join.
   const [videoEnabled, setVideoEnabled] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(defaultAudioEnabled);
   const [permission, setPermission] = useState<
     "pending" | "granted" | "denied"
   >("pending");
