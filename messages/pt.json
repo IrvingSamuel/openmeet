@@ -62,6 +62,7 @@
       "summaryReady": "Resumo pronto",
       "summaryGenerating": "A gerar…",
       "summaryFailed": "Resumo falhou",
+      "summaryDisabled": "Resumo desativado",
       "noSummary": "Sem resumo",
       "inProgress": "Em curso",
       "scheduled": "Aguardando",
@@ -402,6 +403,16 @@
       "boardIdHint": "Cole o ID do quadro para herdar logo e paleta.",
       "muteMicOnJoin": "Entrar com microfone silenciado",
       "muteMicOnJoinHint": "Os participantes iniciam com o microfone desligado no lobby (podem ligá-lo antes de entrar).",
+      "aiFeatures": "Recursos de IA",
+      "aiFeaturesHint": "Valem para as próximas reuniões desta sala.",
+      "captionsEnabled": "Legendas ao vivo",
+      "captionsEnabledHint": "Mostra as legendas durante a reunião.",
+      "transcriptionEnabled": "Transcrição",
+      "transcriptionEnabledHint": "Guarda o que é dito para a transcrição completa e o copiloto.",
+      "summaryEnabled": "Resumo",
+      "summaryEnabledHint": "Gera o relatório e as tarefas no fim da reunião.",
+      "summaryRequiresTranscript": "O resumo precisa da transcrição.",
+      "noAgentHint": "Sem legendas nem transcrição, o copiloto não entra na reunião.",
       "submit": "Criar sala",
       "createFailed": "Não foi possível criar a sala.",
       "networkFailed": "Falha de rede ao criar a sala."
@@ -707,6 +718,11 @@
       "title": "Conexão perdida",
       "body": "A reunião ainda está aqui. Você pode tentar reconectar com o mesmo token ou sair para o painel."
     },
+    "duplicateSession": {
+      "title": "Reunião aberta em outra aba",
+      "body": "Esta reunião foi aberta em outra aba ou janela com a mesma sessão, então esta aba foi desconectada. Use apenas uma aba ou continue por aqui.",
+      "useHere": "Usar aqui"
+    },
     "clientError": {
       "title": "Algo deu errado na reunião",
       "body": "O app encontrou um erro ao carregar a sala. Tente novamente ou saia para o painel.",
@@ -740,6 +756,8 @@
     "statusRunning": "A gerar resumo com Gemini…",
     "statusFailed": "Falha na geração — a tentar novamente…",
     "statusPending": "A preparar o resumo…",
+    "statusDisabled": "Resumo desativado para esta reunião.",
+    "summaryDisabled": "Resumo desativado para esta reunião. A transcrição, as gravações e a presença continuam disponíveis nas outras abas.",
     "mcpNeeded": "Volte a autenticar-se para enviar tarefas a ferramentas externas.",
     "mcpLink": "Entrar novamente",
     "billingWarning": "Créditos Gemini esgotados — o resumo LLM ficou em modo fallback.",

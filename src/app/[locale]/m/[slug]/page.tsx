@@ -11,6 +11,7 @@ import {
 } from "@/components/MeetingRoom";
 import { MeetingRoomErrorBoundary } from "@/components/MeetingRoomErrorBoundary";
 import { brandStyleString, type BrandTokens } from "@/lib/brand";
+import { tabInstanceId } from "@/lib/tab-instance";
 import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
@@ -27,6 +28,9 @@ type MeetingPayload = {
     externalInviteUrl?: string | null;
     waitForHost?: boolean;
     muteMicOnJoin?: boolean;
+    captionsEnabled?: boolean;
+    transcriptionEnabled?: boolean;
+    summaryEnabled?: boolean;
   };
   brand: (BrandTokens & { customCss?: string | null; faviconUrl?: string | null }) | null;
 };
@@ -49,21 +53,6 @@ type Session = {
     autoRecordingId?: string | null;
   } | null;
 };
-
-function tabInstanceId(): string {
-  try {
-    const existing = window.sessionStorage.getItem("openmeet:tab-id");
-    if (existing) return existing;
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID().slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
-    window.sessionStorage.setItem("openmeet:tab-id", id);
-    return id;
-  } catch {
-    return Math.random().toString(36).slice(2, 10);
-  }
-}
 
 export default function MeetingJoinPage() {
   const params = useParams<{ slug: string }>();
@@ -465,6 +454,8 @@ export default function MeetingJoinPage() {
               session.redirectAfterMeet ?? data.meeting.redirectAfterMeet ?? null
             }
             externalInviteUrl={data.meeting.externalInviteUrl ?? null}
+            captionsEnabled={data.meeting.captionsEnabled !== false}
+            transcriptionEnabled={data.meeting.transcriptionEnabled !== false}
             initialVideo={session.video}
             initialAudio={session.audio}
             videoDeviceId={session.videoDeviceId}

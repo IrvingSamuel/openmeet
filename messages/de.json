@@ -62,6 +62,7 @@
       "summaryReady": "Zusammenfassung fertig",
       "summaryGenerating": "Wird erstellt…",
       "summaryFailed": "Zusammenfassung fehlgeschlagen",
+      "summaryDisabled": "Zusammenfassung aus",
       "noSummary": "Keine Zusammenfassung",
       "inProgress": "Läuft",
       "scheduled": "Wartend",
@@ -401,6 +402,16 @@
       "boardIdHint": "Board-ID einfügen, um Logo und Palette zu erben.",
       "muteMicOnJoin": "Mit stummgeschaltetem Mikrofon beitreten",
       "muteMicOnJoinHint": "Teilnehmer starten im Lobby mit ausgeschaltetem Mikrofon (können es vor dem Beitritt einschalten).",
+      "aiFeatures": "KI-Funktionen",
+      "aiFeaturesHint": "Gelten für künftige Meetings in diesem Raum.",
+      "captionsEnabled": "Live-Untertitel",
+      "captionsEnabledHint": "Zeigt Untertitel während des Meetings.",
+      "transcriptionEnabled": "Transkription",
+      "transcriptionEnabledHint": "Speichert das Gesagte für das vollständige Transkript und den Copilot.",
+      "summaryEnabled": "Zusammenfassung",
+      "summaryEnabledHint": "Erstellt Bericht und Aufgaben am Ende des Meetings.",
+      "summaryRequiresTranscript": "Die Zusammenfassung benötigt die Transkription.",
+      "noAgentHint": "Ohne Untertitel und Transkription tritt der Copilot dem Meeting nicht bei.",
       "submit": "Raum erstellen",
       "createFailed": "Raum konnte nicht erstellt werden.",
       "networkFailed": "Netzwerkfehler beim Erstellen des Raums."
@@ -701,6 +712,11 @@
       "title": "Verbindung verloren",
       "body": "Das Meeting ist noch da. Sie können sich mit demselben Token erneut verbinden oder zum Dashboard gehen."
     },
+    "duplicateSession": {
+      "title": "Meeting in einem anderen Tab geöffnet",
+      "body": "Dieses Meeting wurde in einem anderen Tab oder Fenster mit derselben Sitzung geöffnet, daher wurde dieser Tab getrennt. Verwenden Sie nur einen Tab oder fahren Sie hier fort.",
+      "useHere": "Hier verwenden"
+    },
     "clientError": {
       "title": "In der Besprechung ist etwas schiefgelaufen",
       "body": "Beim Laden des Raums ist ein Fehler aufgetreten. Versuchen Sie es erneut oder gehen Sie zum Dashboard.",
@@ -734,6 +750,8 @@
     "statusRunning": "Zusammenfassung wird mit Gemini erstellt…",
     "statusFailed": "Erzeugung fehlgeschlagen — erneuter Versuch…",
     "statusPending": "Zusammenfassung wird vorbereitet…",
+    "statusDisabled": "Die Zusammenfassung ist für dieses Meeting deaktiviert.",
+    "summaryDisabled": "Die Zusammenfassung ist für dieses Meeting deaktiviert. Transkript, Aufnahmen und Anwesenheit sind weiterhin in den anderen Tabs verfügbar.",
     "mcpNeeded": "Melden Sie sich erneut an, um Aufgaben an externe Tools zu senden.",
     "mcpLink": "Erneut anmelden",
     "billingWarning": "Gemini-Guthaben aufgebraucht — LLM-Zusammenfassung im Fallback-Modus.",

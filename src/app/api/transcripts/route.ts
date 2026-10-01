@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { transcriptSegments, meetings, participants } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { assertMeetingSummaryAccess } from "@/lib/meetingAccess";
+import { featuresFromRow } from "@/lib/meeting-features";
 
 const segmentSchema = z.object({
   meetingId: z.string().uuid(),
@@ -59,6 +60,9 @@ export async function POST(req: NextRequest) {
     where: eq(meetings.id, body.meetingId),
   });
   if (!meeting) return NextResponse.json({ error: "meeting_not_found" }, { status: 404 });
+  if (!featuresFromRow(meeting).transcription) {
+    return NextResponse.json({ skipped: true });
+  }
 
   let participantId = body.participantId ?? null;
   if (!participantId && body.livekitIdentity) {

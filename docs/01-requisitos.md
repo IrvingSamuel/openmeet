@@ -10,6 +10,7 @@
 ### RF-02 Salas
 - Criar sala (slug único, título, política de acesso).
 - Preferência `muteMicOnJoin` (default true): Lobby inicia com microfone silenciado; o organizador pode desligar isto nas definições da sala.
+- Recursos de IA por sala: `captionsEnabled`, `transcriptionEnabled` e `summaryEnabled` (todos default true), configuráveis no Painel (criar/editar sala), na API pública (`captions_enabled`, `transcription_enabled`, `summary_enabled`) e no MCP. A sala guarda o modelo; cada reunião copia os valores na criação (omitido = herda da sala), e editar a sala afeta só reuniões futuras.
 - Entrar em sala existente (host ou participante).
 - Lobby com pré-flight de câmera/microfone.
 - Emitir access token LiveKit com grants por papel.
@@ -28,9 +29,10 @@
 - Tokens injetados como variáveis CSS no `<html>`.
 
 ### RF-05 Copiloto de IA
-- Legendas ao vivo em PT-BR (Deepgram Nova-3 multilingual).
-- Persistência de `transcript_segments`.
-- Resumo pós-reunião (Gemini 2.5 Flash).
+- Legendas ao vivo em PT-BR (Deepgram Nova-3 multilingual), quando `captionsEnabled`.
+- Persistência de `transcript_segments`, quando `transcriptionEnabled`. Sem transcrição, a reunião não tem transcrição completa, copiloto (painel e voz) nem webhook `transcript.ready`.
+- Resumo pós-reunião (Gemini 2.5 Flash), quando `summaryEnabled`. O resumo depende da transcrição: com `transcriptionEnabled=false` é forçado para false. Reuniões sem resumo ficam com `summaryStatus = "disabled"` (estado final; não geram `summary.ready` nem `tasks.generated`).
+- Com legenda e transcrição desligadas, o agente LiveKit não é despachado para a sala.
 - Extração de itens de ação e criação de tarefas no quadro via MCP (`board_tasks_create`).
 - Gravar `chronos_task_id` em `action_items`.
 

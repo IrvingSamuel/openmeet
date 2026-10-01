@@ -15,6 +15,12 @@ import {
 } from "@/lib/brand-schema";
 import { platformPoweredBySubtitle } from "@/lib/platform-defaults";
 import {
+  SUMMARY_STATUS_DISABLED,
+  featuresToColumns,
+  resolveMeetingFeatures,
+  type MeetingFeaturesInput,
+} from "@/lib/meeting-features";
+import {
   generateHostEntryToken,
   hashHostEntryToken,
   meetingHostEnterUrl,
@@ -51,6 +57,13 @@ export type CreateMeetingInput = {
    * brand room when omitted and roomId is set.
    */
   muteMicOnJoin?: boolean;
+  /**
+   * AI features (default on). Each one inherits from the brand room when
+   * omitted and roomId is set. Summary is forced off without transcription.
+   */
+  captionsEnabled?: boolean;
+  transcriptionEnabled?: boolean;
+  summaryEnabled?: boolean;
 };
 
 export type CreatedMeetingResult = {
@@ -217,6 +230,7 @@ export async function createMeetingWithBrand(
   let accessPolicy = input.accessPolicy || "public";
   let muteMicOnJoin = input.muteMicOnJoin !== false;
   const roomId = input.roomId ?? null;
+  let featureTemplate: MeetingFeaturesInput | null = null;
 
   if (roomId) {
     const room = await db.query.rooms.findFirst({
@@ -228,7 +242,21 @@ export async function createMeetingWithBrand(
     if (input.muteMicOnJoin === undefined) {
       muteMicOnJoin = room.muteMicOnJoin !== false;
     }
+    featureTemplate = {
+      captions: room.captionsEnabled,
+      transcription: room.transcriptionEnabled,
+      summary: room.summaryEnabled,
+    };
   }
+
+  const features = resolveMeetingFeatures(
+    {
+      captions: input.captionsEnabled,
+      transcription: input.transcriptionEnabled,
+      summary: input.summaryEnabled,
+    },
+    featureTemplate,
+  );
 
   const brandValues = await resolveBrandValues({
     ...input,
@@ -260,6 +288,8 @@ export async function createMeetingWithBrand(
       webhookUrl: input.webhookUrl ?? null,
       waitForHost,
       muteMicOnJoin,
+      ...featuresToColumns(features),
+      ...(features.summary ? {} : { summaryStatus: SUMMARY_STATUS_DISABLED }),
       hostEntryTokenHash,
     })
     .returning();

@@ -588,6 +588,12 @@ components:
           $ref: "#/components/schemas/BrandAdvanced"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
+        captions_enabled:
+          $ref: "#/components/schemas/CaptionsEnabled"
+        transcription_enabled:
+          $ref: "#/components/schemas/TranscriptionEnabled"
+        summary_enabled:
+          $ref: "#/components/schemas/SummaryEnabled"
 
     CreateRoomResponse:
       type: object
@@ -611,6 +617,14 @@ components:
           type: string
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
+        captions_enabled:
+          type: boolean
+          description: Valor gravado na sala (modelo das próximas reuniões)
+        transcription_enabled:
+          type: boolean
+        summary_enabled:
+          type: boolean
+          description: Sempre false quando transcription_enabled=false
         brand:
           $ref: "#/components/schemas/BrandPublic"
 
@@ -650,6 +664,12 @@ components:
           description: |
             Se true, participantes ficam na lobby até existir um anfitrião na sala.
             Por omissão true quando access_policy=invite.
+        captions_enabled:
+          $ref: "#/components/schemas/CaptionsEnabled"
+        transcription_enabled:
+          $ref: "#/components/schemas/TranscriptionEnabled"
+        summary_enabled:
+          $ref: "#/components/schemas/SummaryEnabled"
 
     CreateInstantMeetingRequest:
       type: object
@@ -700,6 +720,12 @@ components:
           description: |
             Manter participantes na sala de espera até o anfitrião entrar.
             Default true quando access_policy=invite.
+        captions_enabled:
+          $ref: "#/components/schemas/CaptionsEnabled"
+        transcription_enabled:
+          $ref: "#/components/schemas/TranscriptionEnabled"
+        summary_enabled:
+          $ref: "#/components/schemas/SummaryEnabled"
         identity:
           $ref: "#/components/schemas/BrandIdentity"
         palette:
@@ -759,6 +785,39 @@ components:
         wait_for_host:
           type: boolean
           description: Participantes aguardam o anfitrião na lobby
+        captions_enabled:
+          type: boolean
+          description: Valor efetivo da reunião (explícito, herdado da sala ou true)
+        transcription_enabled:
+          type: boolean
+        summary_enabled:
+          type: boolean
+          description: |
+            Sempre false quando transcription_enabled=false. Com false, o resumo
+            fica com status "disabled" e os webhooks summary.ready e
+            tasks.generated não são enviados.
+
+    CaptionsEnabled:
+      type: boolean
+      description: |
+        Legendas ao vivo na reunião. Default true. Em POST /api/v1/rooms/{room_id}/meetings
+        e em instant-meetings com room_id, omitir herda o valor da sala.
+        Com captions_enabled=false e transcription_enabled=false o agente de IA
+        não entra na reunião (sem legenda, transcrição nem copiloto por voz).
+
+    TranscriptionEnabled:
+      type: boolean
+      description: |
+        Gravação da transcrição (transcrição completa, copiloto e webhook
+        transcript.ready). Default true; omitir herda da sala quando houver.
+        Com false, summary_enabled é forçado para false.
+
+    SummaryEnabled:
+      type: boolean
+      description: |
+        Resumo e tarefas gerados no fim da reunião. Default true; omitir herda da
+        sala quando houver. Depende da transcrição: com transcription_enabled=false
+        o valor é normalizado para false sem erro.
 
     WebhookUrl:
       type: string

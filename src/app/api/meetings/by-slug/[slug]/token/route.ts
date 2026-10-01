@@ -19,6 +19,7 @@ import {
   loadMeetingBySlugAfterExpiry,
 } from "@/lib/meeting-lifecycle";
 import { resolveEmptyTimeoutSec } from "@/lib/meeting-timeouts";
+import { agentRequired, featuresFromRow } from "@/lib/meeting-features";
 import { startMeetingRecording } from "@/lib/recording";
 
 export async function POST(
@@ -208,6 +209,7 @@ export async function POST(
   });
 
   try {
+    const features = featuresFromRow(meeting);
     await syncRoomMetadata(
       meeting.livekitRoomName,
       {
@@ -215,8 +217,12 @@ export async function POST(
         roomId: meeting.roomId ?? meeting.id,
         slug: meeting.slug,
         boardId: meeting.boardId,
+        features,
       },
-      { emptyTimeout: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec) },
+      {
+        emptyTimeout: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
+        dispatchAgent: agentRequired(features),
+      },
     );
   } catch (err) {
     console.error("[openmeet] syncRoomMetadata failed", err);

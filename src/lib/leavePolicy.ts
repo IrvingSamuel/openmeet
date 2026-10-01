@@ -11,15 +11,18 @@ export function shouldExitMeeting(opts: {
 /**
  * Classify a LiveKit disconnect for UI routing.
  * ROOM_DELETED / PARTICIPANT_REMOVED must not offer reconnect.
+ * DUPLICATE_IDENTITY must not auto-reconnect: the other tab would be kicked in
+ * turn and both would ping-pong.
  */
 export function disconnectOutcome(opts: {
   intentionalLeave: boolean;
   reason?: DisconnectReason | number | null;
-}): "leave" | "recover" | "ended" | "removed" {
+}): "leave" | "recover" | "ended" | "removed" | "duplicate" {
   if (opts.intentionalLeave) return "leave";
   const r = opts.reason;
   if (r === DisconnectReason.ROOM_DELETED || r === 5) return "ended";
   if (r === DisconnectReason.PARTICIPANT_REMOVED || r === 4) return "removed";
+  if (r === DisconnectReason.DUPLICATE_IDENTITY || r === 2) return "duplicate";
   return "recover";
 }
 

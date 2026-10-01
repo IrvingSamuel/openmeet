@@ -62,6 +62,7 @@
       "summaryReady": "Résumé prêt",
       "summaryGenerating": "Génération…",
       "summaryFailed": "Résumé échoué",
+      "summaryDisabled": "Résumé désactivé",
       "noSummary": "Pas de résumé",
       "inProgress": "En cours",
       "scheduled": "En attente",
@@ -401,6 +402,16 @@
       "boardIdHint": "Collez l'ID du tableau pour hériter du logo et de la palette.",
       "muteMicOnJoin": "Entrer avec le micro coupé",
       "muteMicOnJoinHint": "Les participants démarrent avec le micro désactivé dans le lobby (ils peuvent l'activer avant d'entrer).",
+      "aiFeatures": "Fonctions IA",
+      "aiFeaturesHint": "S'appliquent aux prochaines réunions de cette salle.",
+      "captionsEnabled": "Sous-titres en direct",
+      "captionsEnabledHint": "Affiche les sous-titres pendant la réunion.",
+      "transcriptionEnabled": "Transcription",
+      "transcriptionEnabledHint": "Enregistre ce qui est dit pour la transcription complète et le copilote.",
+      "summaryEnabled": "Résumé",
+      "summaryEnabledHint": "Génère le rapport et les tâches à la fin de la réunion.",
+      "summaryRequiresTranscript": "Le résumé nécessite la transcription.",
+      "noAgentHint": "Sans sous-titres ni transcription, le copilote ne rejoint pas la réunion.",
       "submit": "Créer la salle",
       "createFailed": "Impossible de créer la salle.",
       "networkFailed": "Erreur réseau lors de la création de la salle."
@@ -701,6 +712,11 @@
       "title": "Connexion perdue",
       "body": "La réunion est toujours là. Vous pouvez tenter de vous reconnecter avec le même jeton ou quitter vers le tableau de bord."
     },
+    "duplicateSession": {
+      "title": "Réunion ouverte dans un autre onglet",
+      "body": "Cette réunion a été ouverte dans un autre onglet ou une autre fenêtre avec la même session, cet onglet a donc été déconnecté. Utilisez un seul onglet ou continuez ici.",
+      "useHere": "Utiliser ici"
+    },
     "clientError": {
       "title": "Un problème s'est produit dans la réunion",
       "body": "L'application a rencontré une erreur en chargeant la salle. Réessayez ou quittez vers le tableau de bord.",
@@ -734,6 +750,8 @@
     "statusRunning": "Génération du résumé avec Gemini…",
     "statusFailed": "Échec de la génération — nouvelle tentative…",
     "statusPending": "Préparation du résumé…",
+    "statusDisabled": "Le résumé est désactivé pour cette réunion.",
+    "summaryDisabled": "Le résumé est désactivé pour cette réunion. La transcription, les enregistrements et la présence restent disponibles dans les autres onglets.",
     "mcpNeeded": "Reconnectez-vous pour envoyer des tâches vers des outils externes.",
     "mcpLink": "Se reconnecter",
     "billingWarning": "Crédits Gemini épuisés — le résumé LLM est passé en mode secours.",

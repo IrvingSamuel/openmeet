@@ -24,12 +24,16 @@ function captionKey(c: Caption) {
   return `${c.speaker}\0${c.text}`;
 }
 
-export function useCaptions(meetingId?: string | null, limit = 200) {
+/** `history: false` skips loading saved segments (meeting has transcription off). */
+export function useCaptions(
+  meetingId?: string | null,
+  { limit = 200, history = true }: { limit?: number; history?: boolean } = {},
+) {
   const [captions, setCaptions] = useState<Caption[]>([]);
   const hydrated = useRef(false);
 
   useEffect(() => {
-    if (!meetingId || hydrated.current) return;
+    if (!meetingId || !history || hydrated.current) return;
     let cancelled = false;
     fetch(`/api/transcripts?meetingId=${encodeURIComponent(meetingId)}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -56,7 +60,7 @@ export function useCaptions(meetingId?: string | null, limit = 200) {
     return () => {
       cancelled = true;
     };
-  }, [meetingId, limit]);
+  }, [meetingId, history, limit]);
 
   const onMessage = useCallback(
     (msg: { payload: Uint8Array }) => {

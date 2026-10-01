@@ -18,6 +18,11 @@ import {
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
 import { resolveV1Owner } from "@/lib/v1-auth";
+import {
+  apiFeatureFields,
+  apiFeaturesResponse,
+  apiFeaturesToInput,
+} from "@/lib/api-features";
 
 const schema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -51,6 +56,8 @@ const schema = z.object({
   wait_for_host: z.boolean().optional(),
   /** When true (default), Lobby starts with mic muted. */
   mute_mic_on_join: z.boolean().optional(),
+  /** AI features (default on; inherit from room_id when omitted). Summary needs transcription. */
+  ...apiFeatureFields,
 });
 
 function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWithBrand>>) {
@@ -71,6 +78,7 @@ function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWi
     webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
     mute_mic_on_join: meeting.muteMicOnJoin !== false,
+    ...apiFeaturesResponse(meeting),
   };
 }
 
@@ -164,6 +172,7 @@ export async function POST(req: NextRequest) {
       webhookUrl,
       waitForHost,
       muteMicOnJoin: body.mute_mic_on_join,
+      ...apiFeaturesToInput(body),
       issueHostEntry: true,
     });
 

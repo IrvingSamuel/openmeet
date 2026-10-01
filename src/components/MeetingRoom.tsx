@@ -28,6 +28,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import { useTranslations } from "next-intl";
 import { cn, formatDuration } from "@/lib/utils";
 import { disconnectOutcome, releaseLocalMedia, shouldExitMeeting } from "@/lib/leavePolicy";
+import { detachFreezeDisconnect } from "@/lib/livekit-freeze-guard";
+import {
+  isPageHidden,
+  onPageActive,
+  waitForTimeoutOrPageActive,
+} from "@/lib/page-activity";
+import {
+  reportDisconnectTelemetry,
+  type DisconnectTelemetryEvent,
+} from "@/lib/disconnect-telemetry";
+import { resetTabInstanceId } from "@/lib/tab-instance";
 import { diffJoinRequestAlerts } from "@/lib/joinRequestAlerts";
 import { EASE_OUT_EXPO } from "@/components/motion/primitives";
 import { Stage, type StageLayout } from "@/components/room/Stage";
@@ -109,6 +120,8 @@ export function MeetingRoom({
   recordingConfig = null,
   redirectAfterMeet = null,
   externalInviteUrl = null,
+  captionsEnabled = true,
+  transcriptionEnabled = true,
   onLeave,
   onEndForAll,
   initialVideo = false,
@@ -130,6 +143,8 @@ export function MeetingRoom({
   recordingConfig?: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
   externalInviteUrl?: string | null;
+  captionsEnabled?: boolean;
+  transcriptionEnabled?: boolean;
   onLeave?: () => void;
   onEndForAll?: () => void | Promise<void>;
   initialVideo?: boolean;
@@ -164,6 +179,38 @@ export function MeetingRoom({
   const [forcedExit, setForcedExit] = useState<"ended" | "removed" | null>(
     null,
   );
+  const forcedExitRef = useRef(forcedExit);
+  forcedExitRef.current = forcedExit;
+  const [duplicateSession, setDuplicateSession] = useState(false);
+  const duplicateSessionRef = useRef(false);
+  const reconnectRunning = useRef(false);
+  const hasConnectedRef = useRef(false);
+  const frozenSinceReport = useRef(false);
+
+  const reportTelemetry = useCallback(
+    (
+      event: DisconnectTelemetryEvent,
+      extra: { reason?: number | null; outcome?: string; attempt?: number } = {},
+    ) => {
+      reportDisconnectTelemetry({
+        event,
+        slug: roomSlug,
+        meetingId,
+        wasFrozen: frozenSinceReport.current,
+        ...extra,
+      });
+      frozenSinceReport.current = false;
+    },
+    [roomSlug, meetingId],
+  );
+
+  useEffect(() => {
+    const onFreeze = () => {
+      frozenSinceReport.current = true;
+    };
+    document.addEventListener("freeze", onFreeze);
+    return () => document.removeEventListener("freeze", onFreeze);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -231,51 +278,97 @@ export function MeetingRoom({
   }, [room, activeToken, activeServerUrl, serverUrl, tErrors]);
 
   const scheduleAutoReconnect = useCallback(() => {
-    if (intentionalLeave.current) return;
+    if (intentionalLeave.current || duplicateSessionRef.current) return;
+    if (reconnectRunning.current) return;
+    reconnectRunning.current = true;
 
-    const run = async (attempt: number) => {
-      const roomState = () => room.state;
+    const shouldStop = () =>
+      intentionalLeave.current ||
+      duplicateSessionRef.current ||
+      forcedExitRef.current !== null ||
+      room.state === ConnectionState.Connected;
+
+    const run = async (attempt: number): Promise<void> => {
       if (attempt > MAX_AUTO_RECONNECT) {
+        if (isPageHidden()) {
+          // Don't surface "Disconnected" to a tab nobody is looking at; retry
+          // a fresh round once the user comes back.
+          await waitForTimeoutOrPageActive(null);
+          if (shouldStop()) {
+            setAutoReconnectBusy(false);
+            return;
+          }
+          return run(1);
+        }
+        reportTelemetry("gave_up", { attempt: attempt - 1 });
         // Stop LiveKitRoom connect-loop so DisconnectRecovery owns the UX.
         setConnect(false);
         setAutoReconnectBusy(false);
         return;
       }
-      if (roomState() === ConnectionState.Connected) {
+      if (shouldStop()) {
         setAutoReconnectBusy(false);
         return;
       }
+      autoReconnectAttempts.current = attempt;
       setAutoReconnectBusy(true);
-      await new Promise((resolve) =>
-        window.setTimeout(resolve, AUTO_RECONNECT_DELAY_MS),
-      );
-      if (intentionalLeave.current || roomState() === ConnectionState.Connected) {
+      await waitForTimeoutOrPageActive(AUTO_RECONNECT_DELAY_MS);
+      if (shouldStop()) {
         setAutoReconnectBusy(false);
         return;
       }
       const ok = await performReconnect();
-      if (ok || roomState() === ConnectionState.Connected) {
+      if (ok || room.state === ConnectionState.Connected) {
         autoReconnectAttempts.current = 0;
         setAutoReconnectBusy(false);
         return;
       }
-      await run(attempt + 1);
+      return run(attempt + 1);
     };
 
     autoReconnectAttempts.current = 0;
-    void run(1);
-  }, [performReconnect, room]);
+    void run(1).finally(() => {
+      reconnectRunning.current = false;
+    });
+  }, [performReconnect, room, reportTelemetry]);
+
+  // Safety net: if the room is still down when the tab is shown / unfrozen /
+  // back online (e.g. Chrome discarded timers while frozen), retry right away.
+  useEffect(() => {
+    return onPageActive(() => {
+      if (
+        !hasConnectedRef.current ||
+        room.state !== ConnectionState.Disconnected ||
+        intentionalLeave.current ||
+        duplicateSessionRef.current ||
+        forcedExitRef.current !== null ||
+        reconnectRunning.current
+      ) {
+        return;
+      }
+      scheduleAutoReconnect();
+    });
+  }, [room, scheduleAutoReconnect]);
 
   useEffect(() => {
     const onConnected = () => {
+      detachFreezeDisconnect(room);
+      const hadConnected = hasConnectedRef.current;
+      hasConnectedRef.current = true;
+      if (hadConnected) {
+        reportTelemetry("reconnected", {
+          attempt: autoReconnectAttempts.current,
+        });
+      }
       autoReconnectAttempts.current = 0;
       setAutoReconnectBusy(false);
     };
+    detachFreezeDisconnect(room);
     room.on(RoomEvent.Connected, onConnected);
     return () => {
       room.off(RoomEvent.Connected, onConnected);
     };
-  }, [room]);
+  }, [room, reportTelemetry]);
 
   const requestLeave = useCallback(() => {
     if (intentionalLeave.current) return;
@@ -324,8 +417,21 @@ export function MeetingRoom({
         intentionalLeave: intentionalLeave.current,
         reason,
       });
+      if (outcome !== "leave") {
+        reportTelemetry(outcome === "duplicate" ? "duplicate" : "disconnected", {
+          reason: reason ?? null,
+          outcome,
+          attempt: autoReconnectAttempts.current,
+        });
+      }
       if (outcome === "ended" || outcome === "removed") {
         setForcedExit(outcome);
+        setConnect(false);
+        return;
+      }
+      if (outcome === "duplicate") {
+        duplicateSessionRef.current = true;
+        setDuplicateSession(true);
         setConnect(false);
         return;
       }
@@ -342,7 +448,7 @@ export function MeetingRoom({
     return () => {
       room.off(RoomEvent.Disconnected, onDisconnected);
     };
-  }, [room, finishLeave, scheduleAutoReconnect, tRoom]);
+  }, [room, finishLeave, scheduleAutoReconnect, tRoom, reportTelemetry]);
 
   // Stable forever — must not appear as a changing dep inside useLiveKitRoom.
   const handleDisconnected = useCallback(() => {
@@ -370,6 +476,13 @@ export function MeetingRoom({
       })
       .finally(() => setAutoReconnectBusy(false));
   }, [performReconnect]);
+
+  const handleUseHere = useCallback(() => {
+    resetTabInstanceId();
+    duplicateSessionRef.current = false;
+    setDuplicateSession(false);
+    handleReconnect();
+  }, [handleReconnect]);
 
   return (
     <div
@@ -404,7 +517,11 @@ export function MeetingRoom({
           recordingConfig={recordingConfig}
           redirectAfterMeet={redirectAfterMeet}
           externalInviteUrl={externalInviteUrl}
+          captionsEnabled={captionsEnabled}
+          transcriptionEnabled={transcriptionEnabled}
           forcedExit={forcedExit}
+          duplicateSession={duplicateSession}
+          onUseHere={handleUseHere}
           onLeave={requestLeave}
           onEndForAll={requestEndForAll}
           onReconnect={handleReconnect}
@@ -438,7 +555,11 @@ function RoomShell({
   recordingConfig,
   redirectAfterMeet,
   externalInviteUrl,
+  captionsEnabled,
+  transcriptionEnabled,
   forcedExit,
+  duplicateSession,
+  onUseHere,
   onLeave,
   onEndForAll,
   onReconnect,
@@ -458,7 +579,11 @@ function RoomShell({
   recordingConfig: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
   externalInviteUrl?: string | null;
+  captionsEnabled: boolean;
+  transcriptionEnabled: boolean;
   forcedExit: "ended" | "removed" | null;
+  duplicateSession: boolean;
+  onUseHere: () => void;
   onLeave: () => void;
   onEndForAll: () => void | Promise<void>;
   onReconnect: () => void;
@@ -583,14 +708,17 @@ function RoomShell({
     wasRecordingRef.current = recorder.active;
   }, [recorder.active, toast, t]);
   const [panel, setPanel] = useState<PanelKind>("none");
-  const captions = useCaptions(meetingId);
+  const captions = useCaptions(meetingId, { history: transcriptionEnabled });
   const {
     insights,
     loading: insightsLoading,
     fromCache: insightsFromCache,
     regenCount: insightsRegenCount,
     refreshInsights,
-  } = useCopilotInsights(meetingId, panel === "copilot");
+  } = useCopilotInsights(
+    transcriptionEnabled ? meetingId : null,
+    transcriptionEnabled && panel === "copilot",
+  );
   const { chatMessages, send, isSending } = useChat();
   const [historyMessages, setHistoryMessages] = useState<
     import("@livekit/components-react").ReceivedChatMessage[]
@@ -636,9 +764,10 @@ function RoomShell({
       }),
     [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
   );
-  const [captionsOn, setCaptionsOn] = useState(() =>
+  const [captionsPref, setCaptionsOn] = useState(() =>
     resolveCaptionsDefault({}),
   );
+  const captionsOn = captionsEnabled && captionsPref;
   const captionsDefaultApplied = useRef(false);
   useEffect(() => {
     if (
@@ -711,6 +840,7 @@ function RoomShell({
   const showRecovery =
     state === ConnectionState.Disconnected &&
     !forcedExit &&
+    !duplicateSession &&
     !leavingRef.current &&
     !autoReconnectBusy;
 
@@ -911,6 +1041,7 @@ function RoomShell({
   const tabMediaSnapshot = useRef<{ audio: boolean; video: boolean } | null>(
     null,
   );
+  const skipTabReturn = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -980,6 +1111,13 @@ function RoomShell({
     if (leavingRef.current) return;
     if (!tabReturnPrefs.enabled) return;
     const lp = room.localParticipant;
+    // Sharing a Chrome tab moves focus to it and hides the meeting tab; muting
+    // here would silence the presenter mid-share.
+    if (lp.isScreenShareEnabled) {
+      skipTabReturn.current = true;
+      return;
+    }
+    skipTabReturn.current = false;
     tabMediaSnapshot.current = {
       audio: lp.isMicrophoneEnabled,
       video: lp.isCameraEnabled,
@@ -990,6 +1128,10 @@ function RoomShell({
   const onTabVisible = useCallback(() => {
     if (leavingRef.current) return;
     if (!tabReturnPrefs.enabled) return;
+    if (skipTabReturn.current) {
+      skipTabReturn.current = false;
+      return;
+    }
     const snap = tabMediaSnapshot.current ?? {
       audio: wantAudio,
       video: wantVideo,
@@ -1107,7 +1249,7 @@ function RoomShell({
         }
       } else if (key === "g") {
         setLayout((l) => (l === "grid" ? "spotlight" : "grid"));
-      } else if (key === "c") {
+      } else if (key === "c" && captionsEnabled) {
         setCaptionsOn((v) => !v);
       }
     }
@@ -1118,6 +1260,7 @@ function RoomShell({
     videoDeviceId,
     mediaPrefsApi.ready,
     mediaPrefsApi.prefs.videoEffect,
+    captionsEnabled,
   ]);
 
   async function copyLink() {
@@ -1148,6 +1291,11 @@ function RoomShell({
       <DisconnectRecovery
         open={showRecovery}
         onReconnect={onReconnect}
+        onLeave={onConfirmLeave}
+      />
+      <DuplicateSessionOverlay
+        open={duplicateSession && !forcedExit}
+        onUseHere={onUseHere}
         onLeave={onConfirmLeave}
       />
 
@@ -1327,6 +1475,8 @@ function RoomShell({
             onPanelChange={setPanel}
             captionsOn={captionsOn}
             onCaptionsToggle={toggleCaptions}
+            captionsEnabled={captionsEnabled}
+            transcriptionEnabled={transcriptionEnabled}
             unreadChat={unread}
             peopleCount={humans.length}
             pendingJoinRequests={joinRequests.length}
@@ -1621,6 +1771,48 @@ function DisconnectRecovery({
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Button size="lg" onClick={onReconnect}>
                 {tActions("reconnect")}
+              </Button>
+              <Button size="lg" variant="outline" onClick={onLeave}>
+                {tActions("leave")}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+function DuplicateSessionOverlay({
+  open,
+  onUseHere,
+  onLeave,
+}: {
+  open: boolean;
+  onUseHere: () => void;
+  onLeave: () => void;
+}) {
+  const t = useTranslations("room.duplicateSession");
+  const tActions = useTranslations("common.actions");
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 z-[60] grid place-items-center bg-[var(--brand-bg)]/92 px-6 backdrop-blur-xl"
+        >
+          <div className="w-full max-w-md rounded-3xl glass-strong p-8 text-center shadow-lift">
+            <h2 className="text-xl font-semibold tracking-tight">
+              {t("title")}
+            </h2>
+            <p className="mt-2 text-sm text-ink-muted">
+              {t("body")}
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <Button size="lg" onClick={onUseHere}>
+                {t("useHere")}
               </Button>
               <Button size="lg" variant="outline" onClick={onLeave}>
                 {tActions("leave")}

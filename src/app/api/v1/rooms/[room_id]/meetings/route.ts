@@ -13,6 +13,11 @@ import {
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
 import { authorizePublicApi } from "@/lib/rooms";
+import {
+  apiFeatureFields,
+  apiFeaturesResponse,
+  apiFeaturesToInput,
+} from "@/lib/api-features";
 import { parseWebhookUrl } from "@/lib/webhook-url";
 
 const schema = z.object({
@@ -26,6 +31,7 @@ const schema = z.object({
   webhook_url: z.string().max(2000).nullable().optional(),
   wait_for_host: z.boolean().optional(),
   mute_mic_on_join: z.boolean().optional(),
+  ...apiFeatureFields,
 });
 
 /**
@@ -136,6 +142,7 @@ export async function POST(
         webhookUrl,
         waitForHost,
         muteMicOnJoin,
+        ...apiFeaturesToInput(body),
         issueHostEntry: true,
       });
 
@@ -156,6 +163,7 @@ export async function POST(
         webhook_url: meeting.webhookUrl ?? null,
         wait_for_host: meeting.waitForHost,
         mute_mic_on_join: meeting.muteMicOnJoin !== false,
+        ...apiFeaturesResponse(meeting),
       },
       { status: 201 },
     );

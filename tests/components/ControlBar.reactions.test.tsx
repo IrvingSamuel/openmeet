@@ -165,6 +165,24 @@ describe("ControlBar device menus", () => {
     expect(within(menu).queryByText("Reactions")).toBeNull();
   });
 
+  it("hides captions when the meeting has captions off", () => {
+    renderBar({ captionsEnabled: false });
+    expect(screen.queryByLabelText("Show captions")).toBeNull();
+    expect(screen.getByLabelText("OpenMeet Copilot")).toBeTruthy();
+  });
+
+  it("hides the copilot and full transcript when transcription is off", async () => {
+    const user = userEvent.setup();
+    renderBar({ transcriptionEnabled: false });
+    expect(screen.queryByLabelText("OpenMeet Copilot")).toBeNull();
+    expect(screen.getByLabelText("Show captions")).toBeTruthy();
+
+    await user.click(screen.getByLabelText("More controls"));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByText("Full transcript")).toBeNull();
+    expect(within(menu).getByText("Options")).toBeTruthy();
+  });
+
   it("opens mic menu from the chevron and switches device", async () => {
     const user = userEvent.setup();
     renderBar();

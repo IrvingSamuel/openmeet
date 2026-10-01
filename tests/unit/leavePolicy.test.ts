@@ -40,6 +40,24 @@ describe("disconnectOutcome", () => {
     ).toBe("removed");
   });
 
+  it("maps duplicate identity to duplicate (no auto-reconnect ping-pong)", () => {
+    expect(
+      disconnectOutcome({
+        intentionalLeave: false,
+        reason: DisconnectReason.DUPLICATE_IDENTITY,
+      }),
+    ).toBe("duplicate");
+  });
+
+  it("offers recovery for SDK-initiated disconnects (e.g. Chrome freeze)", () => {
+    expect(
+      disconnectOutcome({
+        intentionalLeave: false,
+        reason: DisconnectReason.CLIENT_INITIATED,
+      }),
+    ).toBe("recover");
+  });
+
   it("offers recovery for unknown disconnects", () => {
     expect(
       disconnectOutcome({

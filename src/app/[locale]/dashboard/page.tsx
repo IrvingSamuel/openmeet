@@ -38,6 +38,12 @@ import {
   IconVideo,
 } from "@/components/ui/icons";
 import { cn, formatDuration, initials, timeAgo } from "@/lib/utils";
+import {
+  DEFAULT_MEETING_FEATURES,
+  featuresFromRow,
+  resolveMeetingFeatures,
+  type MeetingFeatures,
+} from "@/lib/meeting-features";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 
@@ -55,6 +61,9 @@ type Room = {
   boardId?: string | null;
   accessPolicy?: string;
   muteMicOnJoin?: boolean;
+  captionsEnabled?: boolean;
+  transcriptionEnabled?: boolean;
+  summaryEnabled?: boolean;
   kind?: string;
   createdAt: string;
 };
@@ -817,6 +826,9 @@ function SummaryStatusBadge({
   if (status === "failed") {
     return <Badge tone="warn">{tCommon("badges.summaryFailed")}</Badge>;
   }
+  if (status === "disabled") {
+    return <Badge>{tCommon("badges.summaryDisabled")}</Badge>;
+  }
   if (status === "pending") {
     return <Badge>{tCommon("badges.noSummary")}</Badge>;
   }
@@ -978,6 +990,9 @@ function CreateRoomModal({
     "public" | "members" | "invite"
   >("members");
   const [muteMicOnJoin, setMuteMicOnJoin] = useState(true);
+  const [features, setFeatures] = useState<MeetingFeatures>(
+    DEFAULT_MEETING_FEATURES,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -985,6 +1000,7 @@ function CreateRoomModal({
     e.preventDefault();
     setBusy(true);
     setError(null);
+    const resolved = resolveMeetingFeatures(features);
     try {
       const res = await fetch("/api/rooms", {
         method: "POST",
@@ -994,6 +1010,9 @@ function CreateRoomModal({
           boardId: boardId || undefined,
           accessPolicy,
           muteMicOnJoin,
+          captionsEnabled: resolved.captions,
+          transcriptionEnabled: resolved.transcription,
+          summaryEnabled: resolved.summary,
         }),
       });
       const json = await res.json();
@@ -1005,6 +1024,7 @@ function CreateRoomModal({
       setBoardId("");
       setAccessPolicy("members");
       setMuteMicOnJoin(true);
+      setFeatures(DEFAULT_MEETING_FEATURES);
       onCreated(json.room?.slug ?? "");
     } catch {
       setError(t("networkFailed"));
@@ -1069,6 +1089,7 @@ function CreateRoomModal({
             </span>
           </span>
         </label>
+        <AiFeaturesFieldset value={features} onChange={setFeatures} />
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -1083,6 +1104,87 @@ function CreateRoomModal({
   );
 }
 
+/** Summary is shown off and locked while transcription is off; the raw choice is kept. */
+function AiFeaturesFieldset({
+  value,
+  onChange,
+}: {
+  value: MeetingFeatures;
+  onChange: (next: MeetingFeatures) => void;
+}) {
+  const t = useTranslations("dashboard.createModal");
+  const items: {
+    key: keyof MeetingFeatures;
+    label: string;
+    hint: string;
+    checked: boolean;
+    disabled: boolean;
+  }[] = [
+    {
+      key: "captions",
+      label: t("captionsEnabled"),
+      hint: t("captionsEnabledHint"),
+      checked: value.captions,
+      disabled: false,
+    },
+    {
+      key: "transcription",
+      label: t("transcriptionEnabled"),
+      hint: t("transcriptionEnabledHint"),
+      checked: value.transcription,
+      disabled: false,
+    },
+    {
+      key: "summary",
+      label: t("summaryEnabled"),
+      hint: value.transcription
+        ? t("summaryEnabledHint")
+        : t("summaryRequiresTranscript"),
+      checked: value.transcription && value.summary,
+      disabled: !value.transcription,
+    },
+  ];
+
+  return (
+    <fieldset className="space-y-2 rounded-xl border border-line p-3">
+      <legend className="px-1 text-sm text-ink">{t("aiFeatures")}</legend>
+      <p className="text-xs text-ink-faint">{t("aiFeaturesHint")}</p>
+      {items.map((item) => (
+        <label
+          key={item.key}
+          className={cn(
+            "flex items-start gap-3 text-sm text-ink-muted",
+            item.disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={item.checked}
+            disabled={item.disabled}
+            onChange={(e) => onChange({ ...value, [item.key]: e.target.checked })}
+            className="mt-0.5 h-4 w-4 accent-[var(--brand-primary)]"
+          />
+          <span>
+            <span className="block text-ink">{item.label}</span>
+            <span className="mt-0.5 block text-xs text-ink-faint">{item.hint}</span>
+          </span>
+        </label>
+      ))}
+      {!value.captions && !value.transcription ? (
+        <p className="text-xs text-amber-300">{t("noAgentHint")}</p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+function sameFeatures(a: MeetingFeatures, b: MeetingFeatures): boolean {
+  return (
+    a.captions === b.captions &&
+    a.transcription === b.transcription &&
+    a.summary === b.summary
+  );
+}
+
 function RenameRoomModal({
   room,
   onClose,
@@ -1094,6 +1196,9 @@ function RenameRoomModal({
     title: string;
     accessPolicy?: string;
     muteMicOnJoin?: boolean;
+    captionsEnabled?: boolean;
+    transcriptionEnabled?: boolean;
+    summaryEnabled?: boolean;
   }) => void;
 }) {
   const t = useTranslations("dashboard.renameModal");
@@ -1104,6 +1209,9 @@ function RenameRoomModal({
     "public" | "members" | "invite"
   >("members");
   const [muteMicOnJoin, setMuteMicOnJoin] = useState(true);
+  const [features, setFeatures] = useState<MeetingFeatures>(
+    DEFAULT_MEETING_FEATURES,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1114,9 +1222,14 @@ function RenameRoomModal({
         (room.accessPolicy as "public" | "members" | "invite") || "members",
       );
       setMuteMicOnJoin(room.muteMicOnJoin !== false);
+      setFeatures(featuresFromRow(room));
       setError(null);
     }
   }, [room]);
+
+  const savedFeatures = room ? featuresFromRow(room) : DEFAULT_MEETING_FEATURES;
+  const resolvedFeatures = resolveMeetingFeatures(features);
+  const featuresChanged = !sameFeatures(resolvedFeatures, savedFeatures);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1124,7 +1237,12 @@ function RenameRoomModal({
     const next = title.trim();
     const policyChanged = accessPolicy !== (room.accessPolicy || "members");
     const muteChanged = muteMicOnJoin !== (room.muteMicOnJoin !== false);
-    if ((!next || next === room.title) && !policyChanged && !muteChanged) {
+    if (
+      (!next || next === room.title) &&
+      !policyChanged &&
+      !muteChanged &&
+      !featuresChanged
+    ) {
       onClose();
       return;
     }
@@ -1138,6 +1256,13 @@ function RenameRoomModal({
           title: next !== room.title ? next : undefined,
           accessPolicy: policyChanged ? accessPolicy : undefined,
           muteMicOnJoin: muteChanged ? muteMicOnJoin : undefined,
+          ...(featuresChanged
+            ? {
+                captionsEnabled: resolvedFeatures.captions,
+                transcriptionEnabled: resolvedFeatures.transcription,
+                summaryEnabled: resolvedFeatures.summary,
+              }
+            : {}),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -1149,6 +1274,10 @@ function RenameRoomModal({
         title: json.room?.title ?? next,
         accessPolicy: json.room?.accessPolicy ?? accessPolicy,
         muteMicOnJoin: json.room?.muteMicOnJoin ?? muteMicOnJoin,
+        captionsEnabled: json.room?.captionsEnabled ?? resolvedFeatures.captions,
+        transcriptionEnabled:
+          json.room?.transcriptionEnabled ?? resolvedFeatures.transcription,
+        summaryEnabled: json.room?.summaryEnabled ?? resolvedFeatures.summary,
       });
     } catch {
       setError(t("networkFailed"));
@@ -1200,6 +1329,7 @@ function RenameRoomModal({
             </span>
           </span>
         </label>
+        <AiFeaturesFieldset value={features} onChange={setFeatures} />
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" onClick={onClose}>
@@ -1212,7 +1342,8 @@ function RenameRoomModal({
               !title.trim() ||
               (title.trim() === room?.title &&
                 accessPolicy === (room?.accessPolicy || "members") &&
-                muteMicOnJoin === (room?.muteMicOnJoin !== false))
+                muteMicOnJoin === (room?.muteMicOnJoin !== false) &&
+                !featuresChanged)
             }
           >
             {t("submit")}

@@ -138,11 +138,11 @@ describe("generateMeetingSummary — empty transcript", () => {
 
     expect(callGeminiSafe).not.toHaveBeenCalled();
     expect(recordLlmUsage).not.toHaveBeenCalled();
-    expect(result.summaryMarkdown).toBe(
+    expect(result?.summaryMarkdown).toBe(
       "Nenhum áudio foi detectado nesta reunião.",
     );
-    expect(result.actionItems).toEqual([]);
-    expect(result.offline).toBe(false);
+    expect(result?.actionItems).toEqual([]);
+    expect(result?.offline).toBe(false);
     expect(insertValues).toHaveBeenCalledWith(
       expect.objectContaining({
         meetingId,
@@ -165,9 +165,26 @@ describe("generateMeetingSummary — empty transcript", () => {
     const result = await generateMeetingSummary(meetingId);
 
     expect(callGeminiSafe).not.toHaveBeenCalled();
-    expect(result.summaryMarkdown).toBe(
+    expect(result?.summaryMarkdown).toBe(
       "No audio was detected in this meeting.",
     );
+  });
+
+  it("returns null without generating when the summary is off", async () => {
+    meetingsFindFirst.mockResolvedValue({
+      id: meetingId,
+      roomId: "room-1",
+      summaryEnabled: false,
+    });
+
+    const result = await generateMeetingSummary(meetingId);
+
+    expect(result).toBeNull();
+    expect(segmentsFindMany).not.toHaveBeenCalled();
+    expect(callGeminiSafe).not.toHaveBeenCalled();
+    expect(insertValues).not.toHaveBeenCalled();
+    expect(dispatchSummaryReadyWebhooks).not.toHaveBeenCalled();
+    expect(updateWhere).toHaveBeenCalled();
   });
 });
 

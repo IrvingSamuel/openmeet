@@ -5,12 +5,16 @@ import { db } from "@/db";
 import { rooms, roomBrands } from "@/db/schema";
 import { getSession } from "@/lib/session";
 import { deleteRoomFully } from "@/lib/rooms";
+import { featuresToColumns, resolveMeetingFeatures } from "@/lib/meeting-features";
 
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   boardId: z.string().nullable().optional(),
   accessPolicy: z.enum(["public", "members", "invite"]).optional(),
   muteMicOnJoin: z.boolean().optional(),
+  captionsEnabled: z.boolean().optional(),
+  transcriptionEnabled: z.boolean().optional(),
+  summaryEnabled: z.boolean().optional(),
 });
 
 export async function GET(
@@ -47,7 +51,10 @@ export async function PATCH(
     body.title === undefined &&
     body.boardId === undefined &&
     body.accessPolicy === undefined &&
-    body.muteMicOnJoin === undefined
+    body.muteMicOnJoin === undefined &&
+    body.captionsEnabled === undefined &&
+    body.transcriptionEnabled === undefined &&
+    body.summaryEnabled === undefined
   ) {
     return NextResponse.json({ error: "nothing_to_update" }, { status: 400 });
   }
@@ -57,6 +64,9 @@ export async function PATCH(
     boardId?: string | null;
     accessPolicy?: string;
     muteMicOnJoin?: boolean;
+    captionsEnabled?: boolean;
+    transcriptionEnabled?: boolean;
+    summaryEnabled?: boolean;
     updatedAt: Date;
   } = { updatedAt: new Date() };
 
@@ -64,6 +74,29 @@ export async function PATCH(
   if (body.boardId !== undefined) patch.boardId = body.boardId;
   if (body.accessPolicy !== undefined) patch.accessPolicy = body.accessPolicy;
   if (body.muteMicOnJoin !== undefined) patch.muteMicOnJoin = body.muteMicOnJoin;
+  if (
+    body.captionsEnabled !== undefined ||
+    body.transcriptionEnabled !== undefined ||
+    body.summaryEnabled !== undefined
+  ) {
+    Object.assign(
+      patch,
+      featuresToColumns(
+        resolveMeetingFeatures(
+          {
+            captions: body.captionsEnabled,
+            transcription: body.transcriptionEnabled,
+            summary: body.summaryEnabled,
+          },
+          {
+            captions: room.captionsEnabled,
+            transcription: room.transcriptionEnabled,
+            summary: room.summaryEnabled,
+          },
+        ),
+      ),
+    );
+  }
 
   const [updated] = await db
     .update(rooms)

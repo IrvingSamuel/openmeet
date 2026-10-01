@@ -18,6 +18,7 @@ import {
   type BrandFieldsInput,
 } from "@/lib/brand-schema";
 import { platformPoweredBySubtitle } from "@/lib/platform-defaults";
+import { featuresToColumns, resolveMeetingFeatures } from "@/lib/meeting-features";
 import {
   BRAND_ASSETS_ROOT,
   LEGACY_BRAND_ASSETS_ROOT,
@@ -32,6 +33,10 @@ export type CreateRoomInput = {
   kind?: RoomKind;
   /** When true (default), Lobby starts with mic muted. */
   muteMicOnJoin?: boolean;
+  /** AI feature template (default on). Summary is forced off without transcription. */
+  captionsEnabled?: boolean;
+  transcriptionEnabled?: boolean;
+  summaryEnabled?: boolean;
   themePreset?: string;
   /** Full UI override (API). When set, wins over identity default / themePreset. */
   ui?: BrandFieldsInput;
@@ -116,6 +121,11 @@ export async function createRoomWithBrand(
   const accessPolicy =
     input.accessPolicy || (kind === "instant" ? "public" : "members");
   const muteMicOnJoin = input.muteMicOnJoin !== false;
+  const features = resolveMeetingFeatures({
+    captions: input.captionsEnabled,
+    transcription: input.transcriptionEnabled,
+    summary: input.summaryEnabled,
+  });
 
   const [room] = await db
     .insert(rooms)
@@ -126,6 +136,7 @@ export async function createRoomWithBrand(
       boardId: input.boardId ?? null,
       accessPolicy,
       muteMicOnJoin,
+      ...featuresToColumns(features),
       kind,
       livekitRoomName: `meet_${slug}`,
       webhookUrl: input.webhookUrl ?? null,

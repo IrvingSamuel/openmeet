@@ -72,6 +72,10 @@ export const rooms = pgTable(
     accessPolicy: text("access_policy").notNull().default("members"),
     /** When true, Lobby starts with mic off (participants can still unmute). */
     muteMicOnJoin: boolean("mute_mic_on_join").notNull().default(true),
+    /** AI feature template copied to each meeting (summary requires transcription). */
+    captionsEnabled: boolean("captions_enabled").notNull().default(true),
+    transcriptionEnabled: boolean("transcription_enabled").notNull().default(true),
+    summaryEnabled: boolean("summary_enabled").notNull().default(true),
     kind: text("kind").notNull().default("persistent"),
     livekitRoomName: text("livekit_room_name").notNull(),
     /** Absolute http(s) URL for outbound meeting artifacts (inherited by meetings). */
@@ -208,6 +212,13 @@ export const meetings = pgTable(
     waitForHost: boolean("wait_for_host").notNull().default(false),
     /** Snapshot of room preference: Lobby starts with mic off when true. */
     muteMicOnJoin: boolean("mute_mic_on_join").notNull().default(true),
+    /**
+     * Snapshot of room AI features. Captions + transcription both off → agent
+     * is not dispatched. summaryEnabled=false → summaryStatus "disabled".
+     */
+    captionsEnabled: boolean("captions_enabled").notNull().default(true),
+    transcriptionEnabled: boolean("transcription_enabled").notNull().default(true),
+    summaryEnabled: boolean("summary_enabled").notNull().default(true),
     /** SHA-256 hex of the one-time host entry token (API host_url). */
     hostEntryTokenHash: text("host_entry_token_hash"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */

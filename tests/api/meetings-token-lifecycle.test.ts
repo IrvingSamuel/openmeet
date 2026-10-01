@@ -186,6 +186,55 @@ describe("POST /api/meetings/by-slug/[slug]/token", () => {
     );
   });
 
+  it("dispatches the agent by default and passes the features", async () => {
+    loadMeetingBySlugAfterExpiry.mockResolvedValue({
+      id: "m1",
+      slug: "abc",
+      title: "Demo",
+      status: "active",
+      accessPolicy: "public",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_abc",
+      roomId: null,
+      boardId: null,
+    });
+
+    const res = await tokenPost(jsonRequest({ displayName: "Host" }), { params });
+    expect(res.status).toBe(200);
+    expect(syncRoomMetadata).toHaveBeenCalledWith(
+      "meet_abc",
+      expect.objectContaining({
+        features: { captions: true, transcription: true, summary: true },
+      }),
+      expect.objectContaining({ dispatchAgent: true }),
+    );
+  });
+
+  it("skips the agent when captions and transcription are off", async () => {
+    loadMeetingBySlugAfterExpiry.mockResolvedValue({
+      id: "m1",
+      slug: "abc",
+      title: "Demo",
+      status: "active",
+      accessPolicy: "public",
+      ownerIdentityId: "identity-owner",
+      livekitRoomName: "meet_abc",
+      roomId: null,
+      boardId: null,
+      captionsEnabled: false,
+      transcriptionEnabled: false,
+      summaryEnabled: false,
+    });
+
+    const res = await tokenPost(jsonRequest({ displayName: "Host" }), { params });
+    expect(res.status).toBe(200);
+    expect(syncRoomMetadata).toHaveBeenCalledWith(
+      "meet_abc",
+      expect.anything(),
+      expect.objectContaining({ dispatchAgent: false }),
+    );
+  });
+
   it("does not activate while invite join request is pending", async () => {
     session.identityId = "identity-guest";
     loadMeetingBySlugAfterExpiry.mockResolvedValue({

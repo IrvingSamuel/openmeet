@@ -9,6 +9,7 @@ const roomBrandsFindFirst = vi.fn();
 const identityBrandsFindFirst = vi.fn();
 const meetingsFindFirst = vi.fn();
 const insertReturning = vi.fn();
+const insertValues = vi.fn();
 const updateReturning = vi.fn();
 const brandUpdateSet = vi.fn();
 const deleteWhere = vi.fn();
@@ -42,7 +43,10 @@ vi.mock("@/db", () => ({
       },
     },
     insert: () => ({
-      values: () => ({ returning: () => insertReturning() }),
+      values: (v: unknown) => {
+        insertValues(v);
+        return { returning: () => insertReturning() };
+      },
     }),
     update: () => ({
       set: (patch: unknown) => {
@@ -85,6 +89,7 @@ beforeEach(() => {
   identityBrandsFindFirst.mockReset();
   meetingsFindFirst.mockReset();
   insertReturning.mockReset();
+  insertValues.mockReset();
   updateReturning.mockReset();
   brandUpdateSet.mockReset();
   deleteWhere.mockReset();
@@ -141,6 +146,33 @@ describe("POST /api/rooms", () => {
     expect(res.status).toBe(201);
     const payload = await res.json();
     expect(payload.room.slug).toBe("abc");
+  });
+
+  it("stores AI feature flags and forces summary off without transcription", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-1";
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://meet.example.com");
+    insertReturning
+      .mockResolvedValueOnce([{ id: "r1", slug: "abc", title: "Weekly" }])
+      .mockResolvedValueOnce([{ roomId: "r1" }]);
+
+    const res = await createRoom(
+      jsonRequest({
+        title: "Weekly",
+        captionsEnabled: false,
+        transcriptionEnabled: false,
+        summaryEnabled: true,
+      }),
+    );
+    vi.unstubAllEnvs();
+    expect(res.status).toBe(201);
+    expect(insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        captionsEnabled: false,
+        transcriptionEnabled: false,
+        summaryEnabled: false,
+      }),
+    );
   });
 
   it("refuses an invalid slug", async () => {
@@ -261,6 +293,57 @@ describe("PATCH /api/rooms/[slug]", () => {
     expect(payload.room.muteMicOnJoin).toBe(false);
     expect(brandUpdateSet).toHaveBeenCalledWith(
       expect.objectContaining({ muteMicOnJoin: false }),
+    );
+  });
+
+  it("turning transcription off also turns the saved summary off", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-1";
+    roomsFindFirst.mockResolvedValue({
+      id: "r1",
+      slug: "weekly",
+      title: "Weekly",
+      ownerIdentityId: "identity-1",
+      captionsEnabled: true,
+      transcriptionEnabled: true,
+      summaryEnabled: true,
+    });
+    updateReturning.mockResolvedValue([{ id: "r1", slug: "weekly" }]);
+    roomBrandsFindFirst.mockResolvedValue(null);
+
+    const res = await patchRoom(
+      jsonRequest({ transcriptionEnabled: false }, "PATCH"),
+      { params: Promise.resolve({ slug: "weekly" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(brandUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        captionsEnabled: true,
+        transcriptionEnabled: false,
+        summaryEnabled: false,
+      }),
+    );
+  });
+
+  it("accepts a feature-only PATCH", async () => {
+    session.isLoggedIn = true;
+    session.identityId = "identity-1";
+    roomsFindFirst.mockResolvedValue({
+      id: "r1",
+      slug: "weekly",
+      title: "Weekly",
+      ownerIdentityId: "identity-1",
+    });
+    updateReturning.mockResolvedValue([{ id: "r1", slug: "weekly" }]);
+    roomBrandsFindFirst.mockResolvedValue(null);
+
+    const res = await patchRoom(
+      jsonRequest({ captionsEnabled: false }, "PATCH"),
+      { params: Promise.resolve({ slug: "weekly" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(brandUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ captionsEnabled: false, summaryEnabled: true }),
     );
   });
 });

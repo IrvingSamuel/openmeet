@@ -6,6 +6,7 @@ import {
   WebhookReceiver,
 } from "livekit-server-sdk";
 import { getLiveKitEmptyTimeoutSec } from "@/lib/meeting-timeouts";
+import type { MeetingFeatures } from "@/lib/meeting-features";
 
 export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
 
@@ -84,6 +85,7 @@ export type RoomMetadataPayload = {
   roomId: string;
   slug: string;
   boardId?: string | null;
+  features?: MeetingFeatures;
 };
 
 /**
@@ -162,11 +164,14 @@ export async function ensureAgentDispatch(livekitRoomName: string) {
   }
 }
 
-/** Ensure the LiveKit room exists and carries meeting metadata for the agent. */
+/**
+ * Ensure the LiveKit room exists and carries meeting metadata for the agent.
+ * `dispatchAgent: false` (captions and transcription both off) skips the agent.
+ */
 export async function syncRoomMetadata(
   livekitRoomName: string,
   meta: RoomMetadataPayload,
-  opts?: { emptyTimeout?: number },
+  opts?: { emptyTimeout?: number; dispatchAgent?: boolean },
 ) {
   const httpHost = getLiveKitHttpHost();
   const client = getRoomServiceClient();
@@ -207,6 +212,13 @@ export async function syncRoomMetadata(
     }
   }
 
+  if (opts?.dispatchAgent === false) {
+    console.info(
+      "[openmeet] syncRoomMetadata agent skipped (AI features off) room=%s",
+      livekitRoomName,
+    );
+    return;
+  }
   await ensureAgentDispatch(livekitRoomName);
 }
 

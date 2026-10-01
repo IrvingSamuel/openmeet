@@ -65,6 +65,8 @@ export function ControlBar({
   onPanelChange,
   captionsOn,
   onCaptionsToggle,
+  captionsEnabled = true,
+  transcriptionEnabled = true,
   unreadChat,
   peopleCount,
   pendingJoinRequests = 0,
@@ -96,6 +98,10 @@ export function ControlBar({
   onPanelChange: (panel: SidePanel) => void;
   captionsOn: boolean;
   onCaptionsToggle: () => void;
+  /** Meeting-level flag: false hides the captions button. */
+  captionsEnabled?: boolean;
+  /** Meeting-level flag: false hides the full transcript and the copilot. */
+  transcriptionEnabled?: boolean;
   unreadChat: number;
   peopleCount: number;
   pendingJoinRequests?: number;
@@ -340,13 +346,15 @@ export function ControlBar({
 
         <Separator />
 
-        <ControlButton
-          active={captionsOn}
-          onClick={onCaptionsToggle}
-          label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-        >
-          <IconCaptions />
-        </ControlButton>
+        {captionsEnabled ? (
+          <ControlButton
+            active={captionsOn}
+            onClick={onCaptionsToggle}
+            label={captionsOn ? t("hideCaptions") : t("showCaptions")}
+          >
+            <IconCaptions />
+          </ControlButton>
+        ) : null}
 
         <ControlButton
           ref={reactionsAnchorRef}
@@ -398,18 +406,20 @@ export function ControlBar({
           </button>
         </FloatingMenu>
 
-        <ControlButton
-          active={panel === "copilot"}
-          onClick={() => selectPanel("copilot")}
-          label={t("copilot")}
-          badge={
-            insightCount && insightCount > 0
-              ? String(insightCount)
-              : undefined
-          }
-        >
-          <IconSparkles />
-        </ControlButton>
+        {transcriptionEnabled ? (
+          <ControlButton
+            active={panel === "copilot"}
+            onClick={() => selectPanel("copilot")}
+            label={t("copilot")}
+            badge={
+              insightCount && insightCount > 0
+                ? String(insightCount)
+                : undefined
+            }
+          >
+            <IconSparkles />
+          </ControlButton>
+        ) : null}
 
         <ControlButton
           active={panel === "chat"}
@@ -446,13 +456,15 @@ export function ControlBar({
           >
             {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
           </MoreItem>
-          <MoreItem
-            label={t("fullTranscript")}
-            active={panel === "captions"}
-            onClick={() => selectPanel("captions")}
-          >
-            <TranscriptIcon />
-          </MoreItem>
+          {transcriptionEnabled ? (
+            <MoreItem
+              label={t("fullTranscript")}
+              active={panel === "captions"}
+              onClick={() => selectPanel("captions")}
+            >
+              <TranscriptIcon />
+            </MoreItem>
+          ) : null}
           <MoreItem
             label={t("options")}
             active={optionsOpen}

@@ -13,6 +13,9 @@ const createSchema = z.object({
   boardId: z.string().optional(),
   accessPolicy: z.enum(["public", "members", "invite"]).optional(),
   muteMicOnJoin: z.boolean().optional(),
+  captionsEnabled: z.boolean().optional(),
+  transcriptionEnabled: z.boolean().optional(),
+  summaryEnabled: z.boolean().optional(),
   themePreset: z.string().optional(),
 });
 
@@ -43,6 +46,9 @@ export async function POST(req: NextRequest) {
     boardId: body.boardId,
     accessPolicy: body.accessPolicy,
     muteMicOnJoin: body.muteMicOnJoin,
+    captionsEnabled: body.captionsEnabled,
+    transcriptionEnabled: body.transcriptionEnabled,
+    summaryEnabled: body.summaryEnabled,
     themePreset: body.themePreset,
     kind: "persistent",
     useIdentityBrand: true,

@@ -446,4 +446,80 @@ describe("POST /api/v1/instant-meetings", () => {
     const body = await res.json();
     expect(body.error).toBe("webhook_url_invalid");
   });
+
+  it("defaults AI features on and leaves summaryStatus untouched", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        { id: "m-def", slug: "aidef0001", title: "Aula", roomId: null },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-def" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        { title: "Aula", external_id: "cu-1" },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(insertedValues[0]).toMatchObject({
+      captionsEnabled: true,
+      transcriptionEnabled: true,
+      summaryEnabled: true,
+    });
+    expect(insertedValues[0]).not.toHaveProperty("summaryStatus");
+    const body = await res.json();
+    expect(body).toMatchObject({
+      captions_enabled: true,
+      transcription_enabled: true,
+      summary_enabled: true,
+    });
+  });
+
+  it("stores snake_case AI features and marks the summary disabled", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-ai",
+          slug: "aioff0001",
+          title: "Aula",
+          roomId: null,
+          captionsEnabled: false,
+          transcriptionEnabled: false,
+          summaryEnabled: false,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-ai" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        {
+          title: "Aula",
+          external_id: "cu-1",
+          captions_enabled: false,
+          transcription_enabled: false,
+          summary_enabled: true,
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(insertedValues[0]).toMatchObject({
+      captionsEnabled: false,
+      transcriptionEnabled: false,
+      summaryEnabled: false,
+      summaryStatus: "disabled",
+    });
+    const body = await res.json();
+    expect(body).toMatchObject({
+      captions_enabled: false,
+      transcription_enabled: false,
+      summary_enabled: false,
+    });
+  });
 });
