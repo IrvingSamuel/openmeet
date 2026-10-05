@@ -5,7 +5,7 @@ import {
   useTrackToggle,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import {
   useEffect,
@@ -24,6 +24,7 @@ import { useMeetingDevices } from "@/hooks/useMeetingDevices";
 import { useToast } from "@/components/ui/Toast";
 import { springSoft } from "@/components/motion/primitives";
 import {
+  IconBroadcast,
   IconCaptions,
   IconChat,
   IconGrid,
@@ -54,6 +55,7 @@ import {
 import { DeviceSettingsModal } from "@/components/room/DeviceSettingsModal";
 import { canUseBackgroundEffects } from "@/hooks/useMeetingEffects";
 import type { MediaPrefs } from "@/lib/media-prefs-schema";
+import { screenShareCaptureOptions } from "@/lib/screen-share";
 
 export type SidePanel = "none" | "chat" | "people" | "captions" | "copilot";
 
@@ -64,6 +66,8 @@ export function ControlBar({
   onPanelChange,
   captionsOn,
   onCaptionsToggle,
+  captionsEnabled = true,
+  transcriptionEnabled = true,
   unreadChat,
   peopleCount,
   pendingJoinRequests = 0,
@@ -75,6 +79,9 @@ export function ControlBar({
   highlightRecording,
   recordingHint,
   onToggleRecording,
+  canLiveStream = false,
+  liveStreamActive = false,
+  onLiveStreamClick,
   onLeave,
   onEndForAll,
   handRaised = false,
@@ -84,8 +91,10 @@ export function ControlBar({
   mediaPrefsReady = false,
   mediaPrefsAccountBound = false,
   mediaPrefsSaving = false,
+  resolvedCaptionsDefault = true,
   onMediaPrefsChange,
   onUploadVirtualBackground,
+  showPeopleInBar = true,
 }: {
   layout: StageLayout;
   onLayoutChange: (layout: StageLayout) => void;
@@ -93,6 +102,10 @@ export function ControlBar({
   onPanelChange: (panel: SidePanel) => void;
   captionsOn: boolean;
   onCaptionsToggle: () => void;
+  /** Meeting-level flag: false hides the captions button. */
+  captionsEnabled?: boolean;
+  /** Meeting-level flag: false hides the full transcript and the copilot. */
+  transcriptionEnabled?: boolean;
   unreadChat: number;
   peopleCount: number;
   pendingJoinRequests?: number;
@@ -104,6 +117,10 @@ export function ControlBar({
   highlightRecording?: boolean;
   recordingHint?: string;
   onToggleRecording?: () => void;
+  /** Moderator + live streaming enabled in /admin. */
+  canLiveStream?: boolean;
+  liveStreamActive?: boolean;
+  onLiveStreamClick?: () => void;
   onLeave: () => void;
   onEndForAll?: () => void | Promise<void>;
   handRaised?: boolean;
@@ -113,8 +130,11 @@ export function ControlBar({
   mediaPrefsReady?: boolean;
   mediaPrefsAccountBound?: boolean;
   mediaPrefsSaving?: boolean;
+  resolvedCaptionsDefault?: boolean;
   onMediaPrefsChange?: (patch: Partial<MediaPrefs>) => void;
   onUploadVirtualBackground?: (file: File) => Promise<string>;
+  /** When false, people control lives in the room header (next to copy link). */
+  showPeopleInBar?: boolean;
 }) {
   const t = useTranslations("room.controlBar");
   const tRoom = useTranslations("room");
@@ -126,12 +146,14 @@ export function ControlBar({
   const devicesApi = useMeetingDevices(room);
   const deviceMenus = useExclusiveMenus();
   const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const compact = !useIsSmUp();
   const moreAnchorRef = useRef<HTMLButtonElement>(null);
   const reactionsAnchorRef = useRef<HTMLButtonElement>(null);
+  const shareBtnRef = useRef<HTMLButtonElement>(null);
   const recordBtnRef = useRef<HTMLButtonElement>(null);
   const chimesUnlockedRef = useRef(false);
 
@@ -155,7 +177,41 @@ export function ControlBar({
     deviceMenus.closeAll();
     setMoreOpen(false);
     setReactionsOpen(false);
+    setShareMenuOpen(false);
     setOptionsOpen(true);
+  }
+
+  async function startScreenShare(withAudio: boolean) {
+    setShareMenuOpen(false);
+    try {
+      await screen.toggle(true, screenShareCaptureOptions(withAudio));
+    } catch (err) {
+      if (!withAudio) {
+        const label = err instanceof Error ? err.message : String(err);
+        toast.error(tRoom("mediaDeviceError", { label }));
+        return;
+      }
+      // Browser may reject display-audio; fall back to video-only share.
+      try {
+        await screen.toggle(true, screenShareCaptureOptions(false));
+        toast.push(t("shareAudioFallback"), "info");
+      } catch (fallbackErr) {
+        const label =
+          fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        toast.error(tRoom("mediaDeviceError", { label }));
+      }
+    }
+  }
+
+  function onScreenShareClick() {
+    if (screen.enabled) {
+      setShareMenuOpen(false);
+      void screen.toggle(false);
+      return;
+    }
+    setReactionsOpen(false);
+    setMoreOpen(false);
+    setShareMenuOpen((v) => !v);
   }
 
   async function switchSafe(
@@ -173,11 +229,9 @@ export function ControlBar({
     }
   }
 
-  const moreBadge =
-    (unreadChat > 0 ? 1 : 0) +
-    (insightCount && insightCount > 0 ? 1 : 0) +
-    (pendingJoinRequests > 0 ? 1 : 0) +
-    (peopleCount > 1 ? 1 : 0);
+  const moreBadge = showPeopleInBar
+    ? (pendingJoinRequests > 0 ? 1 : 0) + (peopleCount > 1 ? 1 : 0)
+    : 0;
 
   const peopleBadge =
     pendingJoinRequests > 0
@@ -273,30 +327,6 @@ export function ControlBar({
           <IconHand />
         </ControlButton>
 
-        {!compact ? (
-          <ControlButton
-            ref={reactionsAnchorRef}
-            active={reactionsOpen}
-            onClick={() => setReactionsOpen((v) => !v)}
-            label={t("reactions")}
-          >
-            <IconReaction />
-          </ControlButton>
-        ) : null}
-
-        {!compact ? (
-          <ControlButton
-            active={screen.enabled}
-            pending={screen.pending}
-            onClick={() => {
-              void screen.toggle();
-            }}
-            label={screen.enabled ? t("stopShare") : t("startShare")}
-          >
-            <IconScreen />
-          </ControlButton>
-        ) : null}
-
         {canToggleRecording ? (
           <div className="relative shrink-0">
             <ControlButton
@@ -324,206 +354,178 @@ export function ControlBar({
 
         <Separator />
 
+        {captionsEnabled ? (
+          <ControlButton
+            active={captionsOn}
+            onClick={onCaptionsToggle}
+            label={captionsOn ? t("hideCaptions") : t("showCaptions")}
+          >
+            <IconCaptions />
+          </ControlButton>
+        ) : null}
+
         <ControlButton
-          active={layout === "spotlight"}
-          onClick={() =>
-            onLayoutChange(layout === "grid" ? "spotlight" : "grid")
-          }
-          label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
+          ref={reactionsAnchorRef}
+          active={reactionsOpen}
+          onClick={() => setReactionsOpen((v) => !v)}
+          label={t("reactions")}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={layout}
-              initial={{ opacity: 0, rotate: -35, scale: 0.6 }}
-              animate={{ opacity: 1, rotate: 0, scale: 1 }}
-              exit={{ opacity: 0, rotate: 35, scale: 0.6 }}
-              transition={{ duration: 0.2 }}
-              className="grid place-items-center"
-            >
-              {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
-            </motion.span>
-          </AnimatePresence>
+          <IconReaction />
         </ControlButton>
 
-        {compact ? (
-          <>
-            <ControlButton
-              ref={moreAnchorRef}
-              active={moreOpen || panel !== "none" || captionsOn}
-              onClick={() => setMoreOpen((v) => !v)}
-              label={t("moreControls")}
-              badge={moreBadge > 0 ? String(moreBadge) : undefined}
-            >
-              <IconMore />
-            </ControlButton>
-            <FloatingMenu
-              open={moreOpen}
-              onClose={() => setMoreOpen(false)}
-              anchorRef={moreAnchorRef}
-              align="center"
-            >
-              <MoreItem
-                label={t("reactions")}
-                active={reactionsOpen}
-                onClick={() => {
-                  setReactionsOpen(true);
-                  setMoreOpen(false);
-                }}
-              >
-                <IconReaction />
-              </MoreItem>
-              <MoreItem
-                label={screen.enabled ? t("stopShare") : t("startShare")}
-                active={screen.enabled}
-                onClick={() => {
-                  void screen.toggle();
-                  setMoreOpen(false);
-                }}
-              >
-                <IconScreen />
-              </MoreItem>
-              <MoreItem
-                label={handRaised ? t("lowerHand") : t("raiseHand")}
-                active={handRaised}
-                onClick={() => {
-                  void onToggleHand?.();
-                  setMoreOpen(false);
-                }}
-              >
-                <IconHand />
-              </MoreItem>
-              <MoreItem
-                label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-                active={captionsOn}
-                onClick={() => {
-                  onCaptionsToggle();
-                  setMoreOpen(false);
-                }}
-              >
-                <IconCaptions />
-              </MoreItem>
-              <MoreItem
-                label={t("fullTranscript")}
-                active={panel === "captions"}
-                onClick={() => selectPanel("captions")}
-              >
-                <TranscriptIcon />
-              </MoreItem>
-              <MoreItem
-                label={t("copilot")}
-                active={panel === "copilot"}
-                badge={
-                  insightCount && insightCount > 0
-                    ? String(insightCount)
-                    : undefined
-                }
-                onClick={() => selectPanel("copilot")}
-              >
-                <IconSparkles />
-              </MoreItem>
-              <MoreItem
-                label={t("people")}
-                active={panel === "people"}
-                badge={peopleBadge}
-                badgeTone={peopleBadgeTone}
-                onClick={() => selectPanel("people")}
-              >
-                <IconUsers />
-              </MoreItem>
-              <MoreItem
-                label={t("options")}
-                active={optionsOpen}
-                onClick={() => {
-                  openOptions();
-                }}
-              >
-                <IconSettings />
-              </MoreItem>
-              <MoreItem
-                label={t("chat")}
-                active={panel === "chat"}
-                badge={unreadChat > 0 ? String(unreadChat) : undefined}
-                badgeTone="danger"
-                onClick={() => selectPanel("chat")}
-              >
-                <IconChat />
-              </MoreItem>
-            </FloatingMenu>
-          </>
-        ) : (
-          <>
-            <ControlButton
-              active={captionsOn}
-              onClick={onCaptionsToggle}
-              label={captionsOn ? t("hideCaptions") : t("showCaptions")}
-            >
-              <IconCaptions />
-            </ControlButton>
+        <ControlButton
+          ref={shareBtnRef}
+          active={screen.enabled || shareMenuOpen}
+          onClick={onScreenShareClick}
+          label={screen.enabled ? t("stopShare") : t("startShare")}
+          aria-expanded={!screen.enabled ? shareMenuOpen : undefined}
+          aria-haspopup={!screen.enabled ? "menu" : undefined}
+        >
+          <IconScreen />
+        </ControlButton>
 
-            <ControlButton
-              active={panel === "captions"}
-              onClick={() =>
-                onPanelChange(panel === "captions" ? "none" : "captions")
-              }
+        <FloatingMenu
+          open={shareMenuOpen && !screen.enabled}
+          onClose={() => setShareMenuOpen(false)}
+          anchorRef={shareBtnRef}
+          align="center"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void startScreenShare(false)}
+            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-white/[0.06]"
+          >
+            {t("startShare")}
+            <span className="mt-0.5 block text-[11px] text-ink-faint">
+              {t("startShareHint")}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void startScreenShare(true)}
+            className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-white/[0.06]"
+          >
+            {t("startShareAudio")}
+            <span className="mt-0.5 block text-[11px] text-ink-faint">
+              {t("startShareAudioHint")}
+            </span>
+          </button>
+        </FloatingMenu>
+
+        {transcriptionEnabled ? (
+          <ControlButton
+            active={panel === "copilot"}
+            onClick={() => selectPanel("copilot")}
+            label={t("copilot")}
+            badge={
+              insightCount && insightCount > 0
+                ? String(insightCount)
+                : undefined
+            }
+          >
+            <IconSparkles />
+          </ControlButton>
+        ) : null}
+
+        <ControlButton
+          active={panel === "chat"}
+          onClick={() => selectPanel("chat")}
+          label={t("chat")}
+          badge={unreadChat > 0 ? String(unreadChat) : undefined}
+          badgeTone="danger"
+        >
+          <IconChat />
+        </ControlButton>
+
+        <ControlButton
+          ref={moreAnchorRef}
+          active={moreOpen || panel === "people" || optionsOpen}
+          onClick={() => setMoreOpen((v) => !v)}
+          label={t("moreControls")}
+          badge={moreBadge > 0 ? String(moreBadge) : undefined}
+        >
+          <IconMore />
+        </ControlButton>
+        <FloatingMenu
+          open={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          anchorRef={moreAnchorRef}
+          align="center"
+        >
+          <MoreItem
+            label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
+            active={layout === "spotlight"}
+            onClick={() => {
+              onLayoutChange(layout === "grid" ? "spotlight" : "grid");
+              setMoreOpen(false);
+            }}
+          >
+            {layout === "grid" ? <IconGrid /> : <IconSpotlight />}
+          </MoreItem>
+          {transcriptionEnabled ? (
+            <MoreItem
               label={t("fullTranscript")}
+              active={panel === "captions"}
+              onClick={() => selectPanel("captions")}
             >
               <TranscriptIcon />
-            </ControlButton>
-
-            <Separator />
-
-            <ControlButton
-              active={panel === "copilot"}
-              onClick={() =>
-                onPanelChange(panel === "copilot" ? "none" : "copilot")
-              }
-              label={t("copilot")}
-              badge={
-                insightCount && insightCount > 0
-                  ? String(insightCount)
-                  : undefined
-              }
+            </MoreItem>
+          ) : null}
+          <MoreItem
+            label={t("options")}
+            active={optionsOpen}
+            onClick={() => {
+              openOptions();
+            }}
+          >
+            <IconSettings />
+          </MoreItem>
+          {canLiveStream ? (
+            <MoreItem
+              label={liveStreamActive ? t("stopLiveStream") : t("startLiveStream")}
+              active={liveStreamActive}
+              onClick={() => {
+                setMoreOpen(false);
+                onLiveStreamClick?.();
+              }}
             >
-              <IconSparkles />
-            </ControlButton>
-
-            <ControlButton
-              active={panel === "people"}
-              onClick={() =>
-                onPanelChange(panel === "people" ? "none" : "people")
-              }
+              <IconBroadcast
+                className={liveStreamActive ? "text-rose-400" : undefined}
+              />
+            </MoreItem>
+          ) : null}
+          {compact ? (
+            <MoreItem
+              label={handRaised ? t("lowerHand") : t("raiseHand")}
+              active={handRaised}
+              onClick={() => {
+                void onToggleHand?.();
+                setMoreOpen(false);
+              }}
+            >
+              <IconHand />
+            </MoreItem>
+          ) : null}
+          {showPeopleInBar ? (
+            <MoreItem
               label={t("people")}
+              active={panel === "people"}
               badge={peopleBadge}
               badgeTone={peopleBadgeTone}
+              onClick={() => selectPanel("people")}
             >
               <IconUsers />
-            </ControlButton>
-
-            <ControlButton
-              active={panel === "chat"}
-              onClick={() => onPanelChange(panel === "chat" ? "none" : "chat")}
-              label={t("chat")}
-              badge={unreadChat > 0 ? String(unreadChat) : undefined}
-              badgeTone="danger"
-            >
-              <IconChat />
-            </ControlButton>
-
-            <ControlButton
-              active={optionsOpen}
-              onClick={openOptions}
-              label={t("options")}
-            >
-              <IconSettings />
-            </ControlButton>
-          </>
-        )}
+            </MoreItem>
+          ) : null}
+        </FloatingMenu>
       </motion.div>
 
       <FloatingMenu
         open={reactionsOpen}
         onClose={() => setReactionsOpen(false)}
-        anchorRef={compact ? moreAnchorRef : reactionsAnchorRef}
+        anchorRef={reactionsAnchorRef}
         align="center"
       >
         <ReactionPicker onPick={pickReaction} />
@@ -536,6 +538,7 @@ export function ControlBar({
         mediaPrefsReady={mediaPrefsReady}
         accountBound={mediaPrefsAccountBound}
         saving={mediaPrefsSaving}
+        resolvedCaptionsDefault={resolvedCaptionsDefault}
         effectsSupported={canUseBackgroundEffects()}
         onMediaPrefsChange={onMediaPrefsChange}
         onUploadVirtualBackground={onUploadVirtualBackground}
@@ -654,7 +657,7 @@ function LeaveControl({
         transition={springSoft}
         aria-label={t("leaveMeeting")}
         aria-expanded={isHost ? open : undefined}
-        className="grid h-11 w-14 place-items-center rounded-xl bg-rose-500 text-white shadow-[0_10px_36px_-12px_rgba(244,63,94,0.9)] transition-colors hover:bg-rose-400"
+        className="grid h-12 w-14 place-items-center rounded-xl bg-rose-500 text-white shadow-[0_10px_36px_-12px_rgba(244,63,94,0.9)] transition-colors hover:bg-rose-400"
       >
         <IconPhoneOff />
       </motion.button>
@@ -763,6 +766,8 @@ const ControlButton = forwardRef(function ControlButton(
     badge,
     badgeTone = "brand",
     className,
+    "aria-expanded": ariaExpanded,
+    "aria-haspopup": ariaHaspopup,
   }: {
     children: ReactNode;
     onClick: () => void;
@@ -773,6 +778,8 @@ const ControlButton = forwardRef(function ControlButton(
     badge?: string;
     badgeTone?: "brand" | "danger";
     className?: string;
+    "aria-expanded"?: boolean;
+    "aria-haspopup"?: boolean | "menu" | "listbox" | "tree" | "grid" | "dialog";
   },
   ref: Ref<HTMLButtonElement>,
 ) {
@@ -783,12 +790,14 @@ const ControlButton = forwardRef(function ControlButton(
       disabled={pending}
       aria-label={label}
       aria-pressed={active}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHaspopup}
       title={label}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.94 }}
       transition={springSoft}
       className={cn(
-        "relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition-colors duration-300 disabled:opacity-50",
+        "relative grid h-12 w-12 shrink-0 place-items-center rounded-xl border transition-colors duration-300 disabled:opacity-50",
         danger
           ? "border-rose-400/50 bg-rose-500/85 text-white"
           : active

@@ -5,12 +5,46 @@ export type Caption = {
   participantId?: string;
 };
 
+let captionStripPattern: RegExp | null = null;
+let captionStripPatternChecked = false;
+
+/** Test-only: clear lazy regex cache so Unicode-fallback paths can be exercised. */
+export function resetCaptionStripPatternCache() {
+  captionStripPattern = null;
+  captionStripPatternChecked = false;
+}
+
+/**
+ * Lazy compile — avoids SyntaxError on engines without Unicode property escapes
+ * (same approach as room-reactions.ts).
+ */
+function getCaptionStripPattern(): RegExp | null {
+  if (captionStripPatternChecked) return captionStripPattern;
+  captionStripPatternChecked = true;
+  try {
+    captionStripPattern = new RegExp("[^\\p{L}\\p{N}\\s]", "gu");
+  } catch {
+    captionStripPattern = null;
+  }
+  return captionStripPattern;
+}
+
+/** ASCII + Latin-1 supplement letters/digits when \\p{} is unavailable. */
+function stripCaptionPunctuationFallback(text: string): string {
+  return text.replace(/[^a-zA-Z0-9\s\u00C0-\u024F]/g, "");
+}
+
 function normalizeCaptionText(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[^\p{L}\p{N}\s]/gu, "");
+  const collapsed = text.toLowerCase().trim().replace(/\s+/g, " ");
+  const pattern = getCaptionStripPattern();
+  if (pattern) {
+    try {
+      return collapsed.replace(pattern, "");
+    } catch {
+      return stripCaptionPunctuationFallback(collapsed);
+    }
+  }
+  return stripCaptionPunctuationFallback(collapsed);
 }
 
 /** True when two caption bodies are near-duplicates (mic bleed on another track). */
@@ -19,18 +53,22 @@ export function captionsSimilar(
   b: string,
   threshold = 0.85,
 ): boolean {
-  const na = normalizeCaptionText(a);
-  const nb = normalizeCaptionText(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  const maxLen = Math.max(na.length, nb.length);
-  let matches = 0;
-  const shorter = na.length <= nb.length ? na : nb;
-  const longer = na.length <= nb.length ? nb : na;
-  for (let i = 0; i < shorter.length; i++) {
-    if (shorter[i] === longer[i]) matches += 1;
+  try {
+    const na = normalizeCaptionText(a);
+    const nb = normalizeCaptionText(b);
+    if (!na || !nb) return false;
+    if (na === nb) return true;
+    const maxLen = Math.max(na.length, nb.length);
+    let matches = 0;
+    const shorter = na.length <= nb.length ? na : nb;
+    const longer = na.length <= nb.length ? nb : na;
+    for (let i = 0; i < shorter.length; i++) {
+      if (shorter[i] === longer[i]) matches += 1;
+    }
+    return matches / maxLen >= threshold;
+  } catch {
+    return false;
   }
-  return matches / maxLen >= threshold;
 }
 
 /** Decodes a `captions` data-channel payload, tolerating malformed frames. */

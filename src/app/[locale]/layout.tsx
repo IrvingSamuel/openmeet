@@ -7,6 +7,7 @@ import { routing, type AppLocale } from "@/i18n/routing";
 import { HtmlLang } from "@/components/layout/HtmlLang";
 import { SystemThemeProvider } from "@/components/layout/SystemThemeProvider";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import { ToastProvider } from "@/components/ui/Toast";
 import { resolveSystemUiTheme } from "@/lib/system-theme";
 
 export const dynamic = "force-dynamic";
@@ -86,8 +87,10 @@ export default async function LocaleLayout({
     <NextIntlClientProvider messages={messages}>
       <HtmlLang locale={locale} />
       <SystemThemeProvider theme={theme}>
-        <ImpersonationBanner />
-        {children}
+        <ToastProvider>
+          <ImpersonationBanner />
+          {children}
+        </ToastProvider>
       </SystemThemeProvider>
     </NextIntlClientProvider>
   );

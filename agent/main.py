@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import time
+from dataclasses import dataclass
 from typing import Optional
 
 import aiohttp
@@ -41,6 +42,7 @@ from agent_config import (
 )
 from caption_guards import CrossCaptionDeduper, participant_mic_muted
 from copilot_voice import handle_voice_copilot
+from meeting_features import ALL_ON, MeetingFeatures, parse_features
 from wake_word import WakeDebouncer, extract_wake_command, parse_wake_phrases
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
@@ -90,34 +92,44 @@ def deepgram_status() -> str:
     return f"ok({_DEEPGRAM_SOURCE})"
 
 
-async def resolve_deepgram_api_key() -> Optional[str]:
-    """Prefer Admin/DB key via Meet API; fall back to DEEPGRAM_API_KEY env."""
+@dataclass(frozen=True)
+class AgentConfig:
+    deepgram_api_key: Optional[str]
+    features: MeetingFeatures
+    meeting_id: Optional[str]
+
+
+async def resolve_agent_config(room_name: Optional[str] = None) -> AgentConfig:
+    """Deepgram key (Admin/DB via Meet API, env fallback) plus the meeting's
+    AI feature flags when `room_name` is given. Flags default to all on."""
     global _DEEPGRAM_SOURCE
     reload_env()
     env_key = (os.getenv("DEEPGRAM_API_KEY") or "").strip()
+    features = ALL_ON
+    meeting_id: Optional[str] = None
+    api_key = ""
+    source = "none"
 
     headers = {}
     if AGENT_SECRET:
         headers["x-agent-secret"] = AGENT_SECRET
+    params = {"room": room_name} if room_name else None
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"{MEET_API_URL.rstrip('/')}/api/agent/config",
                 headers=headers,
+                params=params,
                 timeout=aiohttp.ClientTimeout(total=8),
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     api_key = (data.get("deepgramApiKey") or "").strip()
                     source = data.get("deepgramSource") or "none"
-                    if api_key:
-                        os.environ["DEEPGRAM_API_KEY"] = api_key
-                        _DEEPGRAM_SOURCE = (
-                            source if source in ("db", "env") else "db"
-                        )
-                        return api_key
-                    # API reachable but no key configured — still allow env.
+                    features = parse_features(data.get("features"))
+                    mid = data.get("meetingId")
+                    meeting_id = mid if isinstance(mid, str) and mid else None
                 else:
                     logger.warning(
                         "agent config fetch failed status=%s — using env fallback",
@@ -126,13 +138,23 @@ async def resolve_deepgram_api_key() -> Optional[str]:
     except Exception as exc:
         logger.warning("agent config fetch error: %s — using env fallback", exc)
 
+    if api_key:
+        os.environ["DEEPGRAM_API_KEY"] = api_key
+        _DEEPGRAM_SOURCE = source if source in ("db", "env") else "db"
+        return AgentConfig(api_key, features, meeting_id)
+
+    # API unreachable or no key configured — still allow env.
     if env_key:
         os.environ["DEEPGRAM_API_KEY"] = env_key
         _DEEPGRAM_SOURCE = "env"
-        return env_key
+        return AgentConfig(env_key, features, meeting_id)
 
     _DEEPGRAM_SOURCE = "none"
-    return None
+    return AgentConfig(None, features, meeting_id)
+
+
+async def resolve_deepgram_api_key() -> Optional[str]:
+    return (await resolve_agent_config()).deepgram_api_key
 
 
 def slug_from_room_name(room_name: str | None) -> Optional[str]:
@@ -258,26 +280,41 @@ async def request_fnc(req: JobRequest) -> None:
 
 async def entrypoint(ctx: JobContext) -> None:
     reload_env()
-    room_name = ctx.room.name if ctx.room else "?"
+    room_name = (ctx.job.room.name if ctx.job and ctx.job.room else "") or (
+        ctx.room.name if ctx.room else ""
+    )
 
-    deepgram_key = await resolve_deepgram_api_key()
-    if not deepgram_key:
+    config = await resolve_agent_config(room_name or None)
+    features = config.features
+    if not features.agent_required:
+        # Normally never dispatched; covers stale dispatches and races.
+        logger.info(
+            "captions+transcription off — skipping room %s meeting_id=%s",
+            room_name or "?",
+            config.meeting_id,
+        )
+        ctx.shutdown(reason="features_disabled")
+        return
+
+    if not config.deepgram_api_key:
         logger.warning(
             "DEEPGRAM_API_KEY missing (db+env) — skipping room %s (deepgram=%s)",
-            room_name,
+            room_name or "?",
             deepgram_status(),
         )
         ctx.shutdown(reason="deepgram_api_key_missing")
         return
 
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-    meeting_id = parse_meeting_id(ctx.room.metadata)
+    meeting_id = parse_meeting_id(ctx.room.metadata) or config.meeting_id
     logger.info(
-        "joined room=%s meeting_id=%s deepgram=%s identity=%s",
+        "joined room=%s meeting_id=%s deepgram=%s identity=%s captions=%s transcription=%s",
         ctx.room.name,
         meeting_id,
         deepgram_status(),
         AGENT_IDENTITY,
+        features.captions,
+        features.transcription,
     )
 
     # Do NOT wait for metadata before STT — mic may already be publishing.
@@ -302,7 +339,8 @@ async def entrypoint(ctx: JobContext) -> None:
     async def try_wake_copilot(
         utterance: str, speaker: str, identity: str
     ) -> None:
-        if not copilot_wake_enabled() or not meeting_id:
+        # The copilot answers from saved transcript segments.
+        if not copilot_wake_enabled() or not meeting_id or not features.transcription:
             return
         match = extract_wake_command(utterance, wake_phrases)
         if not match:
@@ -372,31 +410,33 @@ async def entrypoint(ctx: JobContext) -> None:
         if prev == cleaned:
             return
         last_published[livekit_identity] = cleaned
-        payload = json.dumps(
-            {
-                "speaker": speaker,
-                "text": cleaned,
-                "participantId": livekit_identity,
-                "final": True,
-            }
-        ).encode("utf-8")
-        await room.local_participant.publish_data(
-            payload, reliable=True, topic="captions"
-        )
-        publish_ms = int((time.monotonic() - publish_started) * 1000)
-        logger.info(
-            "caption_published identity=%s speaker=%s room=%s source=%s publish_ms=%d stt_delay_ms=%s text_len=%d",
-            livekit_identity,
-            speaker,
-            room.name,
-            source,
-            publish_ms,
-            stt_delay_ms if stt_delay_ms is not None else "-",
-            len(cleaned),
-        )
-        asyncio.create_task(
-            persist_segment(meeting_id, speaker, cleaned, livekit_identity)
-        )
+        if features.captions:
+            payload = json.dumps(
+                {
+                    "speaker": speaker,
+                    "text": cleaned,
+                    "participantId": livekit_identity,
+                    "final": True,
+                }
+            ).encode("utf-8")
+            await room.local_participant.publish_data(
+                payload, reliable=True, topic="captions"
+            )
+            publish_ms = int((time.monotonic() - publish_started) * 1000)
+            logger.info(
+                "caption_published identity=%s speaker=%s room=%s source=%s publish_ms=%d stt_delay_ms=%s text_len=%d",
+                livekit_identity,
+                speaker,
+                room.name,
+                source,
+                publish_ms,
+                stt_delay_ms if stt_delay_ms is not None else "-",
+                len(cleaned),
+            )
+        if features.transcription:
+            asyncio.create_task(
+                persist_segment(meeting_id, speaker, cleaned, livekit_identity)
+            )
 
     async def transcribe_track(
         track: rtc.Track,

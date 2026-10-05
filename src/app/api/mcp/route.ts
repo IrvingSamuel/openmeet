@@ -15,6 +15,13 @@ import { parseRedirectAfterMeet } from "@/lib/host-entry";
 import { createMeetingWithBrand } from "@/lib/meetings";
 import { parseWebhookUrl } from "@/lib/webhook-url";
 import {
+  apiFeatureFields,
+  apiFeatureJsonSchema,
+  apiFeaturesResponse,
+  apiFeaturesToInput,
+  type ApiFeatureArgs,
+} from "@/lib/api-features";
+import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
@@ -71,7 +78,7 @@ async function meetCreateRoom(
     palette?: z.infer<typeof brandPaletteSchema>;
     advanced?: z.infer<typeof brandAdvancedSchema>;
     webhook_url?: string | null;
-  },
+  } & ApiFeatureArgs,
   defaultOwnerId: string | null | undefined,
 ) {
   const ownerIdentityId = await resolveMcpOwner(
@@ -93,6 +100,7 @@ async function meetCreateRoom(
     ui,
     useIdentityBrand: false,
     webhookUrl: parseWebhookUrl(args.webhook_url),
+    ...apiFeaturesToInput(args),
   });
   return {
     room_id: room.id,
@@ -100,6 +108,7 @@ async function meetCreateRoom(
     slug: room.slug,
     url,
     webhook_url: room.webhookUrl ?? null,
+    ...apiFeaturesResponse(room),
     brand: brandRowToPublic(brand as unknown as Record<string, unknown>),
   };
 }
@@ -113,7 +122,7 @@ async function meetCreateMeetingFromRoom(args: {
   redirect_after_meet?: string | null;
   webhook_url?: string | null;
   wait_for_host?: boolean;
-}) {
+} & ApiFeatureArgs) {
   const room = await db.query.rooms.findFirst({
     where: eq(rooms.id, args.room_id),
   });
@@ -144,6 +153,7 @@ async function meetCreateMeetingFromRoom(args: {
       redirectAfterMeet,
       webhookUrl,
       waitForHost,
+      ...apiFeaturesToInput(args),
       issueHostEntry: true,
     });
   return {
@@ -160,6 +170,7 @@ async function meetCreateMeetingFromRoom(args: {
     redirect_after_meet: meeting.redirectAfterMeet ?? null,
     webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
+    ...apiFeaturesResponse(meeting),
   };
 }
 
@@ -179,7 +190,7 @@ async function meetCreateInstantMeeting(
     identity?: z.infer<typeof brandIdentitySchema>;
     palette?: z.infer<typeof brandPaletteSchema>;
     advanced?: z.infer<typeof brandAdvancedSchema>;
-  },
+  } & ApiFeatureArgs,
   defaultOwnerId: string | null | undefined,
 ) {
   const ownerIdentityId = await resolveMcpOwner(args, defaultOwnerId);
@@ -212,6 +223,7 @@ async function meetCreateInstantMeeting(
       redirectAfterMeet,
       webhookUrl,
       waitForHost,
+      ...apiFeaturesToInput(args),
       issueHostEntry: true,
     });
   return {
@@ -228,6 +240,7 @@ async function meetCreateInstantMeeting(
     redirect_after_meet: meeting.redirectAfterMeet ?? null,
     webhook_url: meeting.webhookUrl ?? null,
     wait_for_host: meeting.waitForHost,
+    ...apiFeaturesResponse(meeting),
   };
 }
 
@@ -321,6 +334,7 @@ export async function POST(req: NextRequest) {
                   description:
                     "Absolute http(s) URL for outbound meeting artifacts (inherited by meetings from this room)",
                 },
+                ...apiFeatureJsonSchema,
               },
               required: ["name"],
             },
@@ -354,6 +368,7 @@ export async function POST(req: NextRequest) {
                   description:
                     "Keep guests in lobby until a host joins (default true for invite)",
                 },
+                ...apiFeatureJsonSchema,
               },
               required: ["room_id", "title"],
             },
@@ -381,6 +396,7 @@ export async function POST(req: NextRequest) {
                   description: "Absolute http(s) URL for outbound meeting artifacts",
                 },
                 wait_for_host: { type: "boolean" },
+                ...apiFeatureJsonSchema,
                 identity: { type: "object" },
                 palette: { type: "object" },
                 advanced: { type: "object" },
@@ -421,6 +437,7 @@ export async function POST(req: NextRequest) {
             palette: brandPaletteSchema.optional(),
             advanced: brandAdvancedSchema.optional(),
             webhook_url: z.string().max(2000).nullable().optional(),
+            ...apiFeatureFields,
             ...ownerFields,
           })
           .refine((v) => Boolean(v.name || v.title), {
@@ -445,6 +462,7 @@ export async function POST(req: NextRequest) {
             redirect_after_meet: z.string().max(2000).nullable().optional(),
             webhook_url: z.string().max(2000).nullable().optional(),
             wait_for_host: z.boolean().optional(),
+            ...apiFeatureFields,
           })
           .parse(args);
         result = await meetCreateMeetingFromRoom(parsed);
@@ -459,6 +477,7 @@ export async function POST(req: NextRequest) {
             redirect_after_meet: z.string().max(2000).nullable().optional(),
             webhook_url: z.string().max(2000).nullable().optional(),
             wait_for_host: z.boolean().optional(),
+            ...apiFeatureFields,
             identity: brandIdentitySchema.optional(),
             palette: brandPaletteSchema.optional(),
             advanced: brandAdvancedSchema.optional(),

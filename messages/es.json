@@ -21,6 +21,7 @@
       "logout": "Salir",
       "cancel": "Cancelar",
       "close": "Cerrar",
+      "dismiss": "Descartar notificación",
       "save": "Guardar",
       "saveToken": "Guardar token",
       "create": "Crear",
@@ -61,6 +62,7 @@
       "summaryReady": "Resumen listo",
       "summaryGenerating": "Generando…",
       "summaryFailed": "Resumen fallido",
+      "summaryDisabled": "Resumen desactivado",
       "noSummary": "Sin resumen",
       "inProgress": "En curso",
       "scheduled": "En espera",
@@ -172,6 +174,7 @@
     "openMenu": "Abrir menú",
     "closeMenu": "Cerrar menú",
     "admin": "Administración",
+    "ops": "Ops",
     "settings": "Ajustes"
   },
   "landing": {
@@ -397,6 +400,18 @@
       "titleLabel": "Título de la reunión",
       "boardIdLabel": "ID de tablero / proyecto externo",
       "boardIdHint": "Pegue el ID del tablero para heredar logo y paleta.",
+      "muteMicOnJoin": "Entrar con el micrófono silenciado",
+      "muteMicOnJoinHint": "Los participantes inician con el micrófono apagado en el lobby (pueden activarlo antes de entrar).",
+      "aiFeatures": "Funciones de IA",
+      "aiFeaturesHint": "Se aplican a las próximas reuniones de esta sala.",
+      "captionsEnabled": "Subtítulos en vivo",
+      "captionsEnabledHint": "Muestra los subtítulos durante la reunión.",
+      "transcriptionEnabled": "Transcripción",
+      "transcriptionEnabledHint": "Guarda lo que se dice para la transcripción completa y el copiloto.",
+      "summaryEnabled": "Resumen",
+      "summaryEnabledHint": "Genera el informe y las tareas al terminar la reunión.",
+      "summaryRequiresTranscript": "El resumen necesita la transcripción.",
+      "noAgentHint": "Sin subtítulos ni transcripción, el copiloto no entra en la reunión.",
       "submit": "Crear sala",
       "createFailed": "No se pudo crear la sala.",
       "networkFailed": "Error de red al crear la sala."
@@ -555,13 +570,54 @@
     "recordingAskYes": "Sí",
     "recordingAskNotNow": "Ahora no",
     "recordingHint": "Inicia la grabación aquí",
+    "liveStream": {
+      "title": "Transmitir en directo en YouTube",
+      "activeTitle": "Transmisión en directo",
+      "body": "La reunión se transmite desde el punto de vista de un espectador: solo cámaras, audio y subtítulos, sin barras ni botones. Pega la clave de transmisión de YouTube Studio.",
+      "activeBody": "La reunión está en el aire. YouTube puede tener unos segundos de retraso.",
+      "startingBody": "Iniciando la transmisión… puede tardar hasta 30 segundos en aparecer en YouTube.",
+      "captionsOff": "Los subtítulos están desactivados en esta reunión. La franja de subtítulos quedará vacía en la transmisión.",
+      "lastFailed": "La última transmisión falló: {detail}",
+      "streamKeyLabel": "Clave de transmisión",
+      "streamKeyHint": "YouTube Studio → Emitir en directo → Clave de transmisión. La clave no se guarda.",
+      "advanced": "Opciones avanzadas",
+      "rtmpUrlLabel": "URL del servidor RTMP",
+      "rtmpUrlHint": "Valor predeterminado de YouTube. Cámbialo solo para otro servicio compatible con RTMP.",
+      "start": "Iniciar transmisión",
+      "stop": "Finalizar transmisión",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "badgeLive": "EN DIRECTO",
+      "badgeStarting": "INICIANDO",
+      "errors": {
+        "live_disabled": "La transmisión en directo está desactivada por el administrador.",
+        "invalid_stream_key": "Clave de transmisión no válida.",
+        "invalid_rtmp_url": "URL RTMP no válida (debe empezar por rtmp:// o rtmps://).",
+        "rtmp_host_not_allowed": "Esta URL RTMP no está permitida en este servidor. Usa la dirección predeterminada de YouTube.",
+        "meeting_not_active": "La reunión no está activa.",
+        "egress_start_failed": "No se pudo iniciar el servicio de transmisión (Egress). Comprueba que está en ejecución.",
+        "egress_offline": "El servicio de transmisión (LiveKit Egress) está fuera de línea. Pide al administrador que lo instale o lo inicie.",
+        "live_limit_reached": "Este servidor alcanzó el límite de transmisiones simultáneas. Inténtalo de nuevo cuando termine otra.",
+        "live_not_allowed": "La transmisión en vivo no está habilitada para esta reunión.",
+        "stop_failed": "No se pudo finalizar la transmisión. Inténtalo de nuevo.",
+        "forbidden": "Solo anfitriones y moderadores pueden transmitir.",
+        "unauthorized": "Sesión caducada. Inicia sesión de nuevo.",
+        "generic": "Se produjo un error inesperado."
+      }
+    },
     "controlBar": {
+      "startLiveStream": "Transmitir en directo",
+      "stopLiveStream": "Finalizar transmisión en directo",
       "muteMic": "Silenciar micrófono",
       "unmuteMic": "Activar micrófono",
       "turnOffCam": "Apagar cámara",
       "turnOnCam": "Encender cámara",
       "stopShare": "Dejar de compartir",
       "startShare": "Compartir pantalla",
+      "startShareAudio": "Compartir pantalla + audio",
+      "startShareHint": "Solo vídeo",
+      "startShareAudioHint": "Incluye audio de la pestaña o del sistema si el navegador lo permite",
+      "shareAudioFallback": "El audio de pantalla no está disponible en este navegador — compartiendo solo vídeo",
       "spotlightMode": "Modo destacado",
       "gridMode": "Modo cuadrícula",
       "moreControls": "Más controles",
@@ -588,6 +644,28 @@
       "options": "Opciones",
       "optionsEllipsis": "Opciones…",
       "optionsDescription": "Elija el micrófono, el altavoz, la cámara y los efectos usados en esta reunión.",
+      "optionsTabs": {
+        "general": "General",
+        "captions": "Subtítulos",
+        "audio": "Audio",
+        "video": "Vídeo"
+      },
+      "captionsStartOn": "Iniciar con subtítulos",
+      "captionsStartOnHint": "Su preferencia reemplaza el valor predeterminado de la plataforma.",
+      "tabReturnHint": "El administrador de la plataforma establece el valor predeterminado. Elija una preferencia para sus reuniones.",
+      "tabReturnEnabled": "Protección al ausentarse",
+      "tabReturnEnabledOptions": {
+        "on": "Activado",
+        "off": "Desactivado"
+      },
+      "tabReturnMic": "Micrófono al volver",
+      "tabReturnCamera": "Cámara al volver",
+      "tabReturnOptions": {
+        "inherit": "Predeterminado de la plataforma",
+        "open": "Abierto",
+        "closed": "Cerrado",
+        "restore": "Como estaba"
+      },
       "closeOptions": "Cerrar opciones",
       "cameraPreviewOff": "Cámara apagada",
       "micLevel": "Nivel del micrófono",
@@ -671,6 +749,11 @@
       "title": "Conexión perdida",
       "body": "La reunión sigue aquí. Puede intentar reconectar con el mismo token o salir al panel."
     },
+    "duplicateSession": {
+      "title": "Reunión abierta en otra pestaña",
+      "body": "Esta reunión se abrió en otra pestaña o ventana con la misma sesión, por lo que esta pestaña se desconectó. Use una sola pestaña o continúe aquí.",
+      "useHere": "Usar aquí"
+    },
     "clientError": {
       "title": "Algo salió mal en la reunión",
       "body": "La app encontró un error al cargar la sala. Inténtelo de nuevo o salga al panel.",
@@ -678,7 +761,8 @@
       "leave": "Salir"
     },
     "captions": {
-      "dragHint": "Arrastre para reposicionar · doble clic para restablecer"
+      "dragHint": "Arrastre para reposicionar · doble clic para restablecer",
+      "hide": "Ocultar subtítulos"
     },
     "stage": {
       "empty": "Nadie en la sala todavía"
@@ -689,7 +773,9 @@
       "screenShare": "Pantalla",
       "fullscreen": "Pantalla completa",
       "exitFullscreen": "Salir de pantalla completa",
-      "handRaised": "Mano levantada"
+      "handRaised": "Mano levantada",
+      "muteParticipant": "Silenciar participante",
+      "cameraOffParticipant": "Apagar cámara del participante"
     }
   },
   "summary": {
@@ -701,6 +787,8 @@
     "statusRunning": "Generando resumen con Gemini…",
     "statusFailed": "Fallo en la generación — reintentando…",
     "statusPending": "Preparando el resumen…",
+    "statusDisabled": "El resumen está desactivado para esta reunión.",
+    "summaryDisabled": "El resumen está desactivado para esta reunión. La transcripción, las grabaciones y la asistencia siguen disponibles en las otras pestañas.",
     "mcpNeeded": "Vuelva a autenticarse para enviar tareas a herramientas externas.",
     "mcpLink": "Entrar de nuevo",
     "billingWarning": "Créditos de Gemini agotados — el resumen LLM quedó en modo fallback.",
@@ -770,7 +858,8 @@
       "webhooks": "Webhooks",
       "recording": "Grabación",
       "ui": "UI",
-      "api": "API"
+      "api": "API",
+      "liveStream": "Transmisión"
     },
     "api": {
       "heading": "Token de la API pública",
@@ -806,6 +895,7 @@
     "notConfigured": "no configurada",
     "viaSource": "vía {source}",
     "backToDashboard": "Volver al panel",
+    "navOps": "Ops",
     "sessionRequired": {
       "title": "Sesión necesaria",
       "body": "Inicie sesión con su cuenta para acceder a la administración.",
@@ -825,6 +915,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Subtítulos al iniciar la reunión",
+      "captionsDefaultHint": "Define si los subtítulos se activan de forma predeterminada. Los usuarios pueden reemplazar esta preferencia.",
+      "captionsDefaultOptions": {
+        "on": "Activados",
+        "off": "Desactivados"
       },
       "tabReturnTitle": "Al ausentarse de la pestaña",
       "tabReturnHint": "Si está activa, al salir de la pestaña el micrófono y la cámara se apagan por privacidad. Al volver, se aplica la política siguiente.",
@@ -929,6 +1025,32 @@
       "bodyLabel": "Body JSON",
       "sending": "Enviando…",
       "sendTest": "Enviar prueba de este tipo"
+    },
+    "liveStream": {
+      "body": "Permite a anfitriones y moderadores transmitir la reunión a YouTube (u otro destino RTMP) desde el punto de vista de un espectador: solo cámaras, audio y subtítulos fijos.",
+      "enabled": "Transmisión en directo activa",
+      "qualityLabel": "Calidad",
+      "quality720": "720p 30fps (~3 Mbps) — recomendado",
+      "quality1080": "1080p 30fps (~4,5 Mbps) — más CPU",
+      "egressNote": "Requiere el servicio livekit/egress (infra/docker-compose.egress.yml). Cada transmisión consume unos 4 vCPU en el servidor. Mantenlo desactivado si el servidor no tiene recursos.",
+      "save": "Guardar transmisión",
+      "service": {
+        "title": "Servicio LiveKit Egress",
+        "checking": "comprobando…",
+        "online": "en línea",
+        "offline": "fuera de línea",
+        "unchecked": "comprobación desactivada (EGRESS_HEALTH_URL=none)",
+        "recheck": "Comprobar de nuevo",
+        "healthUrl": "Health check: {url}",
+        "installTitle": "Cómo instalar el complemento de transmisión",
+        "installIntro": "Egress no respondió. Mientras esté fuera de línea nadie puede iniciar una transmisión. En el servidor, en la carpeta de OpenMeet:",
+        "step1": "Crea la configuración de Egress y rellena api_key y api_secret con los mismos valores de livekit.yaml (LIVEKIT_API_KEY / LIVEKIT_API_SECRET del .env). Mantén health_port: 9187 (un puerto libre, igual que EGRESS_HEALTH_URL).",
+        "step2": "Inicia el contenedor (requiere Docker; usa network_mode: host y unos 4 vCPU por transmisión).",
+        "step3": "Permite la salida TCP 1935 (rtmp://) o 443 (rtmps://) en el firewall.",
+        "step4": "Para el estado en tiempo real, añade el webhook de esta app a livekit.yaml y reinicia LiveKit (opcional: sin él, el estado se consulta por sondeo).",
+        "step5": "Opcional, en .env (reinicia la app después): URL que usa el Chrome de Egress para abrir la página de espectador y URL del health check si Egress está en otro host.",
+        "docsHint": "Guía completa en docs/05-live-stream.md y en la sección \"Live streaming\" del README."
+      }
     },
     "recording": {
       "enabled": "Grabación de reuniones activa",
@@ -1037,5 +1159,112 @@
       "auth_failed": "Authentication failed.",
       "setup_failed": "Setup failed."
     }
+  },
+  "ops": {
+    "eyebrow": "OpenMeet Ops",
+    "eyebrowVersion": "OpenMeet Ops · v{version}",
+    "tabs": {
+      "overview": "Resumen",
+      "tenants": "Tenants"
+    },
+    "titles": {
+      "health": "Salud y métricas",
+      "tenants": "Tenants",
+      "tenant": "Tenant",
+      "meeting": "Reunión"
+    },
+    "forbidden": {
+      "title": "Ops — prohibido",
+      "body": "Se requiere acceso de administrador del servidor.",
+      "back": "← Dashboard"
+    },
+    "nav": {
+      "admin": "Administración",
+      "dashboard": "Dashboard",
+      "back": "← Volver"
+    },
+    "overview": {
+      "platformHealth": "Salud de la plataforma",
+      "liveSnapshot": "Instantánea en vivo · actualizado cada 30s",
+      "healthy": "Saludable",
+      "degraded": "Degradado",
+      "statusOk": "ok",
+      "statusDown": "caído",
+      "meetingsNow": "Reuniones ahora",
+      "livekitRooms": "Salas LiveKit: {count}",
+      "livekitUnavailable": "Conteo de salas LiveKit no disponible",
+      "participantsNow": "Participantes ahora",
+      "users": "Usuarios",
+      "meetingsEnded": "Reuniones finalizadas",
+      "endedHint": "7d: {ended7d} · 30d: {ended30d}",
+      "newUsers30d": "Nuevos usuarios · 30d",
+      "meetingsEnded30d": "Reuniones finalizadas · 30d",
+      "total": "{count} en total",
+      "recordings": "Grabaciones",
+      "storage": "Almacenamiento {size}",
+      "noRecordingsYet": "Aún no hay grabaciones",
+      "llmUsage30d": "Uso de LLM · 30d",
+      "noLlmCalls": "Sin llamadas LLM registradas",
+      "llmRow": "{calls} llamadas · {tokens} tok",
+      "statsFailed": "Error al cargar estadísticas: {error}"
+    },
+    "tenants": {
+      "searchPlaceholder": "Buscar email / nombre / id externo",
+      "search": "Buscar",
+      "account": "Cuenta",
+      "role": "Rol",
+      "rooms": "Salas",
+      "meetings": "Reuniones",
+      "active": "Activas",
+      "created": "Creado",
+      "loading": "Cargando…",
+      "empty": "Sin tenants",
+      "loadError": "Error al cargar tenants",
+      "roomsCount": "{count} salas",
+      "meetingsCount": "{count} reuniones",
+      "activeCount": "{count} activas",
+      "via": "vía {channel}",
+      "ext": "ext {id}",
+      "idLabel": "id {id}",
+      "impersonate": "Suplantar",
+      "impersonating": "Suplantando {email}",
+      "impersonateFailed": "Error al suplantar",
+      "roleUpdated": "Rol → {role}",
+      "roleFailed": "Error al actualizar rol",
+      "brand": "Marca",
+      "wordmark": "wordmark: {value}",
+      "theme": "tema: {value}",
+      "primary": "primario: {value}",
+      "none": "Ninguna",
+      "mediaPrefs": "Preferencias de medios",
+      "videoEffect": "vídeo: {effect} (blur {blur})",
+      "audioFlags": "NS {ns} · EC {ec} · AGC {agc}",
+      "defaults": "Valores predeterminados",
+      "roomsHeading": "Salas ({count})",
+      "noRooms": "Sin salas",
+      "meetingsHeading": "Reuniones ({count})",
+      "noMeetings": "Sin reuniones",
+      "summaryBadge": "resumen"
+    },
+    "meeting": {
+      "started": "iniciada {date}",
+      "ended": "finalizada {date}",
+      "transcriptSegments": "{count} segmentos de transcripción",
+      "openSummary": "Abrir página de resumen ↗",
+      "endMeeting": "Finalizar reunión",
+      "endConfirm": "¿Finalizar esta reunión ahora?",
+      "endedOk": "Reunión finalizada",
+      "alreadyEnded": "Ya finalizada",
+      "endFailed": "Error al finalizar",
+      "participants": "Participantes ({count})",
+      "noParticipants": "Sin participantes",
+      "inCall": "en llamada",
+      "recordings": "Grabaciones ({count})",
+      "noRecordings": "Sin grabaciones",
+      "summary": "Resumen",
+      "noSummary": "Aún sin resumen (estado: {status})",
+      "loadError": "Error al cargar reunión"
+    },
+    "detailLoadError": "Error al cargar tenant"
   }
 }

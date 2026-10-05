@@ -1,12 +1,14 @@
-# Optional LiveKit Egress for Chronos Meet room composite recording.
-# Heavy (Chrome headless) — on this VPS use ONLY for short isolated tests, then down.
-# See docs/02-arquitetura.md and ADR-002.
+# Optional LiveKit Egress: room composite recording (MP4) and live streaming
+# to YouTube / RTMP (spectator view, see docs/05-live-stream.md).
+# Heavy (Chrome headless) — each recording or stream uses ~4 vCPU.
+# Only run it on servers with spare CPU (or a dedicated node); see ADR-002.
 #
-# Start (test only):
+# Start:
 #   docker compose -f infra/docker-compose.egress.yml up -d
-# Stop when done:
+# Stop:
 #   docker compose -f infra/docker-compose.egress.yml down
 #
+# Live streaming pushes RTMP out on TCP 1935 (rtmps: 443) — allow egress traffic.
 # Prefer /admin storage = S3 (MinIO on this host) over local disk for egress output.
 # SYS_ADMIN is required since egress v1.7.6 for Chrome sandbox.
 
@@ -14,8 +16,7 @@ services:
   egress:
     image: livekit/egress:v1.9.1
     container_name: chronos-meet-egress
-    # Ephemeral: do not survive reboot / crash loops on this shared VPS.
-    restart: "no"
+    restart: unless-stopped
     network_mode: host
     # Required for Chrome after egress v1.7.6
     cap_add:

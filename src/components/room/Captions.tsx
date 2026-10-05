@@ -24,12 +24,16 @@ function captionKey(c: Caption) {
   return `${c.speaker}\0${c.text}`;
 }
 
-export function useCaptions(meetingId?: string | null, limit = 200) {
+/** `history: false` skips loading saved segments (meeting has transcription off). */
+export function useCaptions(
+  meetingId?: string | null,
+  { limit = 200, history = true }: { limit?: number; history?: boolean } = {},
+) {
   const [captions, setCaptions] = useState<Caption[]>([]);
   const hydrated = useRef(false);
 
   useEffect(() => {
-    if (!meetingId || hydrated.current) return;
+    if (!meetingId || !history || hydrated.current) return;
     let cancelled = false;
     fetch(`/api/transcripts?meetingId=${encodeURIComponent(meetingId)}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -56,7 +60,7 @@ export function useCaptions(meetingId?: string | null, limit = 200) {
     return () => {
       cancelled = true;
     };
-  }, [meetingId, limit]);
+  }, [meetingId, history, limit]);
 
   const onMessage = useCallback(
     (msg: { payload: Uint8Array }) => {
@@ -218,33 +222,82 @@ function loadPos(): Pos | null {
   return null;
 }
 
-export function CaptionsOverlay({
-  captions,
-  visible,
-}: {
-  captions: Caption[];
-  visible: boolean;
-}) {
-  const t = useTranslations("room.captions");
-  const uniqueRecent = (() => {
+/** Latest captions, oldest first, skipping repeats and cross-talk echoes. */
+function recentUniqueCaptions(captions: Caption[], max: number): Caption[] {
+  try {
     const out: Caption[] = [];
-    for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
+    for (let i = captions.length - 1; i >= 0 && out.length < max; i--) {
       const c = captions[i];
-      if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
-        continue;
-      }
+      const newest = out[0];
+      if (newest && captionKey(newest) === captionKey(c)) continue;
       if (
-        out.length &&
-        out[out.length - 1].speaker !== c.speaker &&
-        captionsSimilar(out[out.length - 1].text, c.text)
+        newest &&
+        newest.speaker !== c.speaker &&
+        captionsSimilar(newest.text, c.text)
       ) {
         continue;
       }
       out.unshift(c);
     }
-    if (out.length > 1) return out.slice(-1);
     return out;
-  })();
+  } catch {
+    return captions.slice(-max);
+  }
+}
+
+/**
+ * Non-interactive caption strip for the live-stream view. Lives in its own
+ * reserved row under the stage so it never covers any camera.
+ */
+export function FixedCaptionsBar({
+  captions,
+  lines = 2,
+  className,
+}: {
+  captions: Caption[];
+  lines?: number;
+  className?: string;
+}) {
+  const recent = recentUniqueCaptions(captions, lines);
+  return (
+    <div
+      aria-live="polite"
+      className={
+        "pointer-events-none flex select-none flex-col items-center justify-center gap-1 overflow-hidden px-[4vw] text-center " +
+        (className ?? "")
+      }
+    >
+      {/* No exit/layout animation: lines must never overlap on the encoded video. */}
+      {recent.map((line, i) => (
+        <motion.p
+          key={`${line.speaker}-${line.text}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: i === recent.length - 1 ? 1 : 0.6 }}
+          transition={{ duration: 0.25 }}
+          className="line-clamp-2 max-w-[92vw] text-pretty text-[clamp(16px,2.6vh,30px)] font-medium leading-snug text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]"
+        >
+          <span className="font-semibold text-brand-secondary">
+            {line.speaker}:{" "}
+          </span>
+          {line.text}
+        </motion.p>
+      ))}
+    </div>
+  );
+}
+
+export function CaptionsOverlay({
+  captions,
+  visible,
+  onHide,
+}: {
+  captions: Caption[];
+  visible: boolean;
+  /** Hide live caption overlay (does not clear transcript history). */
+  onHide?: () => void;
+}) {
+  const t = useTranslations("room.captions");
+  const uniqueRecent = recentUniqueCaptions(captions, 2).slice(-1);
 
   const [pos, setPos] = useState<Pos | null>(null);
   const drag = useRef<{
@@ -260,6 +313,8 @@ export function CaptionsOverlay({
 
   function onPointerDown(e: ReactPointerEvent) {
     if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("[data-captions-close]")) return;
     const el = e.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     const parent = el.offsetParent as HTMLElement | null;
@@ -317,11 +372,36 @@ export function CaptionsOverlay({
           title={t("dragHint")}
           className={
             pos
-              ? "absolute z-20 w-[min(760px,92vw)] cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 text-center backdrop-blur-md active:cursor-grabbing"
-              : "absolute bottom-24 left-1/2 z-20 w-[min(760px,92vw)] -translate-x-1/2 cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 text-center backdrop-blur-md active:cursor-grabbing"
+              ? "absolute z-20 w-[min(760px,92vw)] cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 pr-10 text-center backdrop-blur-md active:cursor-grabbing"
+              : "absolute bottom-24 left-1/2 z-20 w-[min(760px,92vw)] -translate-x-1/2 cursor-grab touch-none space-y-1 rounded-2xl bg-black/65 px-4 py-3 pr-10 text-center backdrop-blur-md active:cursor-grabbing"
           }
           aria-live="polite"
         >
+          {onHide ? (
+            <button
+              type="button"
+              data-captions-close
+              onClick={(e) => {
+                e.stopPropagation();
+                onHide();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label={t("hide")}
+              className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M5 5l10 10M15 5L5 15" />
+              </svg>
+            </button>
+          ) : null}
           <span
             aria-hidden
             className="mx-auto mb-1 block h-1 w-8 rounded-full bg-white/30"

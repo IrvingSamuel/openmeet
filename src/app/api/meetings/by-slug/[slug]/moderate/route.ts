@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
-import { assertMeetingSlugHost } from "@/lib/hostAuth";
+import { assertMeetingSlugModerator } from "@/lib/hostAuth";
 import { moderateParticipant } from "@/lib/livekit";
 
 const schema = z.object({
@@ -18,7 +18,7 @@ export async function POST(
   const session = await getSession();
   const body = schema.parse(await req.json());
 
-  const auth = await assertMeetingSlugHost({ slug, session });
+  const auth = await assertMeetingSlugModerator({ slug, session });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

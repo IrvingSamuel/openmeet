@@ -15,6 +15,7 @@ export const mediaAssetUrlSchema = z
   .optional();
 
 export const videoEffectSchema = z.enum(["none", "blur", "virtual"]);
+export const tabReturnPolicySchema = z.enum(["open", "closed", "restore"]);
 
 export const mediaPrefsFieldsSchema = z.object({
   videoEffect: videoEffectSchema.optional(),
@@ -23,6 +24,10 @@ export const mediaPrefsFieldsSchema = z.object({
   noiseSuppression: z.boolean().optional(),
   echoCancellation: z.boolean().optional(),
   autoGainControl: z.boolean().optional(),
+  captionsDefault: z.boolean().nullable().optional(),
+  tabReturnEnabled: z.boolean().nullable().optional(),
+  tabReturnMic: tabReturnPolicySchema.nullable().optional(),
+  tabReturnCamera: tabReturnPolicySchema.nullable().optional(),
 });
 
 export type MediaPrefsFieldsInput = z.infer<typeof mediaPrefsFieldsSchema>;
@@ -34,6 +39,10 @@ export type MediaPrefs = {
   noiseSuppression: boolean;
   echoCancellation: boolean;
   autoGainControl: boolean;
+  captionsDefault: boolean | null;
+  tabReturnEnabled: boolean | null;
+  tabReturnMic: "open" | "closed" | "restore" | null;
+  tabReturnCamera: "open" | "closed" | "restore" | null;
 };
 
 export const DEFAULT_MEDIA_PREFS: MediaPrefs = {
@@ -43,6 +52,10 @@ export const DEFAULT_MEDIA_PREFS: MediaPrefs = {
   noiseSuppression: true,
   echoCancellation: true,
   autoGainControl: true,
+  captionsDefault: null,
+  tabReturnEnabled: null,
+  tabReturnMic: null,
+  tabReturnCamera: null,
 };
 
 export const MEDIA_PREFS_STORAGE_KEY = "openmeet:media-prefs";
@@ -107,6 +120,16 @@ export function mediaPrefsFieldsToPatch(
   if (data.autoGainControl !== undefined) {
     patch.autoGainControl = data.autoGainControl;
   }
+  if (data.captionsDefault !== undefined) {
+    patch.captionsDefault = data.captionsDefault;
+  }
+  if (data.tabReturnEnabled !== undefined) {
+    patch.tabReturnEnabled = data.tabReturnEnabled;
+  }
+  if (data.tabReturnMic !== undefined) patch.tabReturnMic = data.tabReturnMic;
+  if (data.tabReturnCamera !== undefined) {
+    patch.tabReturnCamera = data.tabReturnCamera;
+  }
   return patch;
 }
 
@@ -146,6 +169,22 @@ export function coerceMediaPrefs(raw: unknown): MediaPrefs {
       typeof o.autoGainControl === "boolean"
         ? o.autoGainControl
         : DEFAULT_MEDIA_PREFS.autoGainControl,
+    captionsDefault:
+      typeof o.captionsDefault === "boolean" ? o.captionsDefault : null,
+    tabReturnEnabled:
+      typeof o.tabReturnEnabled === "boolean" ? o.tabReturnEnabled : null,
+    tabReturnMic:
+      o.tabReturnMic === "open" ||
+      o.tabReturnMic === "closed" ||
+      o.tabReturnMic === "restore"
+        ? o.tabReturnMic
+        : null,
+    tabReturnCamera:
+      o.tabReturnCamera === "open" ||
+      o.tabReturnCamera === "closed" ||
+      o.tabReturnCamera === "restore"
+        ? o.tabReturnCamera
+        : null,
   };
 }
 
@@ -156,6 +195,10 @@ export function mediaPrefsFromRow(row: {
   noiseSuppression: boolean;
   echoCancellation: boolean;
   autoGainControl: boolean;
+  captionsDefault: boolean | null;
+  tabReturnEnabled: boolean | null;
+  tabReturnMic: string | null;
+  tabReturnCamera: string | null;
 }): MediaPrefs {
   return coerceMediaPrefs(row);
 }

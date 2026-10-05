@@ -148,10 +148,39 @@ describe("ControlBar device menus", () => {
     vi.clearAllMocks();
   });
 
-  it("renders reactions and options buttons", () => {
+  it("keeps primary actions on the bar and options in overflow", async () => {
+    const user = userEvent.setup();
     renderBar();
     expect(screen.getByLabelText("Reactions")).toBeTruthy();
-    expect(screen.getByLabelText("Options")).toBeTruthy();
+    expect(screen.getByLabelText("Stop sharing")).toBeTruthy();
+    expect(screen.getByLabelText("OpenMeet Copilot")).toBeTruthy();
+    expect(screen.getByLabelText("Chat")).toBeTruthy();
+    expect(screen.getByLabelText("Show captions")).toBeTruthy();
+    expect(screen.queryByLabelText("Full transcript")).toBeNull();
+
+    await user.click(screen.getByLabelText("More controls"));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByText("Options")).toBeTruthy();
+    expect(within(menu).getByText("Full transcript")).toBeTruthy();
+    expect(within(menu).queryByText("Reactions")).toBeNull();
+  });
+
+  it("hides captions when the meeting has captions off", () => {
+    renderBar({ captionsEnabled: false });
+    expect(screen.queryByLabelText("Show captions")).toBeNull();
+    expect(screen.getByLabelText("OpenMeet Copilot")).toBeTruthy();
+  });
+
+  it("hides the copilot and full transcript when transcription is off", async () => {
+    const user = userEvent.setup();
+    renderBar({ transcriptionEnabled: false });
+    expect(screen.queryByLabelText("OpenMeet Copilot")).toBeNull();
+    expect(screen.getByLabelText("Show captions")).toBeTruthy();
+
+    await user.click(screen.getByLabelText("More controls"));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByText("Full transcript")).toBeNull();
+    expect(within(menu).getByText("Options")).toBeTruthy();
   });
 
   it("opens mic menu from the chevron and switches device", async () => {
@@ -187,10 +216,13 @@ describe("ControlBar device menus", () => {
     const onMediaPrefsChange = vi.fn();
     renderBar({ onMediaPrefsChange });
 
-    await user.click(screen.getByLabelText("Options"));
+    await user.click(screen.getByLabelText("More controls"));
+    const overflow = await screen.findByRole("menu");
+    await user.click(within(overflow).getByText("Options"));
     expect(
       await screen.findByRole("dialog", { name: "Options" }),
     ).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Video" }));
     expect(screen.getByText("Effects")).toBeTruthy();
     expect(screen.getByText("Background blur")).toBeTruthy();
 

@@ -4,12 +4,20 @@ import { z } from "zod";
 import { db } from "@/db";
 import { rooms } from "@/db/schema";
 import { parseRedirectAfterMeet } from "@/lib/host-entry";
-import { createMeetingWithBrand } from "@/lib/meetings";
+import {
+  createMeetingWithBrand,
+  parseExternalInviteUrl,
+} from "@/lib/meetings";
 import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
 import { authorizePublicApi } from "@/lib/rooms";
+import {
+  apiFeatureFields,
+  apiFeaturesResponse,
+  apiFeaturesToInput,
+} from "@/lib/api-features";
 import { parseWebhookUrl } from "@/lib/webhook-url";
 
 const schema = z.object({
@@ -19,8 +27,13 @@ const schema = z.object({
   empty_timeout_sec: z.number().int().optional(),
   board_id: z.string().optional(),
   redirect_after_meet: z.string().max(2000).nullable().optional(),
+  external_invite_url: z.string().max(2000).nullable().optional(),
   webhook_url: z.string().max(2000).nullable().optional(),
   wait_for_host: z.boolean().optional(),
+  mute_mic_on_join: z.boolean().optional(),
+  ...apiFeatureFields,
+  /** May hosts live stream this meeting? Omitted = LIVE_STREAM_MEETING_DEFAULT. */
+  live_stream_enabled: z.boolean().optional(),
 });
 
 /**
@@ -95,6 +108,15 @@ export async function POST(
     return NextResponse.json({ error: code }, { status: 400 });
   }
 
+  let externalInviteUrl: string | null = null;
+  try {
+    externalInviteUrl = parseExternalInviteUrl(body.external_invite_url);
+  } catch (err) {
+    const code =
+      err instanceof Error ? err.message : "external_invite_url_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   try {
     const accessPolicy =
       body.access_policy ||
@@ -103,6 +125,10 @@ export async function POST(
       body.wait_for_host !== undefined
         ? body.wait_for_host
         : accessPolicy === "invite";
+    const muteMicOnJoin =
+      body.mute_mic_on_join !== undefined
+        ? body.mute_mic_on_join
+        : undefined;
 
     const { meeting, url, joinPath, hostUrl, hostPath } =
       await createMeetingWithBrand({
@@ -114,8 +140,12 @@ export async function POST(
         useIdentityBrand: false,
         emptyTimeoutSec,
         redirectAfterMeet,
+        externalInviteUrl,
         webhookUrl,
         waitForHost,
+        muteMicOnJoin,
+        ...apiFeaturesToInput(body),
+        liveStreamEnabled: body.live_stream_enabled,
         issueHostEntry: true,
       });
 
@@ -132,8 +162,12 @@ export async function POST(
         brand_room_id: meeting.roomId,
         empty_timeout_sec: resolveEmptyTimeoutSec(meeting.emptyTimeoutSec),
         redirect_after_meet: meeting.redirectAfterMeet ?? null,
+        external_invite_url: meeting.externalInviteUrl ?? null,
         webhook_url: meeting.webhookUrl ?? null,
         wait_for_host: meeting.waitForHost,
+        mute_mic_on_join: meeting.muteMicOnJoin !== false,
+        ...apiFeaturesResponse(meeting),
+        live_stream_enabled: meeting.liveStreamEnabled ?? null,
       },
       { status: 201 },
     );

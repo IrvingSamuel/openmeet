@@ -15,6 +15,8 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
+  // Lets updates build next to the live `.next` and swap it in (see README › Updating).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   eslint: {
     // API auth/logout use plain <a> (full navigation); ignoreDuringBuilds avoids blocking deploys.
     ignoreDuringBuilds: true,

@@ -219,6 +219,7 @@ paths:
                 brand_room_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
                 empty_timeout_sec: 300
                 redirect_after_meet: null
+                external_invite_url: null
                 webhook_url: null
                 wait_for_host: false
         "400":
@@ -286,6 +287,7 @@ paths:
                   access_policy: invite
                   external_id: "teacher-42"
                   redirect_after_meet: "https://lms.example.com/classes/12"
+                  external_invite_url: "https://lms.example.com/classes/12/join"
                   webhook_url: "https://lms.example.com/hooks/openmeet"
                   wait_for_host: true
       responses:
@@ -307,6 +309,7 @@ paths:
                 brand_room_id: null
                 empty_timeout_sec: 300
                 redirect_after_meet: "https://lms.example.com/classes/12"
+                external_invite_url: "https://lms.example.com/classes/12/join"
                 webhook_url: "https://lms.example.com/hooks/openmeet"
                 wait_for_host: true
         "400":
@@ -585,6 +588,12 @@ components:
           $ref: "#/components/schemas/BrandAdvanced"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
+        captions_enabled:
+          $ref: "#/components/schemas/CaptionsEnabled"
+        transcription_enabled:
+          $ref: "#/components/schemas/TranscriptionEnabled"
+        summary_enabled:
+          $ref: "#/components/schemas/SummaryEnabled"
 
     CreateRoomResponse:
       type: object
@@ -608,6 +617,14 @@ components:
           type: string
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
+        captions_enabled:
+          type: boolean
+          description: Valor gravado na sala (modelo das próximas reuniões)
+        transcription_enabled:
+          type: boolean
+        summary_enabled:
+          type: boolean
+          description: Sempre false quando transcription_enabled=false
         brand:
           $ref: "#/components/schemas/BrandPublic"
 
@@ -638,6 +655,8 @@ components:
           format: uri
           nullable: true
           description: URL http(s) absoluta para onde enviar o utilizador após leave/end
+        external_invite_url:
+          $ref: "#/components/schemas/ExternalInviteUrl"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
         wait_for_host:
@@ -645,6 +664,18 @@ components:
           description: |
             Se true, participantes ficam na lobby até existir um anfitrião na sala.
             Por omissão true quando access_policy=invite.
+        captions_enabled:
+          $ref: "#/components/schemas/CaptionsEnabled"
+        transcription_enabled:
+          $ref: "#/components/schemas/TranscriptionEnabled"
+        summary_enabled:
+          $ref: "#/components/schemas/SummaryEnabled"
+        live_stream_enabled:
+          type: boolean
+          description: |
+            Permite que anfitriões transmitam esta reunião ao vivo (YouTube/RTMP).
+            Omitido = LIVE_STREAM_MEETING_DEFAULT da instância ("on" por padrão).
+            O interruptor da instância (/admin → Transmissão) continua valendo.
 
     CreateInstantMeetingRequest:
       type: object
@@ -686,6 +717,8 @@ components:
           format: uri
           nullable: true
           description: URL http(s) absoluta para retorno pós-reunião
+        external_invite_url:
+          $ref: "#/components/schemas/ExternalInviteUrl"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
         wait_for_host:
@@ -693,6 +726,18 @@ components:
           description: |
             Manter participantes na sala de espera até o anfitrião entrar.
             Default true quando access_policy=invite.
+        captions_enabled:
+          $ref: "#/components/schemas/CaptionsEnabled"
+        transcription_enabled:
+          $ref: "#/components/schemas/TranscriptionEnabled"
+        summary_enabled:
+          $ref: "#/components/schemas/SummaryEnabled"
+        live_stream_enabled:
+          type: boolean
+          description: |
+            Permite que anfitriões transmitam esta reunião ao vivo (YouTube/RTMP).
+            Omitido = LIVE_STREAM_MEETING_DEFAULT da instância ("on" por padrão).
+            O interruptor da instância (/admin → Transmissão) continua valendo.
         identity:
           $ref: "#/components/schemas/BrandIdentity"
         palette:
@@ -745,11 +790,52 @@ components:
           type: string
           format: uri
           nullable: true
+        external_invite_url:
+          $ref: "#/components/schemas/ExternalInviteUrl"
         webhook_url:
           $ref: "#/components/schemas/WebhookUrl"
         wait_for_host:
           type: boolean
           description: Participantes aguardam o anfitrião na lobby
+        captions_enabled:
+          type: boolean
+          description: Valor efetivo da reunião (explícito, herdado da sala ou true)
+        transcription_enabled:
+          type: boolean
+        summary_enabled:
+          type: boolean
+          description: |
+            Sempre false quando transcription_enabled=false. Com false, o resumo
+            fica com status "disabled" e os webhooks summary.ready e
+            tasks.generated não são enviados.
+        live_stream_enabled:
+          type: boolean
+          nullable: true
+          description: |
+            Valor gravado na reunião. null = segue LIVE_STREAM_MEETING_DEFAULT
+            da instância.
+
+    CaptionsEnabled:
+      type: boolean
+      description: |
+        Legendas ao vivo na reunião. Default true. Em POST /api/v1/rooms/{room_id}/meetings
+        e em instant-meetings com room_id, omitir herda o valor da sala.
+        Com captions_enabled=false e transcription_enabled=false o agente de IA
+        não entra na reunião (sem legenda, transcrição nem copiloto por voz).
+
+    TranscriptionEnabled:
+      type: boolean
+      description: |
+        Gravação da transcrição (transcrição completa, copiloto e webhook
+        transcript.ready). Default true; omitir herda da sala quando houver.
+        Com false, summary_enabled é forçado para false.
+
+    SummaryEnabled:
+      type: boolean
+      description: |
+        Resumo e tarefas gerados no fim da reunião. Default true; omitir herda da
+        sala quando houver. Depende da transcrição: com transcription_enabled=false
+        o valor é normalizado para false sem erro.
 
     WebhookUrl:
       type: string
@@ -760,6 +846,15 @@ components:
         URL http(s) absoluta para onde enviar os artefatos da reunião
         (resumo, transcrição completa, tarefas e link da gravação).
         Não é redirect de browser — isso é `redirect_after_meet`.
+
+    ExternalInviteUrl:
+      type: string
+      format: uri
+      nullable: true
+      maxLength: 2000
+      description: |
+        URL http(s) absoluta copiada pela ação de convite dentro da reunião.
+        Se omitida ou null, o OpenMeet copia a URL atual da reunião.
 
     WebhookMeetingMeta:
       type: object
@@ -1031,7 +1126,7 @@ components:
                         type: string
                       role:
                         type: string
-                        enum: [host, participant]
+                        enum: [host, moderator, participant]
                       identityId:
                         type: string
                         format: uuid

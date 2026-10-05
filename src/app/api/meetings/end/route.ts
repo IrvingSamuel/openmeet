@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { getRoomServiceClient } from "@/lib/livekit";
 import { assertMeetingHost } from "@/lib/hostAuth";
 import { endMeetingRow } from "@/lib/meeting-lifecycle";
+import { stopMeetingLiveStream } from "@/lib/live-stream";
 import { stopMeetingRecording } from "@/lib/recording";
 
 const schema = z.object({
@@ -56,6 +57,11 @@ export async function POST(req: NextRequest) {
     await stopMeetingRecording({ meetingId: body.meetingId, force: true });
   } catch (err) {
     console.warn("[openmeet] stop recording on end meeting", err);
+  }
+  try {
+    await stopMeetingLiveStream({ meetingId: body.meetingId });
+  } catch (err) {
+    console.warn("[openmeet] stop live stream on end meeting", err);
   }
 
   await endMeetingRow(body.meetingId);

@@ -162,6 +162,83 @@ describe("DashboardPage", () => {
     expect(await screen.findByText(/sala \/nova-sala criada/i)).toBeInTheDocument();
   });
 
+  it("sends AI feature toggles and locks the summary without transcription", async () => {
+    const { calls } = mockApi({ rooms: [] });
+    renderDashboard();
+    await screen.findByText("Nenhuma sala ainda");
+
+    await userEvent.click(screen.getByRole("button", { name: /nova sala/i }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByLabelText("Título da reunião"),
+      "Sem IA",
+    );
+
+    const captions = within(dialog).getByRole("checkbox", { name: /^Legendas ao vivo/ });
+    const transcription = within(dialog).getByRole("checkbox", { name: /^Transcrição/ });
+    const summary = within(dialog).getByRole("checkbox", { name: /^Resumo/ });
+    expect(captions).toBeChecked();
+    expect(transcription).toBeChecked();
+    expect(summary).toBeChecked();
+    expect(summary).toBeEnabled();
+
+    await userEvent.click(transcription);
+    expect(summary).not.toBeChecked();
+    expect(summary).toBeDisabled();
+    expect(
+      within(dialog).getByText("O resumo precisa da transcrição."),
+    ).toBeInTheDocument();
+
+    await userEvent.click(captions);
+    expect(
+      within(dialog).getByText(/o copiloto não entra na reunião/i),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Criar sala" }),
+    );
+
+    await waitFor(() => {
+      const post = calls.find(
+        (c) => c.url === "/api/rooms" && c.init?.method === "POST",
+      );
+      expect(post).toBeDefined();
+      expect(JSON.parse(String(post?.init?.body))).toMatchObject({
+        title: "Sem IA",
+        captionsEnabled: false,
+        transcriptionEnabled: false,
+        summaryEnabled: false,
+      });
+    });
+  });
+
+  it("sends all AI features on by default", async () => {
+    const { calls } = mockApi({ rooms: [] });
+    renderDashboard();
+    await screen.findByText("Nenhuma sala ainda");
+
+    await userEvent.click(screen.getByRole("button", { name: /nova sala/i }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByLabelText("Título da reunião"),
+      "Com IA",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Criar sala" }),
+    );
+
+    await waitFor(() => {
+      const post = calls.find(
+        (c) => c.url === "/api/rooms" && c.init?.method === "POST",
+      );
+      expect(JSON.parse(String(post?.init?.body))).toMatchObject({
+        captionsEnabled: true,
+        transcriptionEnabled: true,
+        summaryEnabled: true,
+      });
+    });
+  });
+
   it("shows account as connected when signed in", async () => {
     mockApi();
     renderDashboard();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertMeetingHost } from "@/lib/hostAuth";
+import { assertMeetingModerator } from "@/lib/hostAuth";
 import { resolveRecordingConfig } from "@/lib/app-settings";
 import {
   listMeetingRecordings,
@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const { id: meetingId } = await ctx.params;
   const session = await getSession();
-  const auth = await assertMeetingHost({ meetingId, session });
+  const auth = await assertMeetingModerator({ meetingId, session });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id: meetingId } = await ctx.params;
   const session = await getSession();
-  const auth = await assertMeetingHost({ meetingId, session });
+  const auth = await assertMeetingModerator({ meetingId, session });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

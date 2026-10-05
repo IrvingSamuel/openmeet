@@ -7,7 +7,7 @@ export type AttendanceSessionRow = {
 
 export type AttendanceAttendee = {
   displayName: string;
-  role: "host" | "participant";
+  role: "host" | "moderator" | "participant";
   identityId: string | null;
   joinedAt: string;
   leftAt: string | null;
@@ -90,6 +90,7 @@ export function buildAttendanceList(
     );
     const first = group[0]!;
     const isHost = group.some((r) => r.role === "host");
+    const isModerator = group.some((r) => r.role === "moderator");
     const sessions: AttendanceSessionRow[] = group.map((r) => {
       const start = sessionStart(r);
       return {
@@ -118,7 +119,7 @@ export function buildAttendanceList(
 
     attendees.push({
       displayName: first.displayName,
-      role: isHost ? "host" : "participant",
+      role: isHost ? "host" : isModerator ? "moderator" : "participant",
       identityId: first.identityId,
       joinedAt: sessionStart(first).toISOString(),
       leftAt: allClosed && lastLeft ? lastLeft.toISOString() : null,

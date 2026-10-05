@@ -27,7 +27,23 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useTranslations } from "next-intl";
 import { cn, formatDuration } from "@/lib/utils";
-import { disconnectOutcome, releaseLocalMedia, shouldExitMeeting } from "@/lib/leavePolicy";
+import {
+  disconnectOutcome,
+  isSelfCancelledConnect,
+  releaseLocalMedia,
+  shouldExitMeeting,
+} from "@/lib/leavePolicy";
+import { detachFreezeDisconnect } from "@/lib/livekit-freeze-guard";
+import {
+  isPageHidden,
+  onPageActive,
+  waitForTimeoutOrPageActive,
+} from "@/lib/page-activity";
+import {
+  reportDisconnectTelemetry,
+  type DisconnectTelemetryEvent,
+} from "@/lib/disconnect-telemetry";
+import { resetTabInstanceId } from "@/lib/tab-instance";
 import { diffJoinRequestAlerts } from "@/lib/joinRequestAlerts";
 import { EASE_OUT_EXPO } from "@/components/motion/primitives";
 import { Stage, type StageLayout } from "@/components/room/Stage";
@@ -35,11 +51,12 @@ import { ControlBar, type SidePanel as PanelKind } from "@/components/room/Contr
 import { SidePanel } from "@/components/room/SidePanel";
 import { ReactionBurstOverlay } from "@/components/room/ReactionBurstOverlay";
 import { CaptionsOverlay, useCaptions, useCopilotInsights } from "@/components/room/Captions";
+import { LiveStreamModal } from "@/components/room/LiveStreamModal";
 import { Badge } from "@/components/ui/Surface";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { LogoMark } from "@/components/layout/Logo";
-import { IconCopy, IconCheck } from "@/components/ui/icons";
+import { IconCopy, IconCheck, IconUsers } from "@/components/ui/icons";
 import { BrandBackdrop } from "@/components/brand/BrandBackdrop";
 import { isAgentParticipant } from "@/lib/participants";
 import { useIsLgUp } from "@/hooks/useMediaQuery";
@@ -50,27 +67,31 @@ import {
   useMeetingRecorder,
   type RecordingClientConfig,
 } from "@/hooks/useMeetingRecorder";
+import { useLiveStream } from "@/hooks/useLiveStream";
 import { useJoinRequests } from "@/hooks/useJoinRequests";
 import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
 import { useRoomVisibility } from "@/hooks/useRoomVisibility";
 import {
-  DEFAULT_TAB_RETURN_MEDIA_PREFS,
-  normalizeTabReturnEnabled,
-  normalizeTabReturnMediaPolicy,
-  type TabReturnMediaPrefs,
   type TabReturnMediaPolicy,
 } from "@/lib/tab-return-media";
+import {
+  resolveCaptionsDefault,
+  resolveTabReturnPrefs,
+  type PlatformMeetingPrefs,
+} from "@/lib/meeting-prefs";
 import { resolveCaptureDeviceId } from "@/hooks/useMeetingDevices";
 import {
   audioOptionsFromPrefs,
   useMeetingEffects,
+  videoOptionsForEffect,
 } from "@/hooks/useMeetingEffects";
 import { useMediaPrefs } from "@/hooks/useMediaPrefs";
+import { detectPerformanceProfile } from "@/lib/device-capability";
 import { useRouter } from "@/i18n/navigation";
 import type { BgAnimation } from "@/lib/brand";
 
-type RoomRole = "host" | "participant" | "agent";
+type RoomRole = "host" | "moderator" | "participant" | "agent";
 
 const ROOM_OPTIONS: RoomOptions = {
   adaptiveStream: { pauseVideoInBackground: true },
@@ -105,6 +126,9 @@ export function MeetingRoom({
   role = "participant",
   recordingConfig = null,
   redirectAfterMeet = null,
+  externalInviteUrl = null,
+  captionsEnabled = true,
+  transcriptionEnabled = true,
   onLeave,
   onEndForAll,
   initialVideo = false,
@@ -125,6 +149,9 @@ export function MeetingRoom({
   role?: RoomRole;
   recordingConfig?: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
+  externalInviteUrl?: string | null;
+  captionsEnabled?: boolean;
+  transcriptionEnabled?: boolean;
   onLeave?: () => void;
   onEndForAll?: () => void | Promise<void>;
   initialVideo?: boolean;
@@ -159,6 +186,38 @@ export function MeetingRoom({
   const [forcedExit, setForcedExit] = useState<"ended" | "removed" | null>(
     null,
   );
+  const forcedExitRef = useRef(forcedExit);
+  forcedExitRef.current = forcedExit;
+  const [duplicateSession, setDuplicateSession] = useState(false);
+  const duplicateSessionRef = useRef(false);
+  const reconnectRunning = useRef(false);
+  const hasConnectedRef = useRef(false);
+  const frozenSinceReport = useRef(false);
+
+  const reportTelemetry = useCallback(
+    (
+      event: DisconnectTelemetryEvent,
+      extra: { reason?: number | null; outcome?: string; attempt?: number } = {},
+    ) => {
+      reportDisconnectTelemetry({
+        event,
+        slug: roomSlug,
+        meetingId,
+        wasFrozen: frozenSinceReport.current,
+        ...extra,
+      });
+      frozenSinceReport.current = false;
+    },
+    [roomSlug, meetingId],
+  );
+
+  useEffect(() => {
+    const onFreeze = () => {
+      frozenSinceReport.current = true;
+    };
+    document.addEventListener("freeze", onFreeze);
+    return () => document.removeEventListener("freeze", onFreeze);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -170,6 +229,8 @@ export function MeetingRoom({
     };
   }, [room]);
 
+  // Initial LiveKitRoom video opts — effects-aware caps applied after
+  // media prefs hydrate via useMeetingEffects / ensure-media.
   const video = useMemo<boolean | VideoCaptureOptions>(() => {
     if (!initialVideo) return false;
     return videoDeviceId ? { deviceId: videoDeviceId } : true;
@@ -213,60 +274,110 @@ export function MeetingRoom({
     }
 
     try {
-      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
       setConnect(true);
+      await room.connect(nextServerUrl, nextToken, CONNECT_OPTIONS);
       return true;
     } catch (err) {
       console.error("[openmeet] reconnect failed", err);
-      toastRef.current.error(tErrors("reconnectFailed"));
+      if (!isSelfCancelledConnect(err)) {
+        toastRef.current.error(tErrors("reconnectFailed"));
+      }
       return false;
     }
   }, [room, activeToken, activeServerUrl, serverUrl, tErrors]);
 
   const scheduleAutoReconnect = useCallback(() => {
-    if (intentionalLeave.current) return;
+    if (intentionalLeave.current || duplicateSessionRef.current) return;
+    if (reconnectRunning.current) return;
+    reconnectRunning.current = true;
 
-    const run = async (attempt: number) => {
-      const roomState = () => room.state;
+    const shouldStop = () =>
+      intentionalLeave.current ||
+      duplicateSessionRef.current ||
+      forcedExitRef.current !== null ||
+      room.state === ConnectionState.Connected;
+
+    const run = async (attempt: number): Promise<void> => {
       if (attempt > MAX_AUTO_RECONNECT) {
+        if (isPageHidden()) {
+          // Don't surface "Disconnected" to a tab nobody is looking at; retry
+          // a fresh round once the user comes back.
+          await waitForTimeoutOrPageActive(null);
+          if (shouldStop()) {
+            setAutoReconnectBusy(false);
+            return;
+          }
+          return run(1);
+        }
+        reportTelemetry("gave_up", { attempt: attempt - 1 });
+        // Stop LiveKitRoom connect-loop so DisconnectRecovery owns the UX.
+        setConnect(false);
         setAutoReconnectBusy(false);
         return;
       }
-      if (roomState() === ConnectionState.Connected) {
+      if (shouldStop()) {
         setAutoReconnectBusy(false);
         return;
       }
+      autoReconnectAttempts.current = attempt;
       setAutoReconnectBusy(true);
-      await new Promise((resolve) =>
-        window.setTimeout(resolve, AUTO_RECONNECT_DELAY_MS),
-      );
-      if (intentionalLeave.current || roomState() === ConnectionState.Connected) {
+      await waitForTimeoutOrPageActive(AUTO_RECONNECT_DELAY_MS);
+      if (shouldStop()) {
         setAutoReconnectBusy(false);
         return;
       }
       const ok = await performReconnect();
-      if (ok || roomState() === ConnectionState.Connected) {
+      if (ok || room.state === ConnectionState.Connected) {
         autoReconnectAttempts.current = 0;
         setAutoReconnectBusy(false);
         return;
       }
-      await run(attempt + 1);
+      return run(attempt + 1);
     };
 
     autoReconnectAttempts.current = 0;
-    void run(1);
-  }, [performReconnect, room]);
+    void run(1).finally(() => {
+      reconnectRunning.current = false;
+    });
+  }, [performReconnect, room, reportTelemetry]);
+
+  // Safety net: if the room is still down when the tab is shown / unfrozen /
+  // back online (e.g. Chrome discarded timers while frozen), retry right away.
+  useEffect(() => {
+    return onPageActive(() => {
+      if (
+        !hasConnectedRef.current ||
+        room.state !== ConnectionState.Disconnected ||
+        intentionalLeave.current ||
+        duplicateSessionRef.current ||
+        forcedExitRef.current !== null ||
+        reconnectRunning.current
+      ) {
+        return;
+      }
+      scheduleAutoReconnect();
+    });
+  }, [room, scheduleAutoReconnect]);
 
   useEffect(() => {
     const onConnected = () => {
+      detachFreezeDisconnect(room);
+      const hadConnected = hasConnectedRef.current;
+      hasConnectedRef.current = true;
+      if (hadConnected) {
+        reportTelemetry("reconnected", {
+          attempt: autoReconnectAttempts.current,
+        });
+      }
       autoReconnectAttempts.current = 0;
       setAutoReconnectBusy(false);
     };
+    detachFreezeDisconnect(room);
     room.on(RoomEvent.Connected, onConnected);
     return () => {
       room.off(RoomEvent.Connected, onConnected);
     };
-  }, [room]);
+  }, [room, reportTelemetry]);
 
   const requestLeave = useCallback(() => {
     if (intentionalLeave.current) return;
@@ -315,8 +426,21 @@ export function MeetingRoom({
         intentionalLeave: intentionalLeave.current,
         reason,
       });
+      if (outcome !== "leave") {
+        reportTelemetry(outcome === "duplicate" ? "duplicate" : "disconnected", {
+          reason: reason ?? null,
+          outcome,
+          attempt: autoReconnectAttempts.current,
+        });
+      }
       if (outcome === "ended" || outcome === "removed") {
         setForcedExit(outcome);
+        setConnect(false);
+        return;
+      }
+      if (outcome === "duplicate") {
+        duplicateSessionRef.current = true;
+        setDuplicateSession(true);
         setConnect(false);
         return;
       }
@@ -333,7 +457,7 @@ export function MeetingRoom({
     return () => {
       room.off(RoomEvent.Disconnected, onDisconnected);
     };
-  }, [room, finishLeave, scheduleAutoReconnect, tRoom]);
+  }, [room, finishLeave, scheduleAutoReconnect, tRoom, reportTelemetry]);
 
   // Stable forever — must not appear as a changing dep inside useLiveKitRoom.
   const handleDisconnected = useCallback(() => {
@@ -348,14 +472,27 @@ export function MeetingRoom({
 
   const handleError = useCallback((err: Error) => {
     console.error("[openmeet] LiveKit error", err);
+    if (isSelfCancelledConnect(err)) return;
     toastRef.current.error(err.message || tErrors("connectionError"));
   }, [tErrors]);
 
   const handleReconnect = useCallback(() => {
     autoReconnectAttempts.current = 0;
     setAutoReconnectBusy(true);
-    void performReconnect().finally(() => setAutoReconnectBusy(false));
+    void performReconnect()
+      .then((ok) => {
+        // Keep connect=false so DisconnectRecovery stays in control after a failed manual retry.
+        if (!ok) setConnect(false);
+      })
+      .finally(() => setAutoReconnectBusy(false));
   }, [performReconnect]);
+
+  const handleUseHere = useCallback(() => {
+    resetTabInstanceId();
+    duplicateSessionRef.current = false;
+    setDuplicateSession(false);
+    handleReconnect();
+  }, [handleReconnect]);
 
   return (
     <div
@@ -386,10 +523,15 @@ export function MeetingRoom({
           roomSlug={roomSlug}
           logoUrl={logoUrl}
           meetingId={meetingId}
-          isHost={role === "host"}
+          initialRole={role}
           recordingConfig={recordingConfig}
           redirectAfterMeet={redirectAfterMeet}
+          externalInviteUrl={externalInviteUrl}
+          captionsEnabled={captionsEnabled}
+          transcriptionEnabled={transcriptionEnabled}
           forcedExit={forcedExit}
+          duplicateSession={duplicateSession}
+          onUseHere={handleUseHere}
           onLeave={requestLeave}
           onEndForAll={requestEndForAll}
           onReconnect={handleReconnect}
@@ -419,10 +561,15 @@ function RoomShell({
   roomSlug,
   logoUrl,
   meetingId,
-  isHost,
+  initialRole,
   recordingConfig,
   redirectAfterMeet,
+  externalInviteUrl,
+  captionsEnabled,
+  transcriptionEnabled,
   forcedExit,
+  duplicateSession,
+  onUseHere,
   onLeave,
   onEndForAll,
   onReconnect,
@@ -438,10 +585,15 @@ function RoomShell({
   roomSlug: string;
   logoUrl?: string | null;
   meetingId?: string;
-  isHost: boolean;
+  initialRole: RoomRole;
   recordingConfig: RecordingClientConfig | null;
   redirectAfterMeet?: string | null;
+  externalInviteUrl?: string | null;
+  captionsEnabled: boolean;
+  transcriptionEnabled: boolean;
   forcedExit: "ended" | "removed" | null;
+  duplicateSession: boolean;
+  onUseHere: () => void;
   onLeave: () => void;
   onEndForAll: () => void | Promise<void>;
   onReconnect: () => void;
@@ -461,6 +613,9 @@ function RoomShell({
   const tLabels = useTranslations("common.labels");
   const tToast = useTranslations("common.toast");
   const isLgUp = useIsLgUp();
+  const isHost = initialRole === "host";
+  const [localRole, setLocalRole] = useState<RoomRole>(initialRole);
+  const canModerate = localRole === "host" || localRole === "moderator";
   const mediaPrefsApi = useMediaPrefs();
   useMeetingEffects(
     room,
@@ -474,9 +629,11 @@ function RoomShell({
   const recorder = useMeetingRecorder({
     room,
     meetingId,
-    isHost,
+    isHost: canModerate,
     config: recordingConfig,
   });
+  const liveStream = useLiveStream({ room, meetingId, canModerate });
+  const [liveStreamModalOpen, setLiveStreamModalOpen] = useState(false);
   const declineAsk = recorder.declineAsk;
   const [recordingHint, setRecordingHint] = useState(false);
   const recordingHintTimerRef = useRef<number | null>(null);
@@ -505,7 +662,32 @@ function RoomShell({
     requests: joinRequests,
     busyId: joinBusyId,
     decide: decideJoin,
-  } = useJoinRequests(roomSlug, isHost);
+  } = useJoinRequests(roomSlug, canModerate);
+
+  useEffect(() => {
+    const localParticipant = room.localParticipant;
+    const syncRole = () => {
+      try {
+        const metadata = JSON.parse(localParticipant.metadata || "{}") as {
+          role?: unknown;
+        };
+        if (
+          metadata.role === "host" ||
+          metadata.role === "moderator" ||
+          metadata.role === "participant"
+        ) {
+          setLocalRole(metadata.role);
+        }
+      } catch {
+        // Ignore unrelated or malformed participant metadata.
+      }
+    };
+    syncRole();
+    localParticipant.on(ParticipantEvent.ParticipantMetadataChanged, syncRole);
+    return () => {
+      localParticipant.off(ParticipantEvent.ParticipantMetadataChanged, syncRole);
+    };
+  }, [room]);
 
   const { raisedIdentities, localHandRaised, toggleHand } = useHandRaise(room);
 
@@ -538,14 +720,17 @@ function RoomShell({
     wasRecordingRef.current = recorder.active;
   }, [recorder.active, toast, t]);
   const [panel, setPanel] = useState<PanelKind>("none");
-  const captions = useCaptions(meetingId);
+  const captions = useCaptions(meetingId, { history: transcriptionEnabled });
   const {
     insights,
     loading: insightsLoading,
     fromCache: insightsFromCache,
     regenCount: insightsRegenCount,
     refreshInsights,
-  } = useCopilotInsights(meetingId, panel === "copilot");
+  } = useCopilotInsights(
+    transcriptionEnabled ? meetingId : null,
+    transcriptionEnabled && panel === "copilot",
+  );
   const { chatMessages, send, isSending } = useChat();
   const [historyMessages, setHistoryMessages] = useState<
     import("@livekit/components-react").ReceivedChatMessage[]
@@ -580,7 +765,37 @@ function RoomShell({
     prevHasScreenShare.current = hasScreenShare;
   }, [hasScreenShare]);
 
-  const [captionsOn, setCaptionsOn] = useState(true);
+  const [platformMeetingPrefs, setPlatformMeetingPrefs] =
+    useState<PlatformMeetingPrefs | null>(null);
+  const [roomPrefsReady, setRoomPrefsReady] = useState(false);
+  const resolvedCaptionsDefault = useMemo(
+    () =>
+      resolveCaptionsDefault({
+        user: mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        platform: platformMeetingPrefs,
+      }),
+    [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
+  );
+  const [captionsPref, setCaptionsOn] = useState(() =>
+    resolveCaptionsDefault({}),
+  );
+  const captionsOn = captionsEnabled && captionsPref;
+  const captionsDefaultApplied = useRef(false);
+  useEffect(() => {
+    if (
+      captionsDefaultApplied.current ||
+      !roomPrefsReady ||
+      !mediaPrefsApi.ready
+    ) {
+      return;
+    }
+    captionsDefaultApplied.current = true;
+    setCaptionsOn(resolvedCaptionsDefault);
+  }, [mediaPrefsApi.ready, resolvedCaptionsDefault, roomPrefsReady]);
+  const toggleCaptions = useCallback(() => {
+    captionsDefaultApplied.current = true;
+    setCaptionsOn((value) => !value);
+  }, []);
   const [copied, setCopied] = useState(false);
   const [readChat, setReadChat] = useState(0);
   const hasConnectedOnce = useRef(false);
@@ -637,12 +852,13 @@ function RoomShell({
   const showRecovery =
     state === ConnectionState.Disconnected &&
     !forcedExit &&
+    !duplicateSession &&
     !leavingRef.current &&
     !autoReconnectBusy;
 
   // Join request chime always; toast when People panel is closed
   useEffect(() => {
-    if (!isHost) return;
+    if (!canModerate) return;
     const isInitial = !joinAlertsReady.current;
     joinAlertsReady.current = true;
 
@@ -662,7 +878,7 @@ function RoomShell({
     } else {
       toast.push(tToast("joinRequestMany", { count: toNotify.length }));
     }
-  }, [joinRequests, panel, isHost, toast, tToast]);
+  }, [joinRequests, panel, canModerate, toast, tToast]);
 
   const pendingLeaveAlerts = useRef<Map<string, number>>(new Map());
 
@@ -760,7 +976,14 @@ function RoomShell({
     const lp = room.localParticipant;
     const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
     const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
-    const videoOpts = videoId ? { deviceId: videoId } : undefined;
+    const effect = mediaPrefsApi.ready
+      ? mediaPrefsApi.prefs.videoEffect
+      : undefined;
+    const videoOpts = videoOptionsForEffect(
+      effect,
+      videoId,
+      detectPerformanceProfile(),
+    );
     const audioOpts = audioOptionsFromPrefs(
       mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
       audioId,
@@ -796,6 +1019,7 @@ function RoomShell({
     audioDeviceId,
     leavingRef,
     mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.videoEffect,
     mediaPrefsApi.prefs.noiseSuppression,
     mediaPrefsApi.prefs.echoCancellation,
     mediaPrefsApi.prefs.autoGainControl,
@@ -818,34 +1042,33 @@ function RoomShell({
     })();
   }, [room, leavingRef]);
 
-  const [tabReturnPrefs, setTabReturnPrefs] = useState<TabReturnMediaPrefs>(
-    DEFAULT_TAB_RETURN_MEDIA_PREFS,
+  const tabReturnPrefs = useMemo(
+    () =>
+      resolveTabReturnPrefs({
+        user: mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
+        platform: platformMeetingPrefs,
+      }),
+    [mediaPrefsApi.ready, mediaPrefsApi.prefs, platformMeetingPrefs],
   );
   const tabMediaSnapshot = useRef<{ audio: boolean; video: boolean } | null>(
     null,
   );
+  const skipTabReturn = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/system/room-prefs", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then(
-        (data: {
-          tabReturnMedia?: {
-            enabled?: boolean;
-            mic?: string;
-            camera?: string;
-          };
-        } | null) => {
-          if (cancelled || !data?.tabReturnMedia) return;
-          setTabReturnPrefs({
-            enabled: normalizeTabReturnEnabled(data.tabReturnMedia.enabled),
-            mic: normalizeTabReturnMediaPolicy(data.tabReturnMedia.mic),
-            camera: normalizeTabReturnMediaPolicy(data.tabReturnMedia.camera),
-          });
+        (data: PlatformMeetingPrefs | null) => {
+          if (cancelled) return;
+          if (data) setPlatformMeetingPrefs(data);
         },
       )
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setRoomPrefsReady(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -860,7 +1083,14 @@ function RoomShell({
       const lp = room.localParticipant;
       const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
       const audioId = resolveCaptureDeviceId(room, "audioinput", audioDeviceId);
-      const videoOpts = videoId ? { deviceId: videoId } : undefined;
+      const effect = mediaPrefsApi.ready
+        ? mediaPrefsApi.prefs.videoEffect
+        : undefined;
+      const videoOpts = videoOptionsForEffect(
+        effect,
+        videoId,
+        detectPerformanceProfile(),
+      );
       const audioOpts = audioOptionsFromPrefs(
         mediaPrefsApi.ready ? mediaPrefsApi.prefs : null,
         audioId,
@@ -882,6 +1112,7 @@ function RoomShell({
       videoDeviceId,
       audioDeviceId,
       mediaPrefsApi.ready,
+      mediaPrefsApi.prefs.videoEffect,
       mediaPrefsApi.prefs.noiseSuppression,
       mediaPrefsApi.prefs.echoCancellation,
       mediaPrefsApi.prefs.autoGainControl,
@@ -892,6 +1123,13 @@ function RoomShell({
     if (leavingRef.current) return;
     if (!tabReturnPrefs.enabled) return;
     const lp = room.localParticipant;
+    // Sharing a Chrome tab moves focus to it and hides the meeting tab; muting
+    // here would silence the presenter mid-share.
+    if (lp.isScreenShareEnabled) {
+      skipTabReturn.current = true;
+      return;
+    }
+    skipTabReturn.current = false;
     tabMediaSnapshot.current = {
       audio: lp.isMicrophoneEnabled,
       video: lp.isCameraEnabled,
@@ -902,6 +1140,10 @@ function RoomShell({
   const onTabVisible = useCallback(() => {
     if (leavingRef.current) return;
     if (!tabReturnPrefs.enabled) return;
+    if (skipTabReturn.current) {
+      skipTabReturn.current = false;
+      return;
+    }
     const snap = tabMediaSnapshot.current ?? {
       audio: wantAudio,
       video: wantVideo,
@@ -1003,22 +1245,39 @@ function RoomShell({
         );
       } else if (key === "v") {
         e.preventDefault();
-        room.localParticipant.setCameraEnabled(
-          !room.localParticipant.isCameraEnabled,
-        );
+        const lp = room.localParticipant;
+        const turningOn = !lp.isCameraEnabled;
+        if (turningOn) {
+          const videoId = resolveCaptureDeviceId(room, "videoinput", videoDeviceId);
+          const effect = mediaPrefsApi.ready
+            ? mediaPrefsApi.prefs.videoEffect
+            : undefined;
+          void lp.setCameraEnabled(
+            true,
+            videoOptionsForEffect(effect, videoId, detectPerformanceProfile()),
+          );
+        } else {
+          void lp.setCameraEnabled(false);
+        }
       } else if (key === "g") {
         setLayout((l) => (l === "grid" ? "spotlight" : "grid"));
-      } else if (key === "c") {
+      } else if (key === "c" && captionsEnabled) {
         setCaptionsOn((v) => !v);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [room]);
+  }, [
+    room,
+    videoDeviceId,
+    mediaPrefsApi.ready,
+    mediaPrefsApi.prefs.videoEffect,
+    captionsEnabled,
+  ]);
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(externalInviteUrl || window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -1046,6 +1305,11 @@ function RoomShell({
         onReconnect={onReconnect}
         onLeave={onConfirmLeave}
       />
+      <DuplicateSessionOverlay
+        open={duplicateSession && !forcedExit}
+        onUseHere={onUseHere}
+        onLeave={onConfirmLeave}
+      />
 
       <header className="relative z-20 flex shrink-0 items-center justify-between gap-3 px-3 pt-safe sm:px-4">
         <div className="flex min-w-0 items-center gap-2 pt-3 sm:gap-3 sm:pt-4">
@@ -1062,9 +1326,9 @@ function RoomShell({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium tracking-tight text-ink">
               {roomTitle || room.name}
-              {isHost ? (
+              {canModerate ? (
                 <span className="ml-2 hidden text-[11px] font-normal text-ink-faint sm:inline">
-                  · {tLabels("host")}
+                  · {localRole === "host" ? tLabels("host") : tLabels("moderator")}
                 </span>
               ) : null}
             </p>
@@ -1082,7 +1346,47 @@ function RoomShell({
               REC
             </span>
           ) : null}
+          {liveStream.active && liveStream.active.status !== "ending" ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white",
+                liveStream.active.status === "live"
+                  ? "bg-rose-600 shadow-[0_0_12px_rgba(225,29,72,0.45)]"
+                  : "animate-pulse border border-rose-500/50 bg-rose-500/20 text-rose-100",
+              )}
+            >
+              <span className="h-2 w-2 rounded-full bg-white" />
+              {liveStream.active.status === "live"
+                ? t("liveStream.badgeLive")
+                : t("liveStream.badgeStarting")}
+            </span>
+          ) : null}
           <ConnectionBadge state={state} count={humans.length} />
+          <button
+            type="button"
+            onClick={() =>
+              setPanel((p) => (p === "people" ? "none" : "people"))
+            }
+            aria-label={t("controlBar.people")}
+            aria-pressed={panel === "people"}
+            className={cn(
+              "relative grid h-9 w-9 place-items-center rounded-xl border transition-colors",
+              panel === "people"
+                ? "border-brand-primary/60 bg-[color-mix(in_srgb,var(--brand-primary)_28%,transparent)] text-ink"
+                : "border-line bg-white/[0.05] text-ink-muted hover:text-ink",
+            )}
+          >
+            <IconUsers className="h-4 w-4" />
+            {joinRequests.length > 0 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-[16px] place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                {joinRequests.length}
+              </span>
+            ) : humans.length > 1 ? (
+              <span className="absolute -right-1 -top-1 grid min-w-[16px] place-items-center rounded-full bg-brand-primary px-1 text-[9px] font-semibold text-white">
+                {humans.length}
+              </span>
+            ) : null}
+          </button>
           <button
             onClick={copyLink}
             aria-label={t("copyMeetingLink")}
@@ -1114,9 +1418,19 @@ function RoomShell({
             pinnedKey={pinnedKey}
             onPin={handlePin}
             raisedIdentities={raisedIdentities}
+            canModerate={canModerate}
+            roomSlug={roomSlug}
+            meetingId={meetingId}
           />
           <ReactionBurstOverlay bursts={reactionBursts} />
-          <CaptionsOverlay captions={captions} visible={captionsOn} />
+          {/* Hide overlay while disconnected — avoids render work on stale tracks/captions during reconnect. */}
+          {captionsOn && state === ConnectionState.Connected ? (
+            <CaptionsOverlay
+              captions={captions}
+              visible
+              onHide={() => setCaptionsOn(false)}
+            />
+          ) : null}
           {!isLgUp ? (
             <SidePanel
               panel={panel}
@@ -1124,6 +1438,7 @@ function RoomShell({
               roomSlug={roomSlug}
               meetingId={meetingId}
               isHost={isHost}
+              canModerate={canModerate}
               captions={captions}
               insights={insights}
               insightsLoading={insightsLoading}
@@ -1153,6 +1468,7 @@ function RoomShell({
             roomSlug={roomSlug}
             meetingId={meetingId}
             isHost={isHost}
+            canModerate={canModerate}
             captions={captions}
             insights={insights}
             insightsLoading={insightsLoading}
@@ -1185,7 +1501,9 @@ function RoomShell({
             panel={panel}
             onPanelChange={setPanel}
             captionsOn={captionsOn}
-            onCaptionsToggle={() => setCaptionsOn((v) => !v)}
+            onCaptionsToggle={toggleCaptions}
+            captionsEnabled={captionsEnabled}
+            transcriptionEnabled={transcriptionEnabled}
             unreadChat={unread}
             peopleCount={humans.length}
             pendingJoinRequests={joinRequests.length}
@@ -1200,6 +1518,12 @@ function RoomShell({
               if (recorder.active) void recorder.stop();
               else void recorder.start();
             }}
+            canLiveStream={liveStream.canControl}
+            liveStreamActive={Boolean(liveStream.active)}
+            onLiveStreamClick={() => {
+              void liveStream.refresh();
+              setLiveStreamModalOpen(true);
+            }}
             onLeave={onLeave}
             onEndForAll={onEndForAll}
             handRaised={localHandRaised}
@@ -1209,8 +1533,10 @@ function RoomShell({
             mediaPrefsReady={mediaPrefsApi.ready}
             mediaPrefsAccountBound={mediaPrefsApi.accountBound}
             mediaPrefsSaving={mediaPrefsApi.saving}
+            resolvedCaptionsDefault={resolvedCaptionsDefault}
             onMediaPrefsChange={mediaPrefsApi.updatePrefs}
             onUploadVirtualBackground={mediaPrefsApi.uploadVirtualBackground}
+            showPeopleInBar={false}
           />
         </div>
       </div>
@@ -1277,6 +1603,22 @@ function RoomShell({
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      {liveStream.canControl ? (
+        <LiveStreamModal
+          open={liveStreamModalOpen}
+          onClose={() => {
+            setLiveStreamModalOpen(false);
+            liveStream.clearLastError();
+          }}
+          active={liveStream.active}
+          busy={liveStream.busy}
+          captionsEnabled={liveStream.captionsEnabled}
+          lastError={liveStream.lastError}
+          onStart={liveStream.start}
+          onStop={liveStream.stop}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1478,6 +1820,48 @@ function DisconnectRecovery({
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Button size="lg" onClick={onReconnect}>
                 {tActions("reconnect")}
+              </Button>
+              <Button size="lg" variant="outline" onClick={onLeave}>
+                {tActions("leave")}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+function DuplicateSessionOverlay({
+  open,
+  onUseHere,
+  onLeave,
+}: {
+  open: boolean;
+  onUseHere: () => void;
+  onLeave: () => void;
+}) {
+  const t = useTranslations("room.duplicateSession");
+  const tActions = useTranslations("common.actions");
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 z-[60] grid place-items-center bg-[var(--brand-bg)]/92 px-6 backdrop-blur-xl"
+        >
+          <div className="w-full max-w-md rounded-3xl glass-strong p-8 text-center shadow-lift">
+            <h2 className="text-xl font-semibold tracking-tight">
+              {t("title")}
+            </h2>
+            <p className="mt-2 text-sm text-ink-muted">
+              {t("body")}
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <Button size="lg" onClick={onUseHere}>
+                {t("useHere")}
               </Button>
               <Button size="lg" variant="outline" onClick={onLeave}>
                 {tActions("leave")}

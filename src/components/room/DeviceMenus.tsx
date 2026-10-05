@@ -111,7 +111,7 @@ export function SplitDeviceControl({
     <div
       ref={anchorRef}
       className={cn(
-        "relative flex h-11 shrink-0 overflow-hidden rounded-xl border transition-colors duration-300",
+        "relative flex h-12 shrink-0 overflow-hidden rounded-xl border transition-colors duration-300",
         danger
           ? "border-rose-400/50 bg-rose-500/85 text-white"
           : active
@@ -126,7 +126,7 @@ export function SplitDeviceControl({
         title={toggleLabel}
         onClick={onToggle}
         className={cn(
-          "grid h-11 w-10 place-items-center transition-colors disabled:opacity-50",
+          "grid h-12 w-11 place-items-center transition-colors disabled:opacity-50",
           !danger && !active && "hover:text-ink",
         )}
       >
@@ -141,7 +141,7 @@ export function SplitDeviceControl({
         title={menuLabel}
         onClick={() => onMenuOpenChange(!menuOpen)}
         className={cn(
-          "grid h-11 w-6 place-items-center border-l transition-colors",
+          "grid h-12 w-7 place-items-center border-l transition-colors",
           danger
             ? "border-white/25 hover:bg-white/10"
             : active

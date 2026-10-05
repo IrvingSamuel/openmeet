@@ -161,6 +161,7 @@ export default function MeetingSummaryPage() {
   const [attendees, setAttendees] = useState<AttendanceAttendee[]>([]);
   const [attendanceLoaded, setAttendanceLoaded] = useState(false);
   const [tab, setTab] = useState<SummaryTab>("report");
+  const summaryDisabled = status === "disabled";
 
   const loadMembers = useCallback(async (boardId: string) => {
     if (!boardId) return;
@@ -193,7 +194,7 @@ export default function MeetingSummaryPage() {
     }
 
     void loadTranscript();
-    if (status === "ready") {
+    if (status === "ready" || status === "disabled") {
       return () => {
         cancelled = true;
       };
@@ -318,7 +319,7 @@ export default function MeetingSummaryPage() {
         return;
       }
 
-      if (tries < 40 && json.status !== "ready") {
+      if (tries < 40 && json.status !== "ready" && json.status !== "disabled") {
         setTimeout(tick, 2500);
       }
     }
@@ -388,7 +389,9 @@ export default function MeetingSummaryPage() {
     { id: "transcript", label: t("tabTranscript") },
     { id: "recordings", label: t("tabRecordings") },
     { id: "attendance", label: t("tabAttendance") },
-    { id: "tasks", label: t("tabTasks") },
+    ...(summaryDisabled
+      ? []
+      : [{ id: "tasks" as const, label: t("tabTasks") }]),
   ];
 
   function downloadMarkdown() {
@@ -545,7 +548,9 @@ export default function MeetingSummaryPage() {
           <p className="mt-2 text-sm text-ink-muted">
             {status === "ready"
               ? t("statusReady")
-              : status === "running"
+              : summaryDisabled
+                ? t("statusDisabled")
+                : status === "running"
                 ? t("statusRunning")
                 : status === "failed"
                   ? t("statusFailed")
@@ -671,7 +676,9 @@ export default function MeetingSummaryPage() {
                 </ReactMarkdown>
               </article>
             ) : (
-              <p className="mt-6 text-sm text-ink-faint">{tMeta("waitingContent")}</p>
+              <p className="mt-6 text-sm text-ink-faint">
+                {summaryDisabled ? t("summaryDisabled") : tMeta("waitingContent")}
+              </p>
             )}
           </section>
         ) : null}
