@@ -219,6 +219,12 @@ export const meetings = pgTable(
     captionsEnabled: boolean("captions_enabled").notNull().default(true),
     transcriptionEnabled: boolean("transcription_enabled").notNull().default(true),
     summaryEnabled: boolean("summary_enabled").notNull().default(true),
+    /**
+     * May this meeting go live (RTMP)? Set by the API caller, e.g. from the
+     * customer's plan. null = follow LIVE_STREAM_MEETING_DEFAULT. The instance
+     * switch (app_settings.live_stream_enabled) still has to be on.
+     */
+    liveStreamEnabled: boolean("live_stream_enabled"),
     /** SHA-256 hex of the one-time host entry token (API host_url). */
     hostEntryTokenHash: text("host_entry_token_hash"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */

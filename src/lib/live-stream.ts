@@ -34,11 +34,113 @@ function isValidStreamKey(key: string) {
   return /^[A-Za-z0-9_\-.]{4,200}$/.test(key);
 }
 
-function normalizeRtmpUrl(raw: string | undefined | null): string | null {
+/*
+ * Accepted RTMP destinations. Without this, any host could make Egress open a
+ * connection to any address it liked — including services internal to the
+ * machine, with the error message coming back to the client — and the install
+ * became a free re-streaming service at ~4 vCPU per stream.
+ *
+ * YouTube ingest only by default. `LIVE_STREAM_ALLOWED_HOSTS` replaces the
+ * list (comma-separated) and `*` restores the open behaviour.
+ */
+const DEFAULT_ALLOWED_RTMP_HOSTS = [
+  "a.rtmp.youtube.com",
+  "b.rtmp.youtube.com",
+  "a.rtmps.youtube.com",
+  "b.rtmps.youtube.com",
+];
+
+const ALLOWED_RTMP_PORTS = ["", "1935", "443"];
+
+/** null = any host (`LIVE_STREAM_ALLOWED_HOSTS=*`). */
+export function allowedRtmpHosts(): string[] | null {
+  const raw = process.env.LIVE_STREAM_ALLOWED_HOSTS?.trim();
+  if (!raw) return DEFAULT_ALLOWED_RTMP_HOSTS;
+  if (raw === "*") return null;
+  const hosts = raw
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  return hosts.length > 0 ? hosts : DEFAULT_ALLOWED_RTMP_HOSTS;
+}
+
+export function normalizeRtmpUrl(raw: string | undefined | null): string | null {
   const value = (raw?.trim() || DEFAULT_RTMP_URL).replace(/\/+$/, "");
   if (value.length > 300 || /\s/.test(value)) return null;
   if (!/^rtmps?:\/\/[^/]+/i.test(value)) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+  // Credentials embedded in the URL have no legitimate use here and would hide
+  // the real host from whoever reads the log.
+  if (parsed.username || parsed.password) return null;
+
+  const allowed = allowedRtmpHosts();
+  if (allowed) {
+    // Non-special schemes (rtmp:) do not lowercase the host.
+    const host = parsed.hostname.toLowerCase();
+    if (!allowed.includes(host)) return null;
+    if (!ALLOWED_RTMP_PORTS.includes(parsed.port)) return null;
+  }
   return value;
+}
+
+/*
+ * Per-meeting permission. The instance switch (app_settings) is all or
+ * nothing: when on, every host of every meeting can go live. Whoever creates
+ * the meeting through the API (e.g. a platform deciding from the customer's
+ * plan) says whether this one may; a meeting without a value follows
+ * LIVE_STREAM_MEETING_DEFAULT — "on" by default, which is the behaviour from
+ * before this column existed.
+ */
+export function meetingLiveStreamAllowed(row: {
+  liveStreamEnabled?: boolean | null;
+}): boolean {
+  if (typeof row.liveStreamEnabled === "boolean") return row.liveStreamEnabled;
+  const raw = process.env.LIVE_STREAM_MEETING_DEFAULT?.trim().toLowerCase();
+  return !(raw === "off" || raw === "false" || raw === "0");
+}
+
+/*
+ * Cap on simultaneous live streams for the install. Each one is a ~4 vCPU
+ * headless Chrome sharing the machine with recordings; Egress' `cpu_cost` only
+ * refuses once the CPU is already gone, too late for whoever is recording.
+ * `LIVE_STREAM_MAX_CONCURRENT=none` removes the cap.
+ */
+const DEFAULT_MAX_CONCURRENT = 2;
+
+export function maxConcurrentLiveStreams(): number | null {
+  const raw = process.env.LIVE_STREAM_MAX_CONCURRENT?.trim().toLowerCase();
+  if (!raw) return DEFAULT_MAX_CONCURRENT;
+  if (raw === "none") return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_CONCURRENT;
+}
+
+/*
+ * Counts what Egress reports as running, not just DB rows: a row stuck in
+ * `live` because a webhook was lost must not hold a slot forever. A row with
+ * no egressId yet is a start in flight — it counts while it is recent.
+ */
+async function countRunningLiveStreams(): Promise<number> {
+  const rows = await db.query.liveStreams.findMany({
+    where: inArray(liveStreams.status, ACTIVE_STATUSES),
+    columns: { egressId: true, createdAt: true },
+  });
+  if (rows.length === 0) return 0;
+
+  const running = await getEgressClient().listEgress({ active: true });
+  const runningIds = new Set(running.map((e) => e.egressId));
+  const now = Date.now();
+  return rows.filter((r) =>
+    r.egressId
+      ? runningIds.has(r.egressId)
+      : now - r.createdAt.getTime() < ORPHAN_AFTER_MS,
+  ).length;
 }
 
 async function liveViewLocale(): Promise<AppLocale> {
@@ -141,6 +243,9 @@ export async function startMeetingLiveStream(opts: {
   if (!meeting || meeting.status !== "active") {
     return { ok: false, error: "meeting_not_active", status: 409 };
   }
+  if (!meetingLiveStreamAllowed(meeting)) {
+    return { ok: false, error: "live_not_allowed", status: 403 };
+  }
 
   const existing = await activeLiveStream(opts.meetingId);
   if (existing) {
@@ -150,6 +255,24 @@ export async function startMeetingLiveStream(opts: {
   const health = await checkEgressHealth();
   if (health.online === false) {
     return { ok: false, error: "egress_offline", status: 503 };
+  }
+
+  const cap = maxConcurrentLiveStreams();
+  if (cap !== null) {
+    let running: number;
+    try {
+      running = await countRunningLiveStreams();
+    } catch (err) {
+      // Without knowing how many are running, refusing is the safe side.
+      console.error(
+        "[openmeet] live stream concurrency check failed",
+        redactRtmp(err instanceof Error ? err.message : String(err)),
+      );
+      return { ok: false, error: "egress_offline", status: 503 };
+    }
+    if (running >= cap) {
+      return { ok: false, error: "live_limit_reached", status: 429 };
+    }
   }
 
   const [row] = await db

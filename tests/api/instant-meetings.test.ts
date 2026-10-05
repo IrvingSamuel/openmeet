@@ -522,4 +522,49 @@ describe("POST /api/v1/instant-meetings", () => {
       summary_enabled: false,
     });
   });
+
+  it("stores live_stream_enabled when given and null when omitted", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-live",
+          slug: "live00001",
+          title: "Aula",
+          roomId: null,
+          liveStreamEnabled: false,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-live" }])
+      .mockResolvedValueOnce([
+        { id: "m-nolive", slug: "live00002", title: "Aula", roomId: null },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-nolive" }]);
+
+    const res = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        { title: "Aula", external_id: "cu-1", live_stream_enabled: false },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(insertedValues[0]).toMatchObject({ liveStreamEnabled: false });
+    expect(await res.json()).toMatchObject({ live_stream_enabled: false });
+
+    const res2 = await postV1(
+      jsonRequest(
+        "http://localhost/api/v1/instant-meetings",
+        { title: "Aula", external_id: "cu-1" },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res2.status).toBe(201);
+    const second = insertedValues.find(
+      (v, i) => i > 0 && "liveStreamEnabled" in (v as object),
+    );
+    expect(second).toMatchObject({ liveStreamEnabled: null });
+    expect(await res2.json()).toMatchObject({ live_stream_enabled: null });
+  });
 });
