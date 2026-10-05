@@ -6,6 +6,7 @@ import {
   WebhookReceiver,
 } from "livekit-server-sdk";
 import { getLiveKitEmptyTimeoutSec } from "@/lib/meeting-timeouts";
+import type { MeetingFeatures } from "@/lib/meeting-features";
 
 export const AGENT_LIVEKIT_IDENTITY = "agent-openmeet";
 
@@ -84,6 +85,7 @@ export type RoomMetadataPayload = {
   roomId: string;
   slug: string;
   boardId?: string | null;
+  features?: MeetingFeatures;
 };
 
 /**
@@ -162,11 +164,14 @@ export async function ensureAgentDispatch(livekitRoomName: string) {
   }
 }
 
-/** Ensure the LiveKit room exists and carries meeting metadata for the agent. */
+/**
+ * Ensure the LiveKit room exists and carries meeting metadata for the agent.
+ * `dispatchAgent: false` (captions and transcription both off) skips the agent.
+ */
 export async function syncRoomMetadata(
   livekitRoomName: string,
   meta: RoomMetadataPayload,
-  opts?: { emptyTimeout?: number },
+  opts?: { emptyTimeout?: number; dispatchAgent?: boolean },
 ) {
   const httpHost = getLiveKitHttpHost();
   const client = getRoomServiceClient();
@@ -207,10 +212,17 @@ export async function syncRoomMetadata(
     }
   }
 
+  if (opts?.dispatchAgent === false) {
+    console.info(
+      "[openmeet] syncRoomMetadata agent skipped (AI features off) room=%s",
+      livekitRoomName,
+    );
+    return;
+  }
   await ensureAgentDispatch(livekitRoomName);
 }
 
-export type RoomRole = "host" | "participant" | "agent";
+export type RoomRole = "host" | "moderator" | "participant" | "agent";
 
 export async function mintRoomToken(opts: {
   roomName: string;
@@ -223,11 +235,12 @@ export async function mintRoomToken(opts: {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: opts.identity,
     name: opts.name,
+    metadata: JSON.stringify({ role: opts.role }),
     ttl: opts.ttlSeconds ?? 60 * 60 * 6,
   });
 
   const canPublish = opts.role !== "agent";
-  const roomAdmin = opts.role === "host";
+  const roomAdmin = opts.role === "host" || opts.role === "moderator";
 
   at.addGrant({
     roomJoin: true,
@@ -242,6 +255,28 @@ export async function mintRoomToken(opts: {
   // Agent dispatch is exclusively via ensureAgentDispatch (token mint).
   // roomConfig.agents here caused a second concurrent job / identity clash.
   return at.toJwt();
+}
+
+/** Update an active participant's moderation grant and role metadata. */
+export async function updateParticipantRole(opts: {
+  livekitRoomName: string;
+  identity: string;
+  role: "moderator" | "participant";
+}) {
+  const client = getRoomServiceClient();
+  return client.updateParticipant(opts.livekitRoomName, opts.identity, {
+    metadata: JSON.stringify({ role: opts.role }),
+    permission: {
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+      canUpdateMetadata: true,
+      canSubscribeMetrics: true,
+      hidden: false,
+      recorder: false,
+      agent: false,
+    },
+  });
 }
 
 export function getWebhookReceiver() {

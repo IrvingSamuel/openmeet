@@ -47,6 +47,47 @@ Auth local funciona de imediato; OIDC é opcional.
 
 Activar em `/admin` → **Gravação**: motor `browser` ou `egress`; controlo manual/automático; storage local ou S3.
 
+## Transmissão ao vivo (addon YouTube / RTMP)
+
+Anfitriões e moderadores podem transmitir a reunião para o YouTube, ou para qualquer destino RTMP, com a **visão de um espectador**. O vídeo mostra apenas a grade de câmeras, o áudio da sala e uma faixa fixa de legendas no rodapé: sem barras laterais, barra inferior nem botões. A chave do YouTube é colada em cada reunião e nunca fica guardada.
+
+O addon usa o [LiveKit Egress](https://docs.livekit.io/transport/self-hosting/egress/), que roda um Chrome headless e consome **cerca de 4 vCPU por transmissão**. Vem **desativado por padrão**. Quando o Egress está offline, `/admin` → **Transmissão** mostra estes mesmos passos e os anfitriões não conseguem iniciar uma transmissão.
+
+**Instalação**
+
+1. Crie a configuração do Egress. Preencha `api_key` / `api_secret` com os mesmos valores do `livekit.yaml` (`LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` do `.env`) e mantenha `health_port: 9187`. Se trocar a porta, ela não pode estar em uso por outro serviço e o `EGRESS_HEALTH_URL` deve acompanhar:
+
+   ```bash
+   cp infra/egress.yaml.example infra/egress.yaml
+   ```
+
+2. Suba o container. Precisa de Docker e usa `network_mode: host`:
+
+   ```bash
+   docker compose -f infra/docker-compose.egress.yml up -d
+   ```
+
+3. Libere a saída TCP **1935** (`rtmp://`), ou 443 para `rtmps://`.
+4. Opcional, para estado em tempo real: adicione o webhook desta app ao `livekit.yaml` e reinicie o LiveKit. Sem ele, a app consulta o Egress por polling.
+
+   ```yaml
+   webhook:
+     api_key: <LIVEKIT_API_KEY>
+     urls:
+       - http://127.0.0.1:3332/api/livekit/webhook
+   ```
+
+5. Opcional, no `.env` (reinicie a app depois):
+
+   | Variável | Padrão | Função |
+   |----------|--------|--------|
+   | `LIVE_VIEW_BASE_URL` | `NEXT_PUBLIC_APP_URL` | URL que o Chrome do Egress usa para abrir `/<locale>/live-view/<meetingId>` |
+   | `EGRESS_HEALTH_URL` | `http://127.0.0.1:9187/` | Health check do Egress (`none` desativa a verificação) |
+
+6. Em `/admin` → **Transmissão**, confirme que o serviço aparece **online**, marque *Transmissão ao vivo ativa* e escolha 720p ou 1080p.
+
+Na reunião, o anfitrião abre **Mais → Transmitir ao vivo** e cola a chave do YouTube Studio. Todos passam a ver o selo **AO VIVO**. Detalhes em [docs/05-live-stream.md](docs/05-live-stream.md).
+
 ## Qualidade
 
 ```bash
@@ -65,6 +106,7 @@ O design system vive em `src/app/globals.css` e `src/components/`. Cores, fontes
 - [Requisitos](docs/01-requisitos.md)
 - [Arquitetura](docs/02-arquitetura.md)
 - [Roadmap](docs/03-roadmap.md)
+- [Transmissão ao vivo](docs/05-live-stream.md)
 - ADRs em `docs/adr/`
 
 ## Integrações
@@ -76,3 +118,26 @@ O design system vive em `src/app/globals.css` e `src/components/`. Cores, fontes
 
 - Capacidade: `scripts/capacity-snapshot.sh`
 - Apps PM2: `openmeet` + `openmeet-agent` (porta `3332`)
+
+### Atualizar com a app no ar
+
+Não rode `npm run build` direto em cima do `.next` com o PM2 servindo. Durante o build o servidor passa a responder com `Cannot find module './chunks/…'` e quem está numa reunião recebe a tela "Algo deu errado na reunião". Gere o build numa pasta separada e troque no fim:
+
+```bash
+git pull && npm ci
+NEXT_DIST_DIR=.next-staging npm run build
+rm -rf .next-prev && mv .next .next-prev && mv .next-staging .next
+pm2 reload openmeet
+```
+
+Abas abertas antes da atualização que pedirem um chunk antigo recarregam a página sozinhas, uma vez por minuto no máximo. Evite atualizar durante eventos ao vivo.
+
+### Erros de reunião no navegador
+
+Quando a tela "Algo deu errado na reunião" aparece, o erro real (mensagem e stack) é enviado ao servidor:
+
+```bash
+pm2 logs openmeet --err --nostream --lines 2000 | grep "openmeet:client-error"
+```
+
+Desconexões e reconexões aparecem como `[openmeet:disconnect]` em `pm2 logs openmeet --out`.

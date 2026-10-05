@@ -70,6 +70,12 @@ export const rooms = pgTable(
       .references(() => users.id),
     boardId: text("board_id"),
     accessPolicy: text("access_policy").notNull().default("members"),
+    /** When true, Lobby starts with mic off (participants can still unmute). */
+    muteMicOnJoin: boolean("mute_mic_on_join").notNull().default(true),
+    /** AI feature template copied to each meeting (summary requires transcription). */
+    captionsEnabled: boolean("captions_enabled").notNull().default(true),
+    transcriptionEnabled: boolean("transcription_enabled").notNull().default(true),
+    summaryEnabled: boolean("summary_enabled").notNull().default(true),
     kind: text("kind").notNull().default("persistent"),
     livekitRoomName: text("livekit_room_name").notNull(),
     /** Absolute http(s) URL for outbound meeting artifacts (inherited by meetings). */
@@ -164,6 +170,10 @@ export const identityMediaPrefs = pgTable("identity_media_prefs", {
   noiseSuppression: boolean("noise_suppression").notNull().default(true),
   echoCancellation: boolean("echo_cancellation").notNull().default(true),
   autoGainControl: boolean("auto_gain_control").notNull().default(true),
+  captionsDefault: boolean("captions_default"),
+  tabReturnEnabled: boolean("tab_return_enabled"),
+  tabReturnMic: text("tab_return_mic"),
+  tabReturnCamera: text("tab_return_camera"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -191,6 +201,8 @@ export const meetings = pgTable(
     emptyTimeoutSec: integer("empty_timeout_sec"),
     /** Absolute http(s) URL to send participants after leave/end. */
     redirectAfterMeet: text("redirect_after_meet"),
+    /** Absolute http(s) URL copied when inviting participants. */
+    externalInviteUrl: text("external_invite_url"),
     /** Absolute http(s) URL for outbound meeting artifacts (snapshot at create). */
     webhookUrl: text("webhook_url"),
     /**
@@ -198,6 +210,21 @@ export const meetings = pgTable(
      * until a host participant is present — no manual approval queue.
      */
     waitForHost: boolean("wait_for_host").notNull().default(false),
+    /** Snapshot of room preference: Lobby starts with mic off when true. */
+    muteMicOnJoin: boolean("mute_mic_on_join").notNull().default(true),
+    /**
+     * Snapshot of room AI features. Captions + transcription both off → agent
+     * is not dispatched. summaryEnabled=false → summaryStatus "disabled".
+     */
+    captionsEnabled: boolean("captions_enabled").notNull().default(true),
+    transcriptionEnabled: boolean("transcription_enabled").notNull().default(true),
+    summaryEnabled: boolean("summary_enabled").notNull().default(true),
+    /**
+     * May this meeting go live (RTMP)? Set by the API caller, e.g. from the
+     * customer's plan. null = follow LIVE_STREAM_MEETING_DEFAULT. The instance
+     * switch (app_settings.live_stream_enabled) still has to be on.
+     */
+    liveStreamEnabled: boolean("live_stream_enabled"),
     /** SHA-256 hex of the one-time host entry token (API host_url). */
     hostEntryTokenHash: text("host_entry_token_hash"),
     /** scheduled = created, awaiting first join; active = in call; ended = closed */
@@ -404,6 +431,36 @@ export const recordings = pgTable(
   ],
 );
 
+export type LiveStreamQuality = "720p" | "1080p";
+export type LiveStreamStatus =
+  | "starting"
+  | "live"
+  | "ending"
+  | "ended"
+  | "failed";
+
+/** The RTMP stream key is never stored — it is only handed to Egress. */
+export const liveStreams = pgTable(
+  "live_streams",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    meetingId: uuid("meeting_id")
+      .notNull()
+      .references(() => meetings.id, { onDelete: "cascade" }),
+    egressId: text("egress_id"),
+    status: text("status").notNull().default("starting"),
+    error: text("error"),
+    startedBy: text("started_by"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("live_streams_meeting_idx").on(t.meetingId),
+    index("live_streams_egress_idx").on(t.egressId),
+  ],
+);
+
 export const APP_SETTINGS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
 export type WebhookEventsConfig = {
@@ -437,6 +494,7 @@ export const appSettings = pgTable("app_settings", {
   tabReturnEnabled: boolean("tab_return_enabled").notNull().default(true),
   tabReturnMic: text("tab_return_mic").notNull().default("closed"),
   tabReturnCamera: text("tab_return_camera").notNull().default("closed"),
+  captionsDefault: boolean("captions_default").notNull().default(true),
   /**
    * Page shell access: which of home/dashboard/settings are public,
    * redirect targets when disabled, and optional unlock request key.
@@ -474,6 +532,9 @@ export const appSettings = pgTable("app_settings", {
   recordingS3Region: text("recording_s3_region"),
   recordingS3AccessKey: text("recording_s3_access_key"),
   recordingS3SecretKey: text("recording_s3_secret_key"),
+  /** RTMP live stream via LiveKit Egress (heavy: ~4 vCPU per stream). */
+  liveStreamEnabled: boolean("live_stream_enabled").notNull().default(false),
+  liveStreamQuality: text("live_stream_quality").notNull().default("720p"),
   uiPrimary: text("ui_primary").default("#0ea5e9"),
   uiSecondary: text("ui_secondary").default("#38bdf8"),
   uiTertiary: text("ui_tertiary").default("#818cf8"),

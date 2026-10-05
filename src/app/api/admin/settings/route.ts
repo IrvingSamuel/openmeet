@@ -36,6 +36,7 @@ const putSchema = z.object({
   locale: z.enum(["pt-BR", "en", "es", "fr", "de"]).optional(),
   deploymentMode: z.enum(["server", "platform"]).optional(),
   allowSignup: z.boolean().optional(),
+  captionsDefault: z.boolean().optional(),
   tabReturnEnabled: z.boolean().optional(),
   tabReturnMic: z.enum(["open", "closed", "restore"]).optional(),
   tabReturnCamera: z.enum(["open", "closed", "restore"]).optional(),
@@ -80,6 +81,8 @@ const putSchema = z.object({
   recordingS3Region: z.string().max(80).nullable().optional(),
   recordingS3AccessKey: z.string().nullable().optional(),
   recordingS3SecretKey: z.string().nullable().optional(),
+  liveStreamEnabled: z.boolean().optional(),
+  liveStreamQuality: z.enum(["720p", "1080p"]).optional(),
   uiPrimary: z.string().max(40).nullable().optional(),
   uiSecondary: z.string().max(40).nullable().optional(),
   uiTertiary: z.string().max(40).nullable().optional(),
@@ -159,6 +162,7 @@ function publicSettingsPayload(
     locale: row.locale || "pt-BR",
     deploymentMode: row.deploymentMode || "platform",
     allowSignup: row.allowSignup !== false,
+    captionsDefault: row.captionsDefault !== false,
     tabReturnEnabled: row.tabReturnEnabled !== false,
     tabReturnMic: row.tabReturnMic || "closed",
     tabReturnCamera: row.tabReturnCamera || "closed",
@@ -232,6 +236,8 @@ function publicSettingsPayload(
     recordingS3SecretKey: s3SecretMask,
     recordingS3EndpointSource: recording.sources.s3Endpoint,
     recordingS3BucketSource: recording.sources.s3Bucket,
+    liveStreamEnabled: row.liveStreamEnabled === true,
+    liveStreamQuality: row.liveStreamQuality === "1080p" ? "1080p" : "720p",
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -270,6 +276,9 @@ export async function PUT(req: NextRequest) {
   if (body.locale !== undefined) patch.locale = body.locale;
   if (body.deploymentMode !== undefined) patch.deploymentMode = body.deploymentMode;
   if (body.allowSignup !== undefined) patch.allowSignup = body.allowSignup;
+  if (body.captionsDefault !== undefined) {
+    patch.captionsDefault = body.captionsDefault;
+  }
   if (body.tabReturnEnabled !== undefined) {
     patch.tabReturnEnabled = body.tabReturnEnabled;
   }
@@ -398,6 +407,13 @@ export async function PUT(req: NextRequest) {
     patch.recordingS3SecretKey = body.recordingS3SecretKey!.trim() || null;
   } else if (body.recordingS3SecretKey === null) {
     patch.recordingS3SecretKey = null;
+  }
+
+  if (body.liveStreamEnabled !== undefined) {
+    patch.liveStreamEnabled = body.liveStreamEnabled;
+  }
+  if (body.liveStreamQuality !== undefined) {
+    patch.liveStreamQuality = body.liveStreamQuality;
   }
 
   const [updated] = await db

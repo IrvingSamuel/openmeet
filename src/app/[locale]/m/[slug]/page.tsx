@@ -11,6 +11,7 @@ import {
 } from "@/components/MeetingRoom";
 import { MeetingRoomErrorBoundary } from "@/components/MeetingRoomErrorBoundary";
 import { brandStyleString, type BrandTokens } from "@/lib/brand";
+import { tabInstanceId } from "@/lib/tab-instance";
 import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
@@ -24,7 +25,12 @@ type MeetingPayload = {
     accessPolicy: string;
     status: string;
     redirectAfterMeet?: string | null;
+    externalInviteUrl?: string | null;
     waitForHost?: boolean;
+    muteMicOnJoin?: boolean;
+    captionsEnabled?: boolean;
+    transcriptionEnabled?: boolean;
+    summaryEnabled?: boolean;
   };
   brand: (BrandTokens & { customCss?: string | null; faviconUrl?: string | null }) | null;
 };
@@ -33,7 +39,7 @@ type Session = {
   token: string;
   serverUrl: string;
   meetingId?: string;
-  role: "host" | "participant" | "agent";
+  role: "host" | "moderator" | "participant" | "agent";
   displayName: string;
   video: boolean;
   audio: boolean;
@@ -47,21 +53,6 @@ type Session = {
     autoRecordingId?: string | null;
   } | null;
 };
-
-function tabInstanceId(): string {
-  try {
-    const existing = window.sessionStorage.getItem("openmeet:tab-id");
-    if (existing) return existing;
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID().slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
-    window.sessionStorage.setItem("openmeet:tab-id", id);
-    return id;
-  } catch {
-    return Math.random().toString(36).slice(2, 10);
-  }
-}
 
 export default function MeetingJoinPage() {
   const params = useParams<{ slug: string }>();
@@ -175,7 +166,10 @@ export default function MeetingJoinPage() {
         token: json.token,
         serverUrl: json.serverUrl,
         meetingId: json.meetingId,
-        role: json.role === "host" ? "host" : "participant",
+        role:
+          json.role === "host" || json.role === "moderator"
+            ? json.role
+            : "participant",
         displayName: opts.displayName,
         video: opts.videoEnabled,
         audio: opts.audioEnabled,
@@ -437,6 +431,8 @@ export default function MeetingJoinPage() {
           retryLabel={tRoom("retry")}
           leaveLabel={tRoom("leave")}
           onLeave={() => leave("leave")}
+          slug={data.meeting.slug}
+          meetingId={session.meetingId}
         >
           <MeetingRoom
             token={session.token}
@@ -457,6 +453,9 @@ export default function MeetingJoinPage() {
             redirectAfterMeet={
               session.redirectAfterMeet ?? data.meeting.redirectAfterMeet ?? null
             }
+            externalInviteUrl={data.meeting.externalInviteUrl ?? null}
+            captionsEnabled={data.meeting.captionsEnabled !== false}
+            transcriptionEnabled={data.meeting.transcriptionEnabled !== false}
             initialVideo={session.video}
             initialAudio={session.audio}
             videoDeviceId={session.videoDeviceId}
@@ -489,6 +488,7 @@ export default function MeetingJoinPage() {
           waiting={Boolean(waitingRequestId) || waitingForHost}
           waitingForHost={waitingForHost}
           error={error}
+          defaultAudioEnabled={data.meeting.muteMicOnJoin === false}
           onJoin={join}
           onCancelWait={() => {
             void cancelWait();

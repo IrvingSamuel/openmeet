@@ -4,6 +4,9 @@
 # Copy to egress.yaml and fill secrets (never commit egress.yaml):
 #   cp infra/egress.yaml.example infra/egress.yaml
 # Keys MUST match livekit.yaml and LIVEKIT_API_* in .env.
+#
+# Live streaming (YouTube / RTMP) uses this same service; the host needs
+# outbound TCP 1935 (rtmp://) or 443 (rtmps://). See docs/05-live-stream.md.
 
 log_level: info
 api_key: YOUR_LIVEKIT_API_KEY
@@ -13,7 +16,9 @@ insecure: true
 redis:
   address: 127.0.0.1:6379
   db: 5
-health_port: 9090
+# OpenMeet probes this port (EGRESS_HEALTH_URL, default http://127.0.0.1:9187/)
+# to tell whether Egress is online. Pick a port no other service uses.
+health_port: 9187
 cpu_cost:
   room_composite_cpu_cost: 4
   web_cpu_cost: 4

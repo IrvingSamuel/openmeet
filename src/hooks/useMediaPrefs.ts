@@ -97,6 +97,10 @@ export function useMediaPrefs() {
         noiseSuppression: next.noiseSuppression,
         echoCancellation: next.echoCancellation,
         autoGainControl: next.autoGainControl,
+        captionsDefault: next.captionsDefault,
+        tabReturnEnabled: next.tabReturnEnabled,
+        tabReturnMic: next.tabReturnMic,
+        tabReturnCamera: next.tabReturnCamera,
       };
       await fetch("/api/me/media-prefs", {
         method: "PATCH",

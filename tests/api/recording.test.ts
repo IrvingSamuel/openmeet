@@ -16,8 +16,11 @@ vi.mock("@/lib/session", () => ({
   getSession: async () => session,
 }));
 
+// The route now accepts moderators (assertMeetingModerator), which delegates
+// to assertMeetingHost; both point at the same mock.
 vi.mock("@/lib/hostAuth", () => ({
   assertMeetingHost: (...args: unknown[]) => assertMeetingHost(...args),
+  assertMeetingModerator: (...args: unknown[]) => assertMeetingHost(...args),
 }));
 
 vi.mock("@/lib/app-settings", () => ({

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { meetingBrands } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { loadMeetingBySlugAfterExpiry } from "@/lib/meeting-lifecycle";
+import { featuresFromRow } from "@/lib/meeting-features";
 
 export async function GET(
   _req: NextRequest,
@@ -16,6 +17,7 @@ export async function GET(
   const brand = await db.query.meetingBrands.findFirst({
     where: eq(meetingBrands.meetingId, meeting.id),
   });
+  const features = featuresFromRow(meeting);
   return NextResponse.json({
     meeting: {
       id: meeting.id,
@@ -26,7 +28,12 @@ export async function GET(
       boardId: meeting.boardId,
       roomId: meeting.roomId,
       redirectAfterMeet: meeting.redirectAfterMeet ?? null,
+      externalInviteUrl: meeting.externalInviteUrl ?? null,
       waitForHost: meeting.waitForHost,
+      muteMicOnJoin: meeting.muteMicOnJoin !== false,
+      captionsEnabled: features.captions,
+      transcriptionEnabled: features.transcription,
+      summaryEnabled: features.summary,
     },
     brand,
   });

@@ -23,6 +23,7 @@ import {
   type WebhookMeetingMeta,
 } from "@/lib/webhook-payloads";
 import { buildWebhookHeaders } from "@/lib/webhook-sign";
+import { featuresFromRow, type MeetingFeatures } from "@/lib/meeting-features";
 import { isDeliverableWebhookUrl } from "@/lib/webhook-url";
 
 export type { OutboundWebhookEvent, WebhookEnvelope, WebhookMeetingMeta };
@@ -43,17 +44,20 @@ const EVENT_TOGGLE: Record<
 
 async function loadMeetingMeta(
   meetingId: string,
-): Promise<WebhookMeetingMeta | null> {
+): Promise<{ meta: WebhookMeetingMeta; features: MeetingFeatures } | null> {
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.id, meetingId),
   });
   if (!meeting) return null;
   return {
-    id: meeting.id,
-    roomSlug: meeting.slug,
-    roomTitle: meeting.title,
-    startedAt: meeting.startedAt.toISOString(),
-    endedAt: meeting.endedAt ? meeting.endedAt.toISOString() : null,
+    meta: {
+      id: meeting.id,
+      roomSlug: meeting.slug,
+      roomTitle: meeting.title,
+      startedAt: meeting.startedAt.toISOString(),
+      endedAt: meeting.endedAt ? meeting.endedAt.toISOString() : null,
+    },
+    features: featuresFromRow(meeting),
   };
 }
 
@@ -353,13 +357,14 @@ export async function dispatchPreparedWebhook(
 
 /** Fire transcript + chat + attendance webhooks after a meeting ends. */
 export async function dispatchMeetingEndedWebhooks(meetingId: string) {
-  const meta = await loadMeetingMeta(meetingId);
-  if (!meta) return;
+  const loaded = await loadMeetingMeta(meetingId);
+  if (!loaded) return;
+  const { meta, features } = loaded;
   const targets = await resolveDeliveryTargets(meetingId);
   if (targets.length === 0) return;
 
   const jobs: Promise<void>[] = [];
-  if (anyTargetWants(targets, "transcript")) {
+  if (features.transcription && anyTargetWants(targets, "transcript")) {
     jobs.push(
       buildTranscriptPayload(meetingId, meta).then((envelope) =>
         deliverToTargets("transcript.ready", envelope, targets),
@@ -385,8 +390,9 @@ export async function dispatchMeetingEndedWebhooks(meetingId: string) {
 
 /** Fire summary + tasks webhooks after summary generation. */
 export async function dispatchSummaryReadyWebhooks(meetingId: string) {
-  const meta = await loadMeetingMeta(meetingId);
-  if (!meta) return;
+  const loaded = await loadMeetingMeta(meetingId);
+  if (!loaded || !loaded.features.summary) return;
+  const { meta } = loaded;
   const targets = await resolveDeliveryTargets(meetingId);
   if (targets.length === 0) return;
 

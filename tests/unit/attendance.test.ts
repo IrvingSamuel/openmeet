@@ -134,6 +134,22 @@ describe("buildAttendanceList", () => {
     expect(attendee.durationMs).toBe(25 * 60 * 1000);
   });
 
+  it("keeps moderator as a distinct attendance role", () => {
+    const payload = buildAttendanceList(
+      [
+        row({
+          displayName: "Caio",
+          livekitIdentity: "user_2_a",
+          identityId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          role: "moderator",
+        }),
+      ],
+      meeting,
+    );
+
+    expect(payload.attendees[0]?.role).toBe("moderator");
+  });
+
   it("merges guest rejoins by normalized displayName", () => {
     const payload = buildAttendanceList(
       [

@@ -311,6 +311,62 @@ describe("POST /api/v1/rooms", () => {
     });
   });
 
+  it("stores snake_case AI feature flags and normalizes the summary", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "r-ai",
+          slug: "tmplai0001",
+          title: "AI Room",
+          accessPolicy: "public",
+          captionsEnabled: true,
+          transcriptionEnabled: false,
+          summaryEnabled: false,
+        },
+      ])
+      .mockResolvedValueOnce([{ roomId: "r-ai", themePreset: "sky" }]);
+
+    const res = await createRoom(
+      jsonRequest(
+        "http://localhost/api/v1/rooms",
+        {
+          name: "AI Room",
+          external_id: "cu-1",
+          transcription_enabled: false,
+          summary_enabled: true,
+        },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(201);
+    expect(insertValues.mock.calls[0][0]).toMatchObject({
+      captionsEnabled: true,
+      transcriptionEnabled: false,
+      summaryEnabled: false,
+    });
+    const body = await res.json();
+    expect(body).toMatchObject({
+      captions_enabled: true,
+      transcription_enabled: false,
+      summary_enabled: false,
+    });
+  });
+
+  it("rejects non-boolean feature flags", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    usersFindFirst.mockResolvedValue({ id: "owner-1" });
+    const res = await createRoom(
+      jsonRequest(
+        "http://localhost/api/v1/rooms",
+        { name: "Bad", external_id: "cu-1", captions_enabled: "no" },
+        { Authorization: "Bearer secret-token" },
+      ),
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("rejects invalid webhook_url", async () => {
     process.env.MEET_MCP_TOKEN = "secret-token";
     usersFindFirst.mockResolvedValue({ id: "owner-1" });
@@ -527,6 +583,101 @@ describe("POST /api/v1/rooms/{room_id}/meetings", () => {
     expect(body.webhook_url).toBe("https://crm.example.com/meet");
     expect(insertValues.mock.calls[0][0]).toMatchObject({
       webhookUrl: "https://crm.example.com/meet",
+    });
+  });
+
+  it("inherits AI feature flags from the room and marks the summary disabled", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    roomsFindFirst.mockResolvedValue({
+      id: roomId,
+      title: "Template Acme",
+      ownerIdentityId: "owner-1",
+      boardId: null,
+      accessPolicy: "public",
+      captionsEnabled: false,
+      transcriptionEnabled: true,
+      summaryEnabled: false,
+    });
+    roomBrandsFindFirst.mockResolvedValue({ roomId, themePreset: "sky" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-ai",
+          slug: "meet0000ai",
+          title: "Comercial",
+          accessPolicy: "public",
+          roomId,
+          emptyTimeoutSec: null,
+          captionsEnabled: false,
+          transcriptionEnabled: true,
+          summaryEnabled: false,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-ai" }]);
+
+    const res = await createMeetingFromRoom(
+      jsonRequest(
+        `http://localhost/api/v1/rooms/${roomId}/meetings`,
+        { title: "Comercial" },
+        { Authorization: "Bearer secret-token" },
+      ),
+      { params: Promise.resolve({ room_id: roomId }) },
+    );
+    expect(res.status).toBe(201);
+    expect(insertValues.mock.calls[0][0]).toMatchObject({
+      captionsEnabled: false,
+      transcriptionEnabled: true,
+      summaryEnabled: false,
+      summaryStatus: "disabled",
+    });
+    const body = await res.json();
+    expect(body).toMatchObject({
+      captions_enabled: false,
+      transcription_enabled: true,
+      summary_enabled: false,
+    });
+  });
+
+  it("body flags override the room, still respecting the summary rule", async () => {
+    process.env.MEET_MCP_TOKEN = "secret-token";
+    roomsFindFirst.mockResolvedValue({
+      id: roomId,
+      title: "Template Acme",
+      ownerIdentityId: "owner-1",
+      boardId: null,
+      accessPolicy: "public",
+      captionsEnabled: false,
+      transcriptionEnabled: false,
+      summaryEnabled: false,
+    });
+    roomBrandsFindFirst.mockResolvedValue({ roomId, themePreset: "sky" });
+    insertReturning
+      .mockResolvedValueOnce([
+        {
+          id: "m-ov",
+          slug: "meet0000ov",
+          title: "Comercial",
+          accessPolicy: "public",
+          roomId,
+          emptyTimeoutSec: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ meetingId: "m-ov" }]);
+
+    const res = await createMeetingFromRoom(
+      jsonRequest(
+        `http://localhost/api/v1/rooms/${roomId}/meetings`,
+        { title: "Comercial", captions_enabled: true, summary_enabled: true },
+        { Authorization: "Bearer secret-token" },
+      ),
+      { params: Promise.resolve({ room_id: roomId }) },
+    );
+    expect(res.status).toBe(201);
+    expect(insertValues.mock.calls[0][0]).toMatchObject({
+      captionsEnabled: true,
+      transcriptionEnabled: false,
+      summaryEnabled: false,
+      summaryStatus: "disabled",
     });
   });
 });

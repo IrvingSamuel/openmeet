@@ -8,6 +8,11 @@ import {
   brandRowToPublic,
 } from "@/lib/api-brand";
 import { createRoomWithBrand } from "@/lib/rooms";
+import {
+  apiFeatureFields,
+  apiFeaturesResponse,
+  apiFeaturesToInput,
+} from "@/lib/api-features";
 import { resolveV1Owner } from "@/lib/v1-auth";
 import { parseWebhookUrl } from "@/lib/webhook-url";
 
@@ -29,6 +34,7 @@ const schema = z.object({
   palette: brandPaletteSchema.optional(),
   advanced: brandAdvancedSchema.optional(),
   webhook_url: z.string().max(2000).nullable().optional(),
+  ...apiFeatureFields,
 });
 
 /**
@@ -81,6 +87,7 @@ export async function POST(req: NextRequest) {
       // Platform defaults when no personalization — not owner identity brand.
       useIdentityBrand: false,
       webhookUrl,
+      ...apiFeaturesToInput(body),
     });
 
     return NextResponse.json(
@@ -92,6 +99,7 @@ export async function POST(req: NextRequest) {
         join_path: joinPath,
         access_policy: room.accessPolicy,
         webhook_url: room.webhookUrl ?? null,
+        ...apiFeaturesResponse(room),
         brand: brandRowToPublic(brand as unknown as Record<string, unknown>),
       },
       { status: 201 },

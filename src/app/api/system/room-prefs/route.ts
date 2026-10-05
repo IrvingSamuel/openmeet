@@ -10,6 +10,7 @@ import {
 export async function GET() {
   const row = await getAppSettings();
   return NextResponse.json({
+    captionsDefault: row?.captionsDefault !== false,
     tabReturnMedia: {
       enabled: normalizeTabReturnEnabled(row?.tabReturnEnabled),
       mic: normalizeTabReturnMediaPolicy(

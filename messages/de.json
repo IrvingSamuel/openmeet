@@ -21,6 +21,7 @@
       "logout": "Abmelden",
       "cancel": "Abbrechen",
       "close": "Schließen",
+      "dismiss": "Benachrichtigung schließen",
       "save": "Speichern",
       "saveToken": "Token speichern",
       "create": "Erstellen",
@@ -61,6 +62,7 @@
       "summaryReady": "Zusammenfassung fertig",
       "summaryGenerating": "Wird erstellt…",
       "summaryFailed": "Zusammenfassung fehlgeschlagen",
+      "summaryDisabled": "Zusammenfassung aus",
       "noSummary": "Keine Zusammenfassung",
       "inProgress": "Läuft",
       "scheduled": "Wartend",
@@ -172,6 +174,7 @@
     "openMenu": "Menü öffnen",
     "closeMenu": "Menü schließen",
     "admin": "Administration",
+    "ops": "Ops",
     "settings": "Einstellungen"
   },
   "landing": {
@@ -397,6 +400,18 @@
       "titleLabel": "Meeting-Titel",
       "boardIdLabel": "Externe Board-/Projekt-ID",
       "boardIdHint": "Board-ID einfügen, um Logo und Palette zu erben.",
+      "muteMicOnJoin": "Mit stummgeschaltetem Mikrofon beitreten",
+      "muteMicOnJoinHint": "Teilnehmer starten im Lobby mit ausgeschaltetem Mikrofon (können es vor dem Beitritt einschalten).",
+      "aiFeatures": "KI-Funktionen",
+      "aiFeaturesHint": "Gelten für künftige Meetings in diesem Raum.",
+      "captionsEnabled": "Live-Untertitel",
+      "captionsEnabledHint": "Zeigt Untertitel während des Meetings.",
+      "transcriptionEnabled": "Transkription",
+      "transcriptionEnabledHint": "Speichert das Gesagte für das vollständige Transkript und den Copilot.",
+      "summaryEnabled": "Zusammenfassung",
+      "summaryEnabledHint": "Erstellt Bericht und Aufgaben am Ende des Meetings.",
+      "summaryRequiresTranscript": "Die Zusammenfassung benötigt die Transkription.",
+      "noAgentHint": "Ohne Untertitel und Transkription tritt der Copilot dem Meeting nicht bei.",
       "submit": "Raum erstellen",
       "createFailed": "Raum konnte nicht erstellt werden.",
       "networkFailed": "Netzwerkfehler beim Erstellen des Raums."
@@ -555,13 +570,54 @@
     "recordingAskYes": "Ja",
     "recordingAskNotNow": "Jetzt nicht",
     "recordingHint": "Aufnahme hier starten",
+    "liveStream": {
+      "title": "Live auf YouTube streamen",
+      "activeTitle": "Livestream",
+      "body": "Die Besprechung wird aus Sicht eines Zuschauers gestreamt: nur Kameras, Audio und Untertitel, ohne Leisten oder Schaltflächen. Füge den Streamschlüssel aus YouTube Studio ein.",
+      "activeBody": "Die Besprechung ist live. YouTube kann einige Sekunden verzögert sein.",
+      "startingBody": "Stream wird gestartet… es kann bis zu 30 Sekunden dauern, bis er auf YouTube erscheint.",
+      "captionsOff": "Untertitel sind für diese Besprechung deaktiviert. Der Untertitelbereich bleibt im Stream leer.",
+      "lastFailed": "Der letzte Stream ist fehlgeschlagen: {detail}",
+      "streamKeyLabel": "Streamschlüssel",
+      "streamKeyHint": "YouTube Studio → Livestream starten → Streamschlüssel. Der Schlüssel wird nicht gespeichert.",
+      "advanced": "Erweiterte Optionen",
+      "rtmpUrlLabel": "RTMP-Server-URL",
+      "rtmpUrlHint": "YouTube-Standard. Nur für einen anderen RTMP-kompatiblen Dienst ändern.",
+      "start": "Stream starten",
+      "stop": "Stream beenden",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "badgeLive": "LIVE",
+      "badgeStarting": "STARTET",
+      "errors": {
+        "live_disabled": "Livestreaming wurde vom Administrator deaktiviert.",
+        "invalid_stream_key": "Ungültiger Streamschlüssel.",
+        "invalid_rtmp_url": "Ungültige RTMP-URL (muss mit rtmp:// oder rtmps:// beginnen).",
+        "rtmp_host_not_allowed": "Diese RTMP-URL ist auf diesem Server nicht erlaubt. Verwende die Standardadresse von YouTube.",
+        "meeting_not_active": "Die Besprechung ist nicht aktiv.",
+        "egress_start_failed": "Der Streaming-Dienst (Egress) konnte nicht gestartet werden. Prüfe, ob er läuft.",
+        "egress_offline": "Der Streaming-Dienst (LiveKit Egress) ist offline. Bitte den Administrator, ihn zu installieren oder zu starten.",
+        "live_limit_reached": "Dieser Server hat sein Limit gleichzeitiger Livestreams erreicht. Versuche es erneut, wenn ein anderer endet.",
+        "live_not_allowed": "Livestreaming ist für dieses Meeting nicht aktiviert.",
+        "stop_failed": "Der Stream konnte nicht beendet werden. Bitte erneut versuchen.",
+        "forbidden": "Nur Gastgeber und Moderatoren können streamen.",
+        "unauthorized": "Sitzung abgelaufen. Bitte erneut anmelden.",
+        "generic": "Ein unerwarteter Fehler ist aufgetreten."
+      }
+    },
     "controlBar": {
+      "startLiveStream": "Live streamen",
+      "stopLiveStream": "Livestream beenden",
       "muteMic": "Mikrofon stummschalten",
       "unmuteMic": "Mikrofon aktivieren",
       "turnOffCam": "Kamera ausschalten",
       "turnOnCam": "Kamera einschalten",
       "stopShare": "Freigabe beenden",
       "startShare": "Bildschirm teilen",
+      "startShareAudio": "Bildschirm + Audio teilen",
+      "startShareHint": "Nur Video",
+      "startShareAudioHint": "Enthält Tab- oder Systemaudio, wenn der Browser es erlaubt",
+      "shareAudioFallback": "Bildschirmaudio in diesem Browser nicht verfügbar — nur Video wird geteilt",
       "spotlightMode": "Spotlight-Modus",
       "gridMode": "Rastermodus",
       "moreControls": "Weitere Steuerelemente",
@@ -588,6 +644,28 @@
       "options": "Optionen",
       "optionsEllipsis": "Optionen…",
       "optionsDescription": "Wählen Sie Mikrofon, Lautsprecher, Kamera und Effekte für dieses Meeting.",
+      "optionsTabs": {
+        "general": "Allgemein",
+        "captions": "Untertitel",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "captionsStartOn": "Mit Untertiteln starten",
+      "captionsStartOnHint": "Ihre Einstellung überschreibt den Plattformstandard.",
+      "tabReturnHint": "Der Plattformadministrator legt den Standard fest. Wählen Sie eine eigene Einstellung für Ihre Meetings.",
+      "tabReturnEnabled": "Schutz beim Tabwechsel",
+      "tabReturnEnabledOptions": {
+        "on": "Aktiviert",
+        "off": "Deaktiviert"
+      },
+      "tabReturnMic": "Mikrofon bei Rückkehr",
+      "tabReturnCamera": "Kamera bei Rückkehr",
+      "tabReturnOptions": {
+        "inherit": "Plattformstandard",
+        "open": "An",
+        "closed": "Aus",
+        "restore": "Wie zuvor"
+      },
       "closeOptions": "Optionen schließen",
       "cameraPreviewOff": "Kamera ist aus",
       "micLevel": "Mikrofonpegel",
@@ -671,6 +749,11 @@
       "title": "Verbindung verloren",
       "body": "Das Meeting ist noch da. Sie können sich mit demselben Token erneut verbinden oder zum Dashboard gehen."
     },
+    "duplicateSession": {
+      "title": "Meeting in einem anderen Tab geöffnet",
+      "body": "Dieses Meeting wurde in einem anderen Tab oder Fenster mit derselben Sitzung geöffnet, daher wurde dieser Tab getrennt. Verwenden Sie nur einen Tab oder fahren Sie hier fort.",
+      "useHere": "Hier verwenden"
+    },
     "clientError": {
       "title": "In der Besprechung ist etwas schiefgelaufen",
       "body": "Beim Laden des Raums ist ein Fehler aufgetreten. Versuchen Sie es erneut oder gehen Sie zum Dashboard.",
@@ -678,7 +761,8 @@
       "leave": "Verlassen"
     },
     "captions": {
-      "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen"
+      "dragHint": "Ziehen zum Verschieben · Doppelklick zum Zurücksetzen",
+      "hide": "Untertitel ausblenden"
     },
     "stage": {
       "empty": "Noch niemand im Raum"
@@ -689,7 +773,9 @@
       "screenShare": "Bildschirm",
       "fullscreen": "Vollbild",
       "exitFullscreen": "Vollbild beenden",
-      "handRaised": "Hand erhoben"
+      "handRaised": "Hand erhoben",
+      "muteParticipant": "Teilnehmer stummschalten",
+      "cameraOffParticipant": "Kamera des Teilnehmers ausschalten"
     }
   },
   "summary": {
@@ -701,6 +787,8 @@
     "statusRunning": "Zusammenfassung wird mit Gemini erstellt…",
     "statusFailed": "Erzeugung fehlgeschlagen — erneuter Versuch…",
     "statusPending": "Zusammenfassung wird vorbereitet…",
+    "statusDisabled": "Die Zusammenfassung ist für dieses Meeting deaktiviert.",
+    "summaryDisabled": "Die Zusammenfassung ist für dieses Meeting deaktiviert. Transkript, Aufnahmen und Anwesenheit sind weiterhin in den anderen Tabs verfügbar.",
     "mcpNeeded": "Melden Sie sich erneut an, um Aufgaben an externe Tools zu senden.",
     "mcpLink": "Erneut anmelden",
     "billingWarning": "Gemini-Guthaben aufgebraucht — LLM-Zusammenfassung im Fallback-Modus.",
@@ -770,7 +858,8 @@
       "webhooks": "Webhooks",
       "recording": "Aufnahme",
       "ui": "UI",
-      "api": "API"
+      "api": "API",
+      "liveStream": "Livestream"
     },
     "api": {
       "heading": "Öffentliches API-Token",
@@ -806,6 +895,7 @@
     "notConfigured": "nicht konfiguriert",
     "viaSource": "via {source}",
     "backToDashboard": "Zurück zum Dashboard",
+    "navOps": "Ops",
     "sessionRequired": {
       "title": "Anmeldung erforderlich",
       "body": "Melden Sie sich mit Ihrem Konto an, um die Administration zu öffnen.",
@@ -825,6 +915,12 @@
         "es": "Español",
         "fr": "Français",
         "de": "Deutsch"
+      },
+      "captionsDefault": "Untertitel beim Meetingstart",
+      "captionsDefaultHint": "Legt fest, ob Untertitel standardmäßig aktiviert sind. Benutzer können diese Einstellung überschreiben.",
+      "captionsDefaultOptions": {
+        "on": "An",
+        "off": "Aus"
       },
       "tabReturnTitle": "Beim Verlassen des Tabs",
       "tabReturnHint": "Wenn aktiv, werden beim Verlassen des Tabs Mikrofon und Kamera aus Datenschutzgründen ausgeschaltet. Beim Zurückkehren gilt die folgende Richtlinie.",
@@ -929,6 +1025,32 @@
       "bodyLabel": "Body JSON",
       "sending": "Senden…",
       "sendTest": "Test für diesen Typ senden"
+    },
+    "liveStream": {
+      "body": "Erlaubt Gastgebern und Moderatoren, die Besprechung aus Zuschauersicht zu YouTube (oder einem anderen RTMP-Ziel) zu streamen: nur Kameras, Audio und feste Untertitel.",
+      "enabled": "Livestreaming aktiviert",
+      "qualityLabel": "Qualität",
+      "quality720": "720p 30fps (~3 Mbps) — empfohlen",
+      "quality1080": "1080p 30fps (~4,5 Mbps) — mehr CPU",
+      "egressNote": "Erfordert den Dienst livekit/egress (infra/docker-compose.egress.yml). Jeder Stream belegt etwa 4 vCPU auf dem Server. Deaktiviert lassen, wenn der Server nicht genug Ressourcen hat.",
+      "save": "Livestream speichern",
+      "service": {
+        "title": "LiveKit-Egress-Dienst",
+        "checking": "wird geprüft…",
+        "online": "online",
+        "offline": "offline",
+        "unchecked": "Prüfung deaktiviert (EGRESS_HEALTH_URL=none)",
+        "recheck": "Erneut prüfen",
+        "healthUrl": "Health-Check: {url}",
+        "installTitle": "So installierst du das Streaming-Add-on",
+        "installIntro": "Egress hat nicht geantwortet. Solange es offline ist, kann niemand einen Stream starten. Auf dem Server im OpenMeet-Ordner:",
+        "step1": "Egress-Konfiguration anlegen und api_key sowie api_secret mit denselben Werten wie in livekit.yaml füllen (LIVEKIT_API_KEY / LIVEKIT_API_SECRET aus .env). health_port: 9187 beibehalten (freier Port, passend zu EGRESS_HEALTH_URL).",
+        "step2": "Container starten (benötigt Docker; nutzt network_mode: host und etwa 4 vCPU pro Stream).",
+        "step3": "Ausgehendes TCP 1935 (rtmp://) oder 443 (rtmps://) in der Firewall freigeben.",
+        "step4": "Für Echtzeit-Status den Webhook dieser App in livekit.yaml eintragen und LiveKit neu starten (optional: ohne ihn wird der Status abgefragt).",
+        "step5": "Optional in .env (danach App neu starten): URL, mit der Egress' Chrome die Zuschauerseite öffnet, und Health-Check-URL, falls Egress auf einem anderen Host läuft.",
+        "docsHint": "Vollständige Anleitung in docs/05-live-stream.md und im Abschnitt „Live streaming“ der README."
+      }
     },
     "recording": {
       "enabled": "Meeting-Aufzeichnung aktiv",
@@ -1037,5 +1159,112 @@
       "auth_failed": "Authentication failed.",
       "setup_failed": "Setup failed."
     }
+  },
+  "ops": {
+    "eyebrow": "OpenMeet Ops",
+    "eyebrowVersion": "OpenMeet Ops · v{version}",
+    "tabs": {
+      "overview": "Übersicht",
+      "tenants": "Tenants"
+    },
+    "titles": {
+      "health": "Gesundheit & Kennzahlen",
+      "tenants": "Tenants",
+      "tenant": "Tenant",
+      "meeting": "Meeting"
+    },
+    "forbidden": {
+      "title": "Ops — verboten",
+      "body": "Server-Admin-Zugang erforderlich.",
+      "back": "← Dashboard"
+    },
+    "nav": {
+      "admin": "Administration",
+      "dashboard": "Dashboard",
+      "back": "← Zurück"
+    },
+    "overview": {
+      "platformHealth": "Plattformgesundheit",
+      "liveSnapshot": "Live-Snapshot · alle 30s aktualisiert",
+      "healthy": "Gesund",
+      "degraded": "Beeinträchtigt",
+      "statusOk": "ok",
+      "statusDown": "aus",
+      "meetingsNow": "Meetings jetzt",
+      "livekitRooms": "LiveKit-Räume: {count}",
+      "livekitUnavailable": "LiveKit-Raumzahl nicht verfügbar",
+      "participantsNow": "Teilnehmer jetzt",
+      "users": "Nutzer",
+      "meetingsEnded": "Beendete Meetings",
+      "endedHint": "7T: {ended7d} · 30T: {ended30d}",
+      "newUsers30d": "Neue Nutzer · 30T",
+      "meetingsEnded30d": "Beendete Meetings · 30T",
+      "total": "{count} insgesamt",
+      "recordings": "Aufzeichnungen",
+      "storage": "Speicher {size}",
+      "noRecordingsYet": "Noch keine Aufzeichnungen",
+      "llmUsage30d": "LLM-Nutzung · 30T",
+      "noLlmCalls": "Keine LLM-Aufrufe erfasst",
+      "llmRow": "{calls} Aufrufe · {tokens} Tok",
+      "statsFailed": "Ops-Statistiken konnten nicht geladen werden: {error}"
+    },
+    "tenants": {
+      "searchPlaceholder": "E-Mail / Name / externe ID suchen",
+      "search": "Suchen",
+      "account": "Konto",
+      "role": "Rolle",
+      "rooms": "Räume",
+      "meetings": "Meetings",
+      "active": "Aktiv",
+      "created": "Erstellt",
+      "loading": "Laden…",
+      "empty": "Keine Tenants",
+      "loadError": "Tenants konnten nicht geladen werden",
+      "roomsCount": "{count} Räume",
+      "meetingsCount": "{count} Meetings",
+      "activeCount": "{count} aktiv",
+      "via": "via {channel}",
+      "ext": "ext {id}",
+      "idLabel": "id {id}",
+      "impersonate": "Impersonieren",
+      "impersonating": "Impersoniere {email}",
+      "impersonateFailed": "Impersonation fehlgeschlagen",
+      "roleUpdated": "Rolle → {role}",
+      "roleFailed": "Rollenaktualisierung fehlgeschlagen",
+      "brand": "Marke",
+      "wordmark": "Wortmarke: {value}",
+      "theme": "Theme: {value}",
+      "primary": "Primär: {value}",
+      "none": "Keine",
+      "mediaPrefs": "Medienpräferenzen",
+      "videoEffect": "Video: {effect} (Blur {blur})",
+      "audioFlags": "NS {ns} · EC {ec} · AGC {agc}",
+      "defaults": "Standard",
+      "roomsHeading": "Räume ({count})",
+      "noRooms": "Keine Räume",
+      "meetingsHeading": "Meetings ({count})",
+      "noMeetings": "Keine Meetings",
+      "summaryBadge": "Zusammenfassung"
+    },
+    "meeting": {
+      "started": "gestartet {date}",
+      "ended": "beendet {date}",
+      "transcriptSegments": "{count} Transkriptsegmente",
+      "openSummary": "Zusammenfassungsseite öffnen ↗",
+      "endMeeting": "Meeting beenden",
+      "endConfirm": "Dieses Meeting jetzt beenden?",
+      "endedOk": "Meeting beendet",
+      "alreadyEnded": "Bereits beendet",
+      "endFailed": "Beenden fehlgeschlagen",
+      "participants": "Teilnehmer ({count})",
+      "noParticipants": "Keine Teilnehmer",
+      "inCall": "aktiv",
+      "recordings": "Aufzeichnungen ({count})",
+      "noRecordings": "Keine Aufzeichnungen",
+      "summary": "Zusammenfassung",
+      "noSummary": "Noch keine Zusammenfassung (Status: {status})",
+      "loadError": "Meeting konnte nicht geladen werden"
+    },
+    "detailLoadError": "Tenant konnte nicht geladen werden"
   }
 }
