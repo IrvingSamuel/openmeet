@@ -164,7 +164,8 @@ export async function getOpsStats() {
       .select({
         status: recordings.status,
         n: count(),
-        bytes: sql<number>`coalesce(sum(${recordings.bytes}), 0)`,
+        // sum(bigint) is numeric, which postgres-js returns as a string.
+        bytes: sql<number>`coalesce(sum(${recordings.bytes}), 0)`.mapWith(Number),
       })
       .from(recordings)
       .groupBy(recordings.status),
