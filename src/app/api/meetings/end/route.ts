@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { participants } from "@/db/schema";
@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { getRoomServiceClient } from "@/lib/livekit";
 import { assertMeetingHost } from "@/lib/hostAuth";
 import { endMeetingRow } from "@/lib/meeting-lifecycle";
+import { stopMeetingLiveStream } from "@/lib/live-stream";
 import { stopMeetingRecording } from "@/lib/recording";
 
 const schema = z.object({
@@ -57,6 +58,11 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.warn("[openmeet] stop recording on end meeting", err);
   }
+  try {
+    await stopMeetingLiveStream({ meetingId: body.meetingId });
+  } catch (err) {
+    console.warn("[openmeet] stop live stream on end meeting", err);
+  }
 
   await endMeetingRow(body.meetingId);
 
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest) {
     .where(
       and(
         eq(participants.meetingId, body.meetingId),
+        isNotNull(participants.connectedAt),
         isNull(participants.leftAt),
       ),
     );

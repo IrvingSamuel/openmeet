@@ -52,10 +52,10 @@ Agent ──► Postgres
 | Tabela | Papel |
 |--------|-------|
 | `chronos_identities` | User Chronos ↔ Meet + tokens |
-| `rooms` | Template de marca (slug, board_id, owner) — não contém reuniões |
+| `rooms` | Template de marca (slug, board_id, owner, `webhook_url` opcional) — não contém reuniões |
 | `room_brands` | Tokens de marca do template |
 | `identity_brands` | UI predefinida do utilizador |
-| `meetings` | Sessão independente (slug, título, LiveKit, owner); `room_id` opcional (SET NULL) |
+| `meetings` | Sessão independente (slug, título, LiveKit, owner, `webhook_url` snapshot); `room_id` opcional (SET NULL) |
 | `meeting_brands` | Snapshot de marca da reunião |
 | `participants` | Quem entrou/saiu |
 | `transcript_segments` | Legendas |
@@ -72,8 +72,10 @@ Agent ──► Postgres
 - UI em `/admin` (acesso via `ADMIN_EMAILS` no `.env`).
 - Overrides de locale / Gemini / Deepgram em `app_settings` (fallback para env se vazio).
 - **Gravação** em `/admin` → tab Gravação: motor (`browser` | `egress`), controlo (`manual` | `auto`), storage (`local` | `s3`).
-- Webhooks outbound JSON (`transcript.ready`, `chat.ready`, `summary.ready`, `tasks.generated`, `recording.ready`) com HMAC `X-Chronos-Meet-Signature`.
-- Disparo: fim de reunião (transcript + chat), após resumo (summary + tasks), e quando a gravação fica `ready`.
+- Webhooks outbound JSON (`transcript.ready`, `chat.ready`, `summary.ready`, `tasks.generated`, `recording.ready`, `attendance.ready`) com HMAC `X-OpenMeet-Signature`.
+- Destino: `webhook_url` por sala/reunião (API pública, snapshot na criação) **e/ou** URL global em `app_settings` (Admin). A URL da reunião dispara mesmo com o webhook Admin desligado; se o Admin estiver ativo e a URL for distinta, envia para os dois.
+- Disparo: fim de reunião (transcript + chat + attendance), após resumo (summary + tasks), e quando a gravação fica `ready`.
+- `redirect_after_meet` é redirect de browser; não substitui `webhook_url`.
 
 ### Gravação de reuniões
 
@@ -85,7 +87,7 @@ Agent ──► Postgres
   - Erros da API incluem `detail` (ex. timeout = worker Egress em baixo).
 - Storage **local**: `RECORDINGS_DIR` (default `/var/chronos-meet/recordings`), download autenticado.
 - Storage **s3**: endpoint compatível (MinIO, Hetzner Object Storage, AWS) via admin ou `RECORDING_S3_*`.
-- Controlo **manual**: botão REC na ControlBar (host). Controlo **auto**: inicia ao entrar o moderador; sem stop até ao fim da reunião.
+- Controlo **manual**: botão REC na ControlBar (host). Controlo **auto**: inicia ao entrar o moderador; sem stop até ao fim da reunião. Controlo **ask**: pop-up ao entrar o anfitrião; pode recusar e gravar depois.
 
 ```bash
 # Teste pontual de Egress nesta VPS (depois desligar)
@@ -104,6 +106,8 @@ docker compose -f docker-compose.egress.yml down
 | Resumo pós | `GEMINI_SUMMARY_MODEL` → `gemini-3.5-flash` | 4096 | Uma geração completa; transcript capped a 12k chars + histórico de insights ao vivo |
 
 Quotas: máx. 20 chats Gemini / participante / reunião; máx. 3 regenerações forçadas de insights / reunião. Deepgram STT continua a ser o maior custo em escala (VAD Silero = backlog).
+
+Legendas: triagem remota e checklist de deploy em [`04-caption-troubleshooting.md`](04-caption-troubleshooting.md).
 
 ## Branding
 

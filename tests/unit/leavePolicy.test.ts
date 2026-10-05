@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { DisconnectReason } from "livekit-client";
-import { disconnectOutcome, shouldExitMeeting } from "@/lib/leavePolicy";
+import { ConnectionError, DisconnectReason } from "livekit-client";
+import {
+  disconnectOutcome,
+  isSelfCancelledConnect,
+  shouldExitMeeting,
+} from "@/lib/leavePolicy";
+
+describe("isSelfCancelledConnect", () => {
+  it("matches the connect abort raised by our own room.disconnect()", () => {
+    expect(
+      isSelfCancelledConnect(ConnectionError.cancelled("Client initiated disconnect")),
+    ).toBe(true);
+  });
+
+  it("keeps real connection failures visible", () => {
+    expect(isSelfCancelledConnect(ConnectionError.timeout("timed out"))).toBe(false);
+    expect(
+      isSelfCancelledConnect(ConnectionError.serverUnreachable("could not establish signal connection")),
+    ).toBe(false);
+    expect(isSelfCancelledConnect(new Error("Client initiated disconnect"))).toBe(false);
+  });
+});
 
 describe("shouldExitMeeting", () => {
   it("navigates away only on intentional leave", () => {
@@ -38,6 +58,24 @@ describe("disconnectOutcome", () => {
         reason: DisconnectReason.PARTICIPANT_REMOVED,
       }),
     ).toBe("removed");
+  });
+
+  it("maps duplicate identity to duplicate (no auto-reconnect ping-pong)", () => {
+    expect(
+      disconnectOutcome({
+        intentionalLeave: false,
+        reason: DisconnectReason.DUPLICATE_IDENTITY,
+      }),
+    ).toBe("duplicate");
+  });
+
+  it("offers recovery for SDK-initiated disconnects (e.g. Chrome freeze)", () => {
+    expect(
+      disconnectOutcome({
+        intentionalLeave: false,
+        reason: DisconnectReason.CLIENT_INITIATED,
+      }),
+    ).toBe("recover");
   });
 
   it("offers recovery for unknown disconnects", () => {

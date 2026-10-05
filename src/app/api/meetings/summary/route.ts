@@ -9,6 +9,7 @@ import {
   tryClaimSummary,
 } from "@/lib/meeting-summary";
 import { assertMeetingSummaryAccess } from "@/lib/meetingAccess";
+import { SUMMARY_STATUS_DISABLED } from "@/lib/meeting-features";
 
 const schema = z.object({
   meetingId: z.string().uuid(),
@@ -41,11 +42,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  let claim: "claimed" | "busy" | "ready";
+  let claim: Awaited<ReturnType<typeof tryClaimSummary>>;
   try {
     claim = await tryClaimSummary(body.meetingId, body.force);
   } catch {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  if (claim === "disabled") {
+    return NextResponse.json({
+      status: SUMMARY_STATUS_DISABLED,
+      summaryMarkdown: null,
+      actionItems: [],
+    });
   }
 
   if (claim === "ready" || claim === "busy") {
@@ -67,6 +76,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await generateMeetingSummary(body.meetingId);
+    if (!result) {
+      return NextResponse.json({
+        status: SUMMARY_STATUS_DISABLED,
+        summaryMarkdown: null,
+        actionItems: [],
+      });
+    }
     return NextResponse.json({
       status: "ready",
       ...result,

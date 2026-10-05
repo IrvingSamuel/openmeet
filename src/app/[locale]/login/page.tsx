@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
+import { usePlatformBrand } from "@/components/layout/PlatformBrandContext";
 import { Aurora, PageTransition } from "@/components/motion/primitives";
 
 type Me = {
@@ -17,6 +18,7 @@ type Me = {
 
 export default function LoginPage() {
   const t = useTranslations("auth");
+  const brand = usePlatformBrand();
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [email, setEmail] = useState("");
@@ -75,7 +77,9 @@ export default function LoginPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             {mode === "login" ? t("loginTitle") : t("registerTitle")}
           </h1>
-          <p className="mt-2 text-sm text-ink-muted">{t("loginSubtitle")}</p>
+          <p className="mt-2 text-sm text-ink-muted">
+            {t("loginSubtitle", { name: brand.wordmark })}
+          </p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-4">
             {mode === "register" ? (

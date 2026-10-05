@@ -12,6 +12,10 @@ const createSchema = z.object({
   slug: z.string().min(2).max(64).regex(/^[a-z0-9-]+$/).optional(),
   boardId: z.string().optional(),
   accessPolicy: z.enum(["public", "members", "invite"]).optional(),
+  muteMicOnJoin: z.boolean().optional(),
+  captionsEnabled: z.boolean().optional(),
+  transcriptionEnabled: z.boolean().optional(),
+  summaryEnabled: z.boolean().optional(),
   themePreset: z.string().optional(),
 });
 
@@ -41,6 +45,10 @@ export async function POST(req: NextRequest) {
     slug: body.slug,
     boardId: body.boardId,
     accessPolicy: body.accessPolicy,
+    muteMicOnJoin: body.muteMicOnJoin,
+    captionsEnabled: body.captionsEnabled,
+    transcriptionEnabled: body.transcriptionEnabled,
+    summaryEnabled: body.summaryEnabled,
     themePreset: body.themePreset,
     kind: "persistent",
     useIdentityBrand: true,

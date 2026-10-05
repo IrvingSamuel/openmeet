@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
 import { getWebhookReceiver } from "@/lib/livekit";
 import { activateMeetingIfScheduled } from "@/lib/meeting-lifecycle";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
+import {
+  handleLiveStreamEgressWebhook,
+  stopMeetingLiveStream,
+} from "@/lib/live-stream";
 import { handleEgressWebhook, stopMeetingRecording } from "@/lib/recording";
+
+async function findMeetingByLivekitRoom(roomName: string) {
+  return db.query.meetings.findFirst({
+    where: eq(meetings.livekitRoomName, roomName),
+  });
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -16,9 +26,7 @@ export async function POST(req: NextRequest) {
     const event = await receiver.receive(body, auth);
 
     if (event.event === "room_started" && event.room) {
-      const meeting = await db.query.meetings.findFirst({
-        where: eq(meetings.livekitRoomName, event.room.name),
-      });
+      const meeting = await findMeetingByLivekitRoom(event.room.name);
       if (meeting) {
         await activateMeetingIfScheduled(meeting.id);
         await db
@@ -37,10 +45,23 @@ export async function POST(req: NextRequest) {
       });
       if (meeting) {
         const wasActive = meeting.status === "active";
+        const endedAt = new Date();
         await db
           .update(meetings)
-          .set({ status: "ended", endedAt: new Date() })
+          .set({ status: "ended", endedAt })
           .where(eq(meetings.id, meeting.id));
+
+        // Close sessions that were still in the room at end.
+        await db
+          .update(participants)
+          .set({ leftAt: endedAt })
+          .where(
+            and(
+              eq(participants.meetingId, meeting.id),
+              isNotNull(participants.connectedAt),
+              isNull(participants.leftAt),
+            ),
+          );
 
         void stopMeetingRecording({
           meetingId: meeting.id,
@@ -50,6 +71,10 @@ export async function POST(req: NextRequest) {
             "[openmeet] stop recording on room_finished",
             err,
           );
+        });
+
+        void stopMeetingLiveStream({ meetingId: meeting.id }).catch((err) => {
+          console.error("[openmeet] stop live stream on room_finished", err);
         });
 
         // Never-started (scheduled) meetings skip webhooks/summary.
@@ -80,11 +105,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (event.event === "participant_left" && event.participant) {
-      await db
-        .update(participants)
-        .set({ leftAt: new Date() })
-        .where(eq(participants.livekitIdentity, event.participant.identity));
+    if (
+      event.event === "participant_joined" &&
+      event.participant &&
+      event.room
+    ) {
+      const meeting = await findMeetingByLivekitRoom(event.room.name);
+      if (meeting) {
+        const now = new Date();
+        await db
+          .update(participants)
+          .set({ connectedAt: now })
+          .where(
+            and(
+              eq(participants.meetingId, meeting.id),
+              eq(participants.livekitIdentity, event.participant.identity),
+              isNull(participants.connectedAt),
+            ),
+          );
+      }
+    }
+
+    if (
+      event.event === "participant_left" &&
+      event.participant &&
+      event.room
+    ) {
+      const meeting = await findMeetingByLivekitRoom(event.room.name);
+      if (meeting) {
+        await db
+          .update(participants)
+          .set({ leftAt: new Date() })
+          .where(
+            and(
+              eq(participants.meetingId, meeting.id),
+              eq(participants.livekitIdentity, event.participant.identity),
+              isNull(participants.leftAt),
+            ),
+          );
+      }
     }
 
     if (
@@ -93,7 +152,10 @@ export async function POST(req: NextRequest) {
         event.event === "egress_ended") &&
       event.egressInfo
     ) {
-      await handleEgressWebhook(event.egressInfo);
+      const wasLiveStream = await handleLiveStreamEgressWebhook(
+        event.egressInfo,
+      );
+      if (!wasLiveStream) await handleEgressWebhook(event.egressInfo);
     }
 
     return NextResponse.json({ ok: true });

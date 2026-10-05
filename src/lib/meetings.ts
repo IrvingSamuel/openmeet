@@ -13,6 +13,18 @@ import {
   brandFieldsToPatch,
   type BrandFieldsInput,
 } from "@/lib/brand-schema";
+import { platformPoweredBySubtitle } from "@/lib/platform-defaults";
+import {
+  SUMMARY_STATUS_DISABLED,
+  featuresToColumns,
+  resolveMeetingFeatures,
+  type MeetingFeaturesInput,
+} from "@/lib/meeting-features";
+import {
+  generateHostEntryToken,
+  hashHostEntryToken,
+  meetingHostEnterUrl,
+} from "@/lib/host-entry";
 
 export type CreateMeetingInput = {
   title: string;
@@ -27,6 +39,33 @@ export type CreateMeetingInput = {
   useIdentityBrand?: boolean;
   /** Per-meeting empty timeout (seconds); null/undefined = env default. */
   emptyTimeoutSec?: number | null;
+  /** Absolute http(s) URL after leave/end. */
+  redirectAfterMeet?: string | null;
+  /** Absolute http(s) URL copied when inviting participants. */
+  externalInviteUrl?: string | null;
+  /** Absolute http(s) URL for outbound meeting artifacts. */
+  webhookUrl?: string | null;
+  /**
+   * Wait in lobby until a host is present. Defaults to false;
+   * public API sets true for invite when omitted.
+   */
+  waitForHost?: boolean;
+  /** Issue a host entry token / host_url (default false — enable for public API). */
+  issueHostEntry?: boolean;
+  /**
+   * When true (default), Lobby starts with mic muted. Inherited from the
+   * brand room when omitted and roomId is set.
+   */
+  muteMicOnJoin?: boolean;
+  /**
+   * AI features (default on). Each one inherits from the brand room when
+   * omitted and roomId is set. Summary is forced off without transcription.
+   */
+  captionsEnabled?: boolean;
+  transcriptionEnabled?: boolean;
+  summaryEnabled?: boolean;
+  /** Per-meeting live stream permission; omitted = instance default. */
+  liveStreamEnabled?: boolean | null;
 };
 
 export type CreatedMeetingResult = {
@@ -34,7 +73,31 @@ export type CreatedMeetingResult = {
   brand: typeof meetingBrands.$inferSelect;
   url: string;
   joinPath: string;
+  hostUrl: string | null;
+  hostPath: string | null;
+  /** Raw token only available at creation time (never stored plaintext). */
+  hostEntryToken: string | null;
 };
+
+export function parseExternalInviteUrl(
+  value: string | null | undefined,
+): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  const trimmed = value.trim();
+  if (trimmed.length > 2000) {
+    throw new Error("external_invite_url_too_long");
+  }
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("external_invite_url_invalid");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("external_invite_url_invalid");
+  }
+  return url.toString();
+}
 
 function publicOrigin(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
@@ -52,10 +115,11 @@ export function meetingJoinUrl(slug: string): {
   return { joinPath, url: `${publicOrigin()}${joinPath}` };
 }
 
-function defaultBrandValues(title: string, themePreset?: string) {
+async function defaultBrandValues(title: string, themePreset?: string) {
   const preset =
     themePreset && BOARD_THEMES[themePreset] ? themePreset : "sky";
   const colors = BOARD_THEMES[preset];
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     themePreset: preset,
     primaryColor: colors.primary,
@@ -63,14 +127,15 @@ function defaultBrandValues(title: string, themePreset?: string) {
     tertiaryColor: colors.tertiary,
     wordmark: title,
     lobbyTitle: title,
-    lobbySubtitle: "Powered by OpenMeet",
+    lobbySubtitle: poweredBy,
   };
 }
 
-function brandRowToValues(
+async function brandRowToValues(
   row: Record<string, unknown>,
   title: string,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
+  const poweredBy = await platformPoweredBySubtitle();
   return {
     logoUrl: row.logoUrl ?? null,
     wordmark: (row.wordmark as string) || title,
@@ -81,8 +146,7 @@ function brandRowToValues(
     fontFamily: row.fontFamily,
     background: row.background,
     lobbyTitle: (row.lobbyTitle as string) || title,
-    lobbySubtitle:
-      (row.lobbySubtitle as string) || "Powered by OpenMeet",
+    lobbySubtitle: (row.lobbySubtitle as string) || poweredBy,
     faviconUrl: row.faviconUrl ?? null,
     customCss: row.customCss ?? null,
     primaryPaint: row.primaryPaint ?? null,
@@ -101,7 +165,7 @@ function brandRowToValues(
 }
 
 async function resolveBrandValues(input: CreateMeetingInput) {
-  let brandValues: Record<string, unknown> = defaultBrandValues(
+  let brandValues: Record<string, unknown> = await defaultBrandValues(
     input.title,
     input.themePreset,
   );
@@ -138,7 +202,10 @@ async function resolveBrandValues(input: CreateMeetingInput) {
       where: eq(roomBrands.roomId, input.roomId),
     });
     if (roomBrand) {
-      return brandRowToValues(roomBrand as unknown as Record<string, unknown>, input.title);
+      return brandRowToValues(
+        roomBrand as unknown as Record<string, unknown>,
+        input.title,
+      );
     }
   }
 
@@ -163,7 +230,9 @@ export async function createMeetingWithBrand(
   const slug = (input.slug || nanoid(10)).toLowerCase();
   let boardId = input.boardId ?? null;
   let accessPolicy = input.accessPolicy || "public";
+  let muteMicOnJoin = input.muteMicOnJoin !== false;
   const roomId = input.roomId ?? null;
+  let featureTemplate: MeetingFeaturesInput | null = null;
 
   if (roomId) {
     const room = await db.query.rooms.findFirst({
@@ -172,12 +241,37 @@ export async function createMeetingWithBrand(
     if (!room) throw new Error("room_template_not_found");
     if (boardId === null && room.boardId) boardId = room.boardId;
     if (!input.accessPolicy) accessPolicy = room.accessPolicy as typeof accessPolicy;
+    if (input.muteMicOnJoin === undefined) {
+      muteMicOnJoin = room.muteMicOnJoin !== false;
+    }
+    featureTemplate = {
+      captions: room.captionsEnabled,
+      transcription: room.transcriptionEnabled,
+      summary: room.summaryEnabled,
+    };
   }
+
+  const features = resolveMeetingFeatures(
+    {
+      captions: input.captionsEnabled,
+      transcription: input.transcriptionEnabled,
+      summary: input.summaryEnabled,
+    },
+    featureTemplate,
+  );
 
   const brandValues = await resolveBrandValues({
     ...input,
     roomId,
   });
+
+  const waitForHost = input.waitForHost === true;
+
+  const issueHostEntry = input.issueHostEntry === true;
+  const hostEntryToken = issueHostEntry ? generateHostEntryToken() : null;
+  const hostEntryTokenHash = hostEntryToken
+    ? hashHostEntryToken(hostEntryToken)
+    : null;
 
   const [meeting] = await db
     .insert(meetings)
@@ -191,6 +285,15 @@ export async function createMeetingWithBrand(
       roomId,
       status: "scheduled",
       emptyTimeoutSec: input.emptyTimeoutSec ?? null,
+      redirectAfterMeet: input.redirectAfterMeet ?? null,
+      externalInviteUrl: input.externalInviteUrl ?? null,
+      webhookUrl: input.webhookUrl ?? null,
+      waitForHost,
+      muteMicOnJoin,
+      liveStreamEnabled: input.liveStreamEnabled ?? null,
+      ...featuresToColumns(features),
+      ...(features.summary ? {} : { summaryStatus: SUMMARY_STATUS_DISABLED }),
+      hostEntryTokenHash,
     })
     .returning();
 
@@ -203,5 +306,17 @@ export async function createMeetingWithBrand(
     .returning();
 
   const links = meetingJoinUrl(meeting.slug);
-  return { meeting, brand, ...links };
+  const hostLinks =
+    hostEntryToken && meeting.id
+      ? meetingHostEnterUrl(meeting.id, hostEntryToken)
+      : { hostUrl: null, hostPath: null };
+
+  return {
+    meeting,
+    brand,
+    ...links,
+    hostUrl: hostLinks.hostUrl,
+    hostPath: hostLinks.hostPath,
+    hostEntryToken,
+  };
 }

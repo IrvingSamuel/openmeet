@@ -1,9 +1,9 @@
 {
   "meta": {
-    "title": "OpenMeet — Smart white-label videoconferencing",
-    "titleTemplate": "%s · OpenMeet",
+    "title": "{name} — Smart white-label videoconferencing",
+    "titleTemplate": "%s · {name}",
     "description": "Open-source videoconferencing with your own visual identity, live captions, and an AI copilot that turns meetings into actionable summaries and webhooks.",
-    "ogTitle": "OpenMeet — Smart white-label videoconferencing",
+    "ogTitle": "{name} — Smart white-label videoconferencing",
     "ogDescription": "Rooms with your company brand, live captions, and automatic minutes you can send to external tools via webhooks.",
     "loadingSummary": "Loading summary…",
     "verifyingSession": "Verifying your session…",
@@ -21,6 +21,7 @@
       "logout": "Log out",
       "cancel": "Cancel",
       "close": "Close",
+      "dismiss": "Dismiss notification",
       "save": "Save",
       "saveToken": "Save token",
       "create": "Create",
@@ -61,6 +62,7 @@
       "summaryReady": "Summary ready",
       "summaryGenerating": "Generating…",
       "summaryFailed": "Summary failed",
+      "summaryDisabled": "Summary off",
       "noSummary": "No summary",
       "inProgress": "In progress",
       "scheduled": "Waiting",
@@ -76,6 +78,7 @@
     "labels": {
       "access": "Access",
       "host": "host",
+      "moderator": "moderator",
       "you": "You",
       "youParen": "(you)",
       "anonymous": "Anonymous",
@@ -172,6 +175,7 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "admin": "Admin",
+    "ops": "Ops",
     "settings": "Settings"
   },
   "landing": {
@@ -346,7 +350,9 @@
       "joinFailed": "Could not join the room.",
       "networkFailed": "Network error requesting access.",
       "cancelFailed": "Could not cancel the request. Try again."
-    }
+    },
+    "waitingForHostTitle": "Waiting for the host…",
+    "waitingForHostBody": "You'll join automatically once the host enters the meeting."
   },
   "offline": {
     "title": "No network connection",
@@ -404,6 +410,18 @@
       "titleLabel": "Meeting title",
       "boardIdLabel": "External board / project ID",
       "boardIdHint": "Paste the board ID to inherit logo and palette.",
+      "muteMicOnJoin": "Join with microphone muted",
+      "muteMicOnJoinHint": "Participants start with the mic off in the lobby (they can turn it on before joining).",
+      "aiFeatures": "AI features",
+      "aiFeaturesHint": "Apply to future meetings in this room.",
+      "captionsEnabled": "Live captions",
+      "captionsEnabledHint": "Show captions during the meeting.",
+      "transcriptionEnabled": "Transcription",
+      "transcriptionEnabledHint": "Save what is said for the full transcript and the copilot.",
+      "summaryEnabled": "Summary",
+      "summaryEnabledHint": "Generate the report and tasks when the meeting ends.",
+      "summaryRequiresTranscript": "The summary needs the transcription.",
+      "noAgentHint": "With no captions or transcription, the copilot does not join the meeting.",
       "submit": "Create room",
       "createFailed": "Could not create the room.",
       "networkFailed": "Network error creating the room."
@@ -463,7 +481,7 @@
       "save": "Save brand",
       "livePreview": "Live preview",
       "yourRoom": "Your room",
-      "defaultSubtitle": "Powered by OpenMeet",
+      "defaultSubtitle": "Powered by {name}",
       "loadFailed": "Could not load the brand.",
       "saveFailed": "Could not save.",
       "saveNetworkFailed": "Network error saving the brand.",
@@ -545,7 +563,10 @@
     "enableAudio": "Click to enable audio",
     "reconnectBanner": "Reconnecting… controls stay active",
     "disconnectNotice": "Connection interrupted — trying to reconnect.",
-    "backToMeeting": "You're back in the meeting. Microphone and camera were turned off for privacy.",
+    "backToMeeting": "You're back in the meeting.",
+    "backToMeetingClosed": "You're back in the meeting. Microphone and camera were turned off for privacy.",
+    "backToMeetingRestored": "You're back in the meeting. Microphone and camera were restored.",
+    "backToMeetingOpened": "You're back in the meeting. Microphone and camera were turned on.",
     "mediaDeviceError": "Could not access camera/microphone ({label}). Check permissions and whether another app is using the device.",
     "mediaUnavailable": "media device unavailable",
     "endForAllFailed": "Could not end the meeting for everyone. Please try again.",
@@ -555,13 +576,59 @@
     "recordingScreenDenied": "You must share this meeting tab/screen to record.",
     "recordingScreenPrompt": "Automatic recording needs to capture this meeting screen. Choose this tab when the browser prompts you.",
     "recordingScreenPromptCta": "Start recording",
+    "recordingAskTitle": "Record this meeting?",
+    "recordingAskBody": "Recording is optional. You can start now or later from the control bar.",
+    "recordingAskYes": "Yes",
+    "recordingAskNotNow": "Not now",
+    "recordingHint": "Start recording here",
+    "liveStream": {
+      "title": "Go live on YouTube",
+      "activeTitle": "Live stream",
+      "body": "The meeting is streamed from a spectator's point of view: only cameras, audio and captions, with no bars or buttons. Paste the stream key from YouTube Studio.",
+      "activeBody": "The meeting is on air. YouTube may lag a few seconds behind.",
+      "startingBody": "Starting the stream… it can take up to 30 seconds to appear on YouTube.",
+      "captionsOff": "Captions are disabled for this meeting. The caption strip will stay empty on the stream.",
+      "lastFailed": "The last stream failed: {detail}",
+      "streamKeyLabel": "Stream key",
+      "streamKeyHint": "YouTube Studio → Go live → Stream key. The key is never stored.",
+      "advanced": "Advanced options",
+      "rtmpUrlLabel": "RTMP server URL",
+      "rtmpUrlHint": "YouTube default. Change only for another RTMP-compatible service.",
+      "start": "Start stream",
+      "stop": "End stream",
+      "cancel": "Cancel",
+      "close": "Close",
+      "badgeLive": "LIVE",
+      "badgeStarting": "STARTING",
+      "errors": {
+        "live_disabled": "Live streaming is disabled by the administrator.",
+        "invalid_stream_key": "Invalid stream key.",
+        "invalid_rtmp_url": "Invalid RTMP URL (must start with rtmp:// or rtmps://).",
+        "rtmp_host_not_allowed": "This RTMP URL is not allowed on this server. Use the default YouTube address.",
+        "meeting_not_active": "The meeting is not active.",
+        "egress_start_failed": "Could not start the streaming service (Egress). Check that it is running.",
+        "egress_offline": "The streaming service (LiveKit Egress) is offline. Ask the administrator to install or start it.",
+        "live_limit_reached": "This server has reached its limit of simultaneous live streams. Try again when another one ends.",
+        "live_not_allowed": "Live streaming is not enabled for this meeting.",
+        "stop_failed": "Could not end the stream. Please try again.",
+        "forbidden": "Only hosts and moderators can go live.",
+        "unauthorized": "Session expired. Please sign in again.",
+        "generic": "Something went wrong."
+      }
+    },
     "controlBar": {
+      "startLiveStream": "Go live",
+      "stopLiveStream": "End live stream",
       "muteMic": "Mute microphone",
       "unmuteMic": "Unmute microphone",
       "turnOffCam": "Turn camera off",
       "turnOnCam": "Turn camera on",
       "stopShare": "Stop sharing",
       "startShare": "Share screen",
+      "startShareAudio": "Share screen + audio",
+      "startShareHint": "Video only",
+      "startShareAudioHint": "Includes tab or system audio when the browser allows it",
+      "shareAudioFallback": "Screen audio is not available in this browser — sharing video only",
       "spotlightMode": "Spotlight mode",
       "gridMode": "Grid mode",
       "moreControls": "More controls",
@@ -579,7 +646,70 @@
       "stopRecording": "Stop recording",
       "raiseHand": "Raise hand",
       "lowerHand": "Lower hand",
-      "reactions": "Reactions"
+      "reactions": "Reactions",
+      "selectMic": "Select microphone and speaker",
+      "selectCam": "Select camera",
+      "microphone": "Microphone",
+      "speaker": "Speaker",
+      "camera": "Camera",
+      "options": "Options",
+      "optionsEllipsis": "Options…",
+      "optionsDescription": "Choose the microphone, speaker, camera, and media effects used in this meeting.",
+      "optionsTabs": {
+        "general": "General",
+        "captions": "Captions",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "captionsStartOn": "Start with captions on",
+      "captionsStartOnHint": "Your preference overrides the platform default.",
+      "tabReturnHint": "The platform administrator sets the default. Choose an override for your meetings.",
+      "tabReturnEnabled": "Tab-away protection",
+      "tabReturnEnabledOptions": {
+        "on": "Enabled",
+        "off": "Disabled"
+      },
+      "tabReturnMic": "Microphone on return",
+      "tabReturnCamera": "Camera on return",
+      "tabReturnOptions": {
+        "inherit": "Platform default",
+        "open": "Open",
+        "closed": "Closed",
+        "restore": "As it was"
+      },
+      "closeOptions": "Close options",
+      "cameraPreviewOff": "Camera is off",
+      "micLevel": "Microphone level",
+      "noDevices": "No devices found",
+      "micN": "Microphone {n}",
+      "cameraN": "Camera {n}",
+      "speakerN": "Speaker {n}",
+      "speakerUnsupported": "Speaker selection is not supported in this browser.",
+      "effectsTitle": "Effects",
+      "effectsNone": "None",
+      "effectsBlur": "Background blur",
+      "effectsVirtual": "Virtual background",
+      "effectsBlurRadius": "Blur strength",
+      "effectsUnsupported": "Background effects are not supported in this browser.",
+      "effectsAudioTitle": "Audio processing",
+      "effectsNoise": "Noise suppression",
+      "effectsEcho": "Echo cancellation",
+      "effectsAgc": "Auto gain control",
+      "effectsUpload": "Upload custom background",
+      "effectsUploading": "Uploading…",
+      "effectsUploadOk": "Background uploaded",
+      "effectsUploadFailed": "Could not upload background ({label})",
+      "effectsUploadLogin": "Sign in to upload a custom background.",
+      "effectsCustomBg": "Custom background",
+      "effectsSavedAccount": "Saved to your account",
+      "effectsSavedBrowser": "Saved in this browser only",
+      "effectsSaving": "Saving…",
+      "presetOffice": "Office",
+      "presetLiving": "Living room",
+      "presetBookshelf": "Bookshelf",
+      "presetGradient": "Gradient",
+      "presetNature": "Nature",
+      "presetAbstract": "Abstract"
     },
     "reactions": {
       "pickReaction": "Send a reaction",
@@ -601,6 +731,11 @@
       "removeConfirm": "Remove this person from the meeting?",
       "handRaised": "Hand raised",
       "moderateFailed": "Could not apply the action.",
+      "roleChangeFailed": "Could not change this participant's role.",
+      "makeModerator": "Make moderator",
+      "removeModerator": "Remove moderator",
+      "moderatorGranted": "Moderator privileges granted.",
+      "moderatorRemoved": "Moderator privileges removed.",
       "muteAction": "Mute",
       "cameraOffAction": "Turn camera off",
       "removeAction": "Remove",
@@ -630,6 +765,11 @@
       "title": "Connection lost",
       "body": "The meeting is still here. You can try reconnecting with the same token or leave to the dashboard."
     },
+    "duplicateSession": {
+      "title": "Meeting open in another tab",
+      "body": "This meeting was opened in another tab or window with the same session, so this tab was disconnected. Use a single tab, or continue here.",
+      "useHere": "Use here"
+    },
     "clientError": {
       "title": "Something went wrong in the meeting",
       "body": "The app hit an error while loading the room. You can try again or leave to the dashboard.",
@@ -637,7 +777,8 @@
       "leave": "Leave"
     },
     "captions": {
-      "dragHint": "Drag to reposition · double-click to reset"
+      "dragHint": "Drag to reposition · double-click to reset",
+      "hide": "Hide captions"
     },
     "stage": {
       "empty": "No one in the room yet"
@@ -648,7 +789,9 @@
       "screenShare": "Screen",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
-      "handRaised": "Hand raised"
+      "handRaised": "Hand raised",
+      "muteParticipant": "Mute participant",
+      "cameraOffParticipant": "Turn participant camera off"
     }
   },
   "summary": {
@@ -660,6 +803,8 @@
     "statusRunning": "Generating summary with Gemini…",
     "statusFailed": "Generation failed — retrying…",
     "statusPending": "Preparing the summary…",
+    "statusDisabled": "Summary is turned off for this meeting.",
+    "summaryDisabled": "Summary is turned off for this meeting. The transcript, recordings, and attendance are still available in the other tabs.",
     "mcpNeeded": "Sign in again to send tasks to external tools.",
     "mcpLink": "Sign in again",
     "billingWarning": "Gemini credits exhausted — the LLM summary fell back to offline mode.",
@@ -669,6 +814,7 @@
     "tabReport": "Summary",
     "tabTranscript": "Transcript",
     "tabRecordings": "Recordings",
+    "tabAttendance": "Attendance",
     "tabTasks": "Suggested tasks",
     "tabsAria": "Meeting summary sections",
     "personalBoard": "personal",
@@ -704,7 +850,18 @@
     "recordingsHeading": "Recordings",
     "recordingsEmpty": "No recordings yet.",
     "downloadRecording": "Download",
-    "playRecording": "Play"
+    "playRecording": "Play",
+    "attendanceHeading": "Attendance list",
+    "attendanceEmpty": "No participants were present in this meeting.",
+    "attendanceName": "Name",
+    "attendanceRole": "Role",
+    "attendanceJoined": "Joined",
+    "attendanceLeft": "Left",
+    "attendanceDuration": "Duration",
+    "attendanceRoleHost": "Host",
+    "attendanceRoleParticipant": "Participant",
+    "attendanceDownloadCsv": "Download CSV",
+    "attendanceStillPresent": "—"
   },
   "admin": {
     "eyebrow": "System",
@@ -712,10 +869,34 @@
     "description": "Configure locale, AI keys, meeting recording, and outbound webhooks to integrate Meet with third-party platforms.",
     "tabs": {
       "general": "General",
+      "access": "Access",
       "ai": "AI",
       "webhooks": "Webhooks",
       "recording": "Recording",
-      "ui": "UI"
+      "ui": "UI",
+      "api": "API",
+      "liveStream": "Live stream"
+    },
+    "api": {
+      "heading": "Public API token",
+      "body": "Generate a Bearer token for third-party platforms to call POST /api/v1/*. The token grants full access to the public API.",
+      "statusLabel": "Status",
+      "notConfigured": "Not configured",
+      "configured": "Configured: {preview}",
+      "createdAt": "Created {date}",
+      "generate": "Generate token",
+      "rotate": "Rotate token",
+      "revoke": "Revoke",
+      "revokeConfirm": "Revoke the current token? Clients will fail auth until you generate another.",
+      "generatedHeading": "Token generated — copy it now",
+      "generatedWarning": "This value is shown only once. Store it somewhere safe.",
+      "copy": "Copy token",
+      "copied": "Token copied.",
+      "docsLink": "Open API documentation",
+      "generateFailed": "Could not generate the token.",
+      "revokeFailed": "Could not revoke the token.",
+      "revoked": "Token revoked.",
+      "generated": "Token generated. Copy it now."
     },
     "loadFailed": "Could not load administration.",
     "saveFailed": "Could not save.",
@@ -730,6 +911,7 @@
     "notConfigured": "not configured",
     "viaSource": "via {source}",
     "backToDashboard": "Back to dashboard",
+    "navOps": "Ops",
     "sessionRequired": {
       "title": "Sign-in required",
       "body": "Sign in with your account to access administration.",
@@ -750,7 +932,45 @@
         "fr": "Français",
         "de": "Deutsch"
       },
+      "captionsDefault": "Captions at meeting start",
+      "captionsDefaultHint": "Sets whether captions start on by default. Users can override this preference.",
+      "captionsDefaultOptions": {
+        "on": "On",
+        "off": "Off"
+      },
+      "tabReturnTitle": "When leaving the tab",
+      "tabReturnHint": "When enabled, leaving the tab turns mic and camera off for privacy. On return, the policy below is applied.",
+      "tabReturnEnabled": "Tab-away protection",
+      "tabReturnEnabledOptions": {
+        "on": "Enabled",
+        "off": "Disabled"
+      },
+      "tabReturnMic": "Microphone on return",
+      "tabReturnCamera": "Camera on return",
+      "tabReturnOptions": {
+        "open": "Open",
+        "closed": "Closed",
+        "restore": "As it was"
+      },
       "save": "Save"
+    },
+    "access": {
+      "body": "Choose whether home, dashboard, and settings are publicly reachable. When disabled, visitors are redirected. With a request key, they can unlock at /unlock.",
+      "requestKey": "Request key (unlock)",
+      "requestKeyHint": "Optional. Anyone who enters this key at /unlock can open disabled pages.",
+      "requestKeyConfigured": "Key configured: {preview}. Leave empty to keep it.",
+      "requestKeyPlaceholder": "New key…",
+      "enabled": "Accessible",
+      "redirectTo": "Redirect to",
+      "redirectHint": "Relative path (e.g. /login or /unlock) or absolute URL.",
+      "unlockHint": "Unlock page: {path}",
+      "pages": {
+        "home": "Home (landing)",
+        "dashboard": "Dashboard",
+        "settings": "Settings / brand"
+      },
+      "save": "Save access",
+      "clearKey": "Remove key"
     },
     "ai": {
       "groqEnabled": "Use Groq / OpenAI-compatible API (replaces Gemini when active)",
@@ -771,7 +991,7 @@
       "modelSummary": "Model (summary)",
       "modelSummaryHint": "One post-meeting generation — use a stronger model (e.g. gemini-3.5-flash).",
       "deepgramKeyLabel": "Deepgram API key",
-      "deepgramKeyHint": "The Python worker still reads DEEPGRAM_API_KEY from .env.",
+      "deepgramKeyHint": "Resolved from Admin (database) first, then DEEPGRAM_API_KEY in .env. The Python worker uses the same order.",
       "save": "Save AI",
       "clearGemini": "Clear Gemini override",
       "clearDeepgram": "Clear Deepgram override"
@@ -806,6 +1026,10 @@
         "recording": {
           "label": "Recording ready",
           "description": "Metadata and download link when the recording is available."
+        },
+        "attendance": {
+          "label": "Attendance list",
+          "description": "Present participants with join and leave times."
         }
       },
       "save": "Save webhooks",
@@ -818,6 +1042,32 @@
       "sending": "Sending…",
       "sendTest": "Send test for this type"
     },
+    "liveStream": {
+      "body": "Lets hosts and moderators stream the meeting to YouTube (or any RTMP destination) from a spectator's point of view: cameras, audio and a fixed caption strip only.",
+      "enabled": "Live streaming enabled",
+      "qualityLabel": "Quality",
+      "quality720": "720p 30fps (~3 Mbps) — recommended",
+      "quality1080": "1080p 30fps (~4.5 Mbps) — more CPU",
+      "egressNote": "Requires the livekit/egress service (infra/docker-compose.egress.yml). Each stream uses about 4 vCPU on the server. Keep it disabled if the server lacks resources.",
+      "save": "Save live stream",
+      "service": {
+        "title": "LiveKit Egress service",
+        "checking": "checking…",
+        "online": "online",
+        "offline": "offline",
+        "unchecked": "check disabled (EGRESS_HEALTH_URL=none)",
+        "recheck": "Check again",
+        "healthUrl": "Health check: {url}",
+        "installTitle": "How to install the streaming add-on",
+        "installIntro": "Egress did not respond. While it is offline nobody can start a stream. On the server, in the OpenMeet folder:",
+        "step1": "Create the Egress config and set api_key and api_secret to the same values as livekit.yaml (LIVEKIT_API_KEY / LIVEKIT_API_SECRET in .env). Keep health_port: 9187 (a free port matching EGRESS_HEALTH_URL).",
+        "step2": "Start the container (requires Docker; uses network_mode: host and about 4 vCPU per stream).",
+        "step3": "Allow outbound TCP 1935 (rtmp://) or 443 (rtmps://) in the firewall.",
+        "step4": "For real-time status, add this app's webhook to livekit.yaml and restart LiveKit (optional: without it, status is polled).",
+        "step5": "Optional, in .env (restart the app afterwards): URL Egress' Chrome uses to open the spectator page, and the health check URL if Egress runs on another host.",
+        "docsHint": "Full guide in docs/05-live-stream.md and in the README \"Live streaming\" section."
+      }
+    },
     "recording": {
       "enabled": "Meeting recording enabled",
       "engineLabel": "Recording engine",
@@ -826,6 +1076,7 @@
       "controlLabel": "Control",
       "controlManual": "Manual — host starts and stops in the room",
       "controlAuto": "Automatic — starts when the host joins (no stop)",
+      "controlAsk": "Always ask — prompt when the host joins",
       "storageLabel": "Storage",
       "storageLocal": "Local disk on the server",
       "storageS3": "S3-compatible (MinIO / Hetzner / AWS)",
@@ -849,13 +1100,17 @@
       "tertiary": "Tertiary",
       "background": "Background",
       "ink": "Text",
-      "wordmark": "Wordmark",
-      "logoUrl": "Logo URL",
-      "faviconUrl": "Favicon URL",
+      "wordmark": "Platform name",
+      "logoUrl": "Platform logo URL",
+      "faviconUrl": "Platform favicon URL",
       "fontFamily": "Font family",
       "deploymentMode": "Deployment mode",
       "allowSignup": "Allow public signup",
-      "preview": "Preview"
+      "preview": "Preview",
+      "uploadLogo": "Upload logo",
+      "uploadFavicon": "Upload favicon",
+      "copyHex": "Copy hex",
+      "hexCopied": "Hex copied"
     }
   },
   "roomTemplate": {
@@ -868,12 +1123,24 @@
     "startFailed": "Could not start the meeting.",
     "startNetworkFailed": "Network error starting the meeting."
   },
+  "accessUnlock": {
+    "title": "Unlock access",
+    "body": "Enter the request key provided by your administrator to open restricted pages.",
+    "keyLabel": "Request key",
+    "keyPlaceholder": "Key…",
+    "submit": "Unlock",
+    "submitting": "Checking…",
+    "success": "Access unlocked.",
+    "invalidKey": "Invalid key.",
+    "notConfigured": "No unlock key is configured.",
+    "failed": "Could not unlock."
+  },
   "auth": {
     "loginTitle": "Sign in",
     "registerTitle": "Create account",
-    "loginSubtitle": "Use your email and password to access OpenMeet.",
+    "loginSubtitle": "Use your email and password to access {name}.",
     "setupTitle": "Initial setup",
-    "setupSubtitle": "Create the first admin account for this OpenMeet instance.",
+    "setupSubtitle": "Create the first admin account for this {name} instance.",
     "name": "Name",
     "email": "Email",
     "password": "Password",
@@ -898,5 +1165,112 @@
       "auth_failed": "Authentication failed.",
       "setup_failed": "Setup failed."
     }
+  },
+  "ops": {
+    "eyebrow": "OpenMeet Ops",
+    "eyebrowVersion": "OpenMeet Ops · v{version}",
+    "tabs": {
+      "overview": "Overview",
+      "tenants": "Tenants"
+    },
+    "titles": {
+      "health": "Health & metrics",
+      "tenants": "Tenants",
+      "tenant": "Tenant",
+      "meeting": "Meeting"
+    },
+    "forbidden": {
+      "title": "Ops — forbidden",
+      "body": "Server admin access required.",
+      "back": "← Dashboard"
+    },
+    "nav": {
+      "admin": "Admin",
+      "dashboard": "Dashboard",
+      "back": "← Back"
+    },
+    "overview": {
+      "platformHealth": "Platform health",
+      "liveSnapshot": "Live snapshot · refreshed every 30s",
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "statusOk": "ok",
+      "statusDown": "down",
+      "meetingsNow": "Meetings now",
+      "livekitRooms": "LiveKit rooms: {count}",
+      "livekitUnavailable": "LiveKit room count unavailable",
+      "participantsNow": "Participants now",
+      "users": "Users",
+      "meetingsEnded": "Meetings ended",
+      "endedHint": "7d: {ended7d} · 30d: {ended30d}",
+      "newUsers30d": "New users · 30d",
+      "meetingsEnded30d": "Meetings ended · 30d",
+      "total": "{count} total",
+      "recordings": "Recordings",
+      "storage": "Storage {size}",
+      "noRecordingsYet": "No recordings yet",
+      "llmUsage30d": "LLM usage · 30d",
+      "noLlmCalls": "No LLM calls recorded",
+      "llmRow": "{calls} calls · {tokens} tok",
+      "statsFailed": "Failed to load ops stats: {error}"
+    },
+    "tenants": {
+      "searchPlaceholder": "Search email / name / external id",
+      "search": "Search",
+      "account": "Account",
+      "role": "Role",
+      "rooms": "Rooms",
+      "meetings": "Meetings",
+      "active": "Active",
+      "created": "Created",
+      "loading": "Loading…",
+      "empty": "No tenants",
+      "loadError": "Failed to load tenants",
+      "roomsCount": "{count} rooms",
+      "meetingsCount": "{count} meetings",
+      "activeCount": "{count} active",
+      "via": "via {channel}",
+      "ext": "ext {id}",
+      "idLabel": "id {id}",
+      "impersonate": "Impersonate",
+      "impersonating": "Impersonating {email}",
+      "impersonateFailed": "Impersonate failed",
+      "roleUpdated": "Role → {role}",
+      "roleFailed": "Role update failed",
+      "brand": "Brand",
+      "wordmark": "wordmark: {value}",
+      "theme": "theme: {value}",
+      "primary": "primary: {value}",
+      "none": "None",
+      "mediaPrefs": "Media prefs",
+      "videoEffect": "video: {effect} (blur {blur})",
+      "audioFlags": "NS {ns} · EC {ec} · AGC {agc}",
+      "defaults": "Defaults",
+      "roomsHeading": "Rooms ({count})",
+      "noRooms": "No rooms",
+      "meetingsHeading": "Meetings ({count})",
+      "noMeetings": "No meetings",
+      "summaryBadge": "summary"
+    },
+    "meeting": {
+      "started": "started {date}",
+      "ended": "ended {date}",
+      "transcriptSegments": "{count} transcript segments",
+      "openSummary": "Open summary page ↗",
+      "endMeeting": "End meeting",
+      "endConfirm": "End this meeting now?",
+      "endedOk": "Meeting ended",
+      "alreadyEnded": "Already ended",
+      "endFailed": "End failed",
+      "participants": "Participants ({count})",
+      "noParticipants": "No participants",
+      "inCall": "in",
+      "recordings": "Recordings ({count})",
+      "noRecordings": "No recordings",
+      "summary": "Summary",
+      "noSummary": "No summary yet (status: {status})",
+      "loadError": "Failed to load meeting"
+    },
+    "detailLoadError": "Failed to load tenant"
   }
 }

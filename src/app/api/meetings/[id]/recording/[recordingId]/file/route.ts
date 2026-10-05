@@ -5,6 +5,7 @@ import { stat } from "fs/promises";
 import { Readable } from "stream";
 import { db } from "@/db";
 import { meetings, recordings } from "@/db/schema";
+import { authorizePublicApi } from "@/lib/rooms";
 import { getSession, type SessionData } from "@/lib/session";
 import { getRecordingSignedUrl } from "@/lib/recording-storage";
 
@@ -13,7 +14,23 @@ type Ctx = { params: Promise<{ id: string; recordingId: string }> };
 async function canAccessRecording(
   meetingId: string,
   session: SessionData,
+  req: NextRequest,
 ): Promise<boolean> {
+  const api = await authorizePublicApi(req);
+  if (api.ok) {
+    const meeting = await db.query.meetings.findFirst({
+      where: eq(meetings.id, meetingId),
+    });
+    if (!meeting) return false;
+    if (
+      api.defaultOwnerId &&
+      meeting.ownerIdentityId !== api.defaultOwnerId
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   if (!session.isLoggedIn || !session.identityId) return false;
 
   const meeting = await db.query.meetings.findFirst({
@@ -52,7 +69,7 @@ function parseRange(
 export async function GET(req: NextRequest, ctx: Ctx) {
   const { id: meetingId, recordingId } = await ctx.params;
   const session = await getSession();
-  if (!(await canAccessRecording(meetingId, session))) {
+  if (!(await canAccessRecording(meetingId, session, req))) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

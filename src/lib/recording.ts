@@ -13,13 +13,11 @@ import {
 import { db } from "@/db";
 import { meetings, recordings } from "@/db/schema";
 import {
-  getAppSettings,
   resolveRecordingConfig,
-  webhookEventsOrDefault,
   type ResolvedRecordingConfig,
 } from "@/lib/app-settings";
 import { getLiveKitCreds, getLiveKitHttpHost } from "@/lib/livekit";
-import { deliverWebhook } from "@/lib/outbound-webhooks";
+import { dispatchPreparedWebhook } from "@/lib/outbound-webhooks";
 import {
   appendLocalChunk,
   localPathFor,
@@ -80,11 +78,6 @@ async function dispatchRecordingReady(recordingId: string) {
   });
   if (!meeting) return;
 
-  const settings = await getAppSettings();
-  if (!settings?.webhookEnabled || !settings.webhookUrl?.trim()) return;
-  const events = webhookEventsOrDefault(settings.webhookEvents);
-  if (!events.recording) return;
-
   const envelope = {
     event: "recording.ready" as const,
     version: 1 as const,
@@ -109,11 +102,7 @@ async function dispatchRecordingReady(recordingId: string) {
     },
   };
 
-  void deliverWebhook({
-    url: settings.webhookUrl.trim(),
-    secret: settings.webhookSecret,
-    envelope,
-  }).catch((err) => {
+  void dispatchPreparedWebhook(meeting.id, envelope).catch((err) => {
     console.error("[openmeet] recording.ready webhook failed", err);
   });
 }

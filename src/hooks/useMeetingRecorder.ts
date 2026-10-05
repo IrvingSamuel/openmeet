@@ -12,7 +12,7 @@ import {
 export type RecordingClientConfig = {
   enabled: boolean;
   engine: "egress" | "browser";
-  controlMode: "manual" | "auto";
+  controlMode: "manual" | "auto" | "ask";
   autoRecordingId?: string | null;
 };
 
@@ -229,9 +229,11 @@ export function useMeetingRecorder(opts: {
   const [error, setError] = useState<string | null>(null);
   const [needsScreenCaptureConfirm, setNeedsScreenCaptureConfirm] =
     useState(false);
+  const [needsAskPrompt, setNeedsAskPrompt] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const stopMixRef = useRef<(() => void) | null>(null);
   const autoPromptShownRef = useRef(false);
+  const askPromptShownRef = useRef(false);
   const stopRef = useRef<(opts?: { force?: boolean }) => Promise<void>>(
     async () => undefined,
   );
@@ -523,6 +525,25 @@ export function useMeetingRecorder(opts: {
     active,
   ]);
 
+  // Ask mode: prompt the host once after joining; recording stays optional.
+  useEffect(() => {
+    if (!isHost || !config?.enabled || !meetingId || !room) return;
+    if (config.controlMode !== "ask") return;
+    if (room.state !== "connected") return;
+    if (askPromptShownRef.current || active) return;
+    askPromptShownRef.current = true;
+    setNeedsAskPrompt(true);
+  }, [isHost, config, meetingId, room, room?.state, active]);
+
+  const acceptAsk = useCallback(() => {
+    setNeedsAskPrompt(false);
+    void start(false);
+  }, [start]);
+
+  const declineAsk = useCallback(() => {
+    setNeedsAskPrompt(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -542,12 +563,17 @@ export function useMeetingRecorder(opts: {
     busy,
     error,
     needsScreenCaptureConfirm,
+    needsAskPrompt,
     canToggle: Boolean(
-      isHost && config?.enabled && config.controlMode === "manual",
+      isHost &&
+        config?.enabled &&
+        (config.controlMode === "manual" || config.controlMode === "ask"),
     ),
     showBadge: Boolean(config?.enabled && active),
     start: () => start(false),
     startAuto: () => start(true),
+    acceptAsk,
+    declineAsk,
     stop: () => stop(),
   };
 }

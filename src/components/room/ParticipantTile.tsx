@@ -21,9 +21,13 @@ import {
   IconMinimize,
   IconPin,
   IconScreen,
+  IconVideoOff,
 } from "@/components/ui/icons";
 
 export { shouldRenderVideoTrack } from "@/lib/videoTrack";
+
+const hoverRevealClass =
+  "opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 focus-visible:opacity-100";
 
 export function ParticipantTile({
   trackRef,
@@ -32,6 +36,11 @@ export function ParticipantTile({
   pinned,
   onPin,
   handRaised,
+  canModerate,
+  onMute,
+  onCameraOff,
+  moderationBusy,
+  readOnly,
   className,
 }: {
   trackRef: TrackReferenceOrPlaceholder;
@@ -40,6 +49,12 @@ export function ParticipantTile({
   pinned?: boolean;
   onPin?: () => void;
   handRaised?: boolean;
+  canModerate?: boolean;
+  onMute?: () => void;
+  onCameraOff?: () => void;
+  moderationBusy?: boolean;
+  /** Spectator / live-stream view: no interactive controls at all. */
+  readOnly?: boolean;
   className?: string;
 }) {
   const t = useTranslations("room.participantTile");
@@ -65,7 +80,16 @@ export function ParticipantTile({
   const { ref: tileRef, active: fullscreen, toggle: toggleFullscreen } =
     useElementFullscreen<HTMLDivElement>();
 
+  const showModeration =
+    !readOnly &&
+    Boolean(canModerate) &&
+    !participant.isLocal &&
+    !isScreenShare &&
+    Boolean(onMute || onCameraOff);
+  const showHand = Boolean(handRaised) && !isScreenShare;
+
   function handleDoubleClick() {
+    if (readOnly) return;
     if (isScreenShare) {
       void toggleFullscreen();
       return;
@@ -148,22 +172,67 @@ export function ParticipantTile({
         </span>
       </div>
 
-      {handRaised && !isScreenShare ? (
-        <span
-          className="pointer-events-none absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-amber-400/50 bg-amber-500/25 text-amber-200 backdrop-blur"
-          title={t("handRaised")}
-        >
-          <IconHand className="h-4 w-4" />
+      {showHand || showModeration ? (
+        <span className="absolute left-2 top-2 flex items-center gap-1">
+          {showHand ? (
+            <span
+              className="pointer-events-none grid h-8 w-8 place-items-center rounded-lg border border-amber-400/50 bg-amber-500/25 text-amber-200 backdrop-blur"
+              title={t("handRaised")}
+            >
+              <IconHand className="h-4 w-4" />
+            </span>
+          ) : null}
+          {showModeration ? (
+            <span
+              className={cn(
+                "flex items-center gap-1 transition-all duration-200",
+                hoverRevealClass,
+              )}
+            >
+              {onMute ? (
+                <button
+                  type="button"
+                  data-testid="tile-mute"
+                  disabled={moderationBusy}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMute();
+                  }}
+                  aria-label={t("muteParticipant")}
+                  title={t("muteParticipant")}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-colors hover:bg-black/70 disabled:opacity-40"
+                >
+                  <IconMicOff className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+              {onCameraOff ? (
+                <button
+                  type="button"
+                  data-testid="tile-camera-off"
+                  disabled={moderationBusy}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCameraOff();
+                  }}
+                  aria-label={t("cameraOffParticipant")}
+                  title={t("cameraOffParticipant")}
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-colors hover:bg-black/70 disabled:opacity-40"
+                >
+                  <IconVideoOff className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </span>
+          ) : null}
         </span>
       ) : null}
 
-      {onPin && !isScreenShare ? (
+      {onPin && !readOnly && !isScreenShare ? (
         <button
           onClick={onPin}
           aria-label={pinned ? t("unpin") : t("pin")}
           className={cn(
             "absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
-            "opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 focus-visible:opacity-100",
+            hoverRevealClass,
             pinned && "border-brand-secondary/60 text-brand-secondary opacity-100",
           )}
         >
@@ -171,7 +240,7 @@ export function ParticipantTile({
         </button>
       ) : null}
 
-      {isScreenShare && showVideo ? (
+      {isScreenShare && showVideo && !readOnly ? (
         <button
           type="button"
           onClick={(e) => {
@@ -181,7 +250,7 @@ export function ParticipantTile({
           aria-label={fullscreen ? t("exitFullscreen") : t("fullscreen")}
           className={cn(
             "absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
-            "opacity-100 [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100 focus-visible:opacity-100",
+            hoverRevealClass,
             fullscreen && "border-brand-secondary/60 text-brand-secondary opacity-100",
           )}
         >

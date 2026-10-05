@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants, rooms } from "@/db/schema";
+import { hasHostEntryGrant } from "@/lib/host-entry";
 import type { SessionData } from "@/lib/session";
 
 /** Room-shaped context derived from a meeting (join/LiveKit identity). */
@@ -20,6 +21,7 @@ export type HostAuthResult =
       ok: true;
       room: MeetingHostContext;
       meeting: typeof meetings.$inferSelect | null;
+      viaHostEntry?: boolean;
     }
   | { ok: false; status: 401 | 403 | 404; error: string };
 
@@ -38,15 +40,11 @@ function meetingAsHostContext(
   };
 }
 
-/** Meeting owner, or an active host participant on the given meeting. */
+/** Meeting owner, API host-entry cookie, or an active host participant. */
 export async function assertMeetingHost(opts: {
   meetingId: string;
   session: SessionData;
 }): Promise<HostAuthResult> {
-  if (!opts.session.isLoggedIn || !opts.session.identityId) {
-    return { ok: false, status: 401, error: "unauthorized" };
-  }
-
   const meeting = await db.query.meetings.findFirst({
     where: (m, { eq: e }) => e(m.id, opts.meetingId),
   });
@@ -54,22 +52,66 @@ export async function assertMeetingHost(opts: {
     return { ok: false, status: 404, error: "not_found" };
   }
 
-  if (opts.session.identityId === meeting.ownerIdentityId) {
+  if (
+    opts.session.isLoggedIn &&
+    opts.session.identityId &&
+    opts.session.identityId === meeting.ownerIdentityId
+  ) {
     return { ok: true, room: meetingAsHostContext(meeting), meeting };
   }
 
-  const hostRow = await db.query.participants.findFirst({
+  if (await hasHostEntryGrant(meeting.id)) {
+    return {
+      ok: true,
+      room: meetingAsHostContext(meeting),
+      meeting,
+      viaHostEntry: true,
+    };
+  }
+
+  if (opts.session.isLoggedIn && opts.session.identityId) {
+    const hostRow = await db.query.participants.findFirst({
+      where: and(
+        eq(participants.meetingId, opts.meetingId),
+        eq(participants.identityId, opts.session.identityId),
+        eq(participants.role, "host"),
+      ),
+    });
+    if (hostRow) {
+      return { ok: true, room: meetingAsHostContext(meeting), meeting };
+    }
+    return { ok: false, status: 403, error: "forbidden" };
+  }
+
+  return { ok: false, status: 401, error: "unauthorized" };
+}
+
+/** Host or active moderator. Does not confer meeting ownership. */
+export async function assertMeetingModerator(opts: {
+  meetingId: string;
+  session: SessionData;
+}): Promise<HostAuthResult> {
+  const hostAuth = await assertMeetingHost(opts);
+  if (hostAuth.ok || hostAuth.status !== 403 || !opts.session.identityId) {
+    return hostAuth;
+  }
+
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.id, opts.meetingId),
+  });
+  if (!meeting) {
+    return { ok: false, status: 404, error: "not_found" };
+  }
+  const moderatorRow = await db.query.participants.findFirst({
     where: and(
       eq(participants.meetingId, opts.meetingId),
       eq(participants.identityId, opts.session.identityId),
-      eq(participants.role, "host"),
+      eq(participants.role, "moderator"),
+      isNull(participants.leftAt),
     ),
   });
-  if (hostRow) {
-    return { ok: true, room: meetingAsHostContext(meeting), meeting };
-  }
-
-  return { ok: false, status: 403, error: "forbidden" };
+  if (!moderatorRow) return hostAuth;
+  return { ok: true, room: meetingAsHostContext(meeting), meeting };
 }
 
 /** Brand-template room host (owner), optionally with an active meeting host role. */
@@ -78,10 +120,6 @@ export async function assertRoomHost(opts: {
   session: SessionData;
   meetingId?: string;
 }): Promise<HostAuthResult> {
-  if (!opts.session.isLoggedIn || !opts.session.identityId) {
-    return { ok: false, status: 401, error: "unauthorized" };
-  }
-
   const room = await db.query.rooms.findFirst({
     where: eq(rooms.slug, opts.slug),
   });
@@ -89,7 +127,11 @@ export async function assertRoomHost(opts: {
     return { ok: false, status: 404, error: "not_found" };
   }
 
-  if (opts.session.identityId === room.ownerIdentityId) {
+  if (
+    opts.session.isLoggedIn &&
+    opts.session.identityId &&
+    opts.session.identityId === room.ownerIdentityId
+  ) {
     const meeting = opts.meetingId
       ? await db.query.meetings.findFirst({
           where: (m, { eq: e }) => e(m.id, opts.meetingId!),
@@ -118,6 +160,9 @@ export async function assertRoomHost(opts: {
     });
   }
 
+  if (!opts.session.isLoggedIn) {
+    return { ok: false, status: 401, error: "unauthorized" };
+  }
   return { ok: false, status: 403, error: "forbidden" };
 }
 
@@ -125,9 +170,6 @@ export async function assertMeetingSlugHost(opts: {
   slug: string;
   session: SessionData;
 }): Promise<HostAuthResult> {
-  if (!opts.session.isLoggedIn || !opts.session.identityId) {
-    return { ok: false, status: 401, error: "unauthorized" };
-  }
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.slug, opts.slug),
   });
@@ -137,16 +179,54 @@ export async function assertMeetingSlugHost(opts: {
   return assertMeetingHost({ meetingId: meeting.id, session: opts.session });
 }
 
+export async function assertMeetingSlugModerator(opts: {
+  slug: string;
+  session: SessionData;
+}): Promise<HostAuthResult> {
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.slug, opts.slug),
+  });
+  if (!meeting) {
+    return { ok: false, status: 404, error: "not_found" };
+  }
+  return assertMeetingModerator({
+    meetingId: meeting.id,
+    session: opts.session,
+  });
+}
+
 /** @deprecated use assertMeetingSlugHost — kept for waiting-room room routes during migration */
 export async function assertActiveHostOnMeeting(opts: {
   meetingId: string;
   session: SessionData;
 }): Promise<boolean> {
+  if (await hasHostEntryGrant(opts.meetingId)) {
+    const hostRow = await db.query.participants.findFirst({
+      where: and(
+        eq(participants.meetingId, opts.meetingId),
+        eq(participants.role, "host"),
+        isNull(participants.leftAt),
+      ),
+    });
+    if (hostRow) return true;
+  }
   if (!opts.session.isLoggedIn || !opts.session.identityId) return false;
   const hostRow = await db.query.participants.findFirst({
     where: and(
       eq(participants.meetingId, opts.meetingId),
       eq(participants.identityId, opts.session.identityId),
+      eq(participants.role, "host"),
+      isNull(participants.leftAt),
+    ),
+  });
+  return Boolean(hostRow);
+}
+
+/** True when any host participant is currently in the call. */
+export async function meetingHasActiveHost(meetingId: string): Promise<boolean> {
+  const hostRow = await db.query.participants.findFirst({
+    where: and(
+      eq(participants.meetingId, meetingId),
       eq(participants.role, "host"),
       isNull(participants.leftAt),
     ),

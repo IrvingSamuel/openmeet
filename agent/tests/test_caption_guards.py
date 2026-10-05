@@ -65,7 +65,14 @@ def test_cross_caption_deduper_same_identity_not_blocked() -> None:
 
 def test_participant_mic_muted_no_mic() -> None:
     p = MockParticipant([])
-    assert participant_mic_muted(p) is True
+    assert participant_mic_muted(p) is False
+
+
+def test_participant_mic_muted_no_mic_pubs_only_camera() -> None:
+    p = MockParticipant(
+        [MockPub(rtc.TrackSource.SOURCE_CAMERA, False)],
+    )
+    assert participant_mic_muted(p) is False
 
 
 def test_participant_mic_muted_when_muted() -> None:

@@ -17,6 +17,10 @@ import {
   shouldSkipSecretUpdate,
   webhookEventsOrDefault,
 } from "@/lib/app-settings";
+import {
+  DEFAULT_PAGE_ACCESS,
+  normalizePageAccessSettings,
+} from "@/lib/page-access";
 import { getSession } from "@/lib/session";
 
 const webhookEventsSchema = z.object({
@@ -25,12 +29,36 @@ const webhookEventsSchema = z.object({
   summary: z.boolean(),
   tasks: z.boolean(),
   recording: z.boolean().optional(),
+  attendance: z.boolean().optional(),
 });
 
 const putSchema = z.object({
   locale: z.enum(["pt-BR", "en", "es", "fr", "de"]).optional(),
   deploymentMode: z.enum(["server", "platform"]).optional(),
   allowSignup: z.boolean().optional(),
+  captionsDefault: z.boolean().optional(),
+  tabReturnEnabled: z.boolean().optional(),
+  tabReturnMic: z.enum(["open", "closed", "restore"]).optional(),
+  tabReturnCamera: z.enum(["open", "closed", "restore"]).optional(),
+  pageAccess: z
+    .object({
+      requestKey: z.string().max(200).nullable().optional(),
+      pages: z.object({
+        home: z.object({
+          enabled: z.boolean(),
+          redirectTo: z.string().max(500),
+        }),
+        dashboard: z.object({
+          enabled: z.boolean(),
+          redirectTo: z.string().max(500),
+        }),
+        settings: z.object({
+          enabled: z.boolean(),
+          redirectTo: z.string().max(500),
+        }),
+      }),
+    })
+    .optional(),
   geminiApiKey: z.string().nullable().optional(),
   geminiModel: z.string().max(120).nullable().optional(),
   geminiSummaryModel: z.string().max(120).nullable().optional(),
@@ -46,13 +74,15 @@ const putSchema = z.object({
   webhookEvents: webhookEventsSchema.optional(),
   recordingEnabled: z.boolean().optional(),
   recordingEngine: z.enum(["egress", "browser"]).optional(),
-  recordingControlMode: z.enum(["manual", "auto"]).optional(),
+  recordingControlMode: z.enum(["manual", "auto", "ask"]).optional(),
   recordingStorage: z.enum(["local", "s3"]).optional(),
   recordingS3Endpoint: z.string().max(500).nullable().optional(),
   recordingS3Bucket: z.string().max(200).nullable().optional(),
   recordingS3Region: z.string().max(80).nullable().optional(),
   recordingS3AccessKey: z.string().nullable().optional(),
   recordingS3SecretKey: z.string().nullable().optional(),
+  liveStreamEnabled: z.boolean().optional(),
+  liveStreamQuality: z.enum(["720p", "1080p"]).optional(),
   uiPrimary: z.string().max(40).nullable().optional(),
   uiSecondary: z.string().max(40).nullable().optional(),
   uiTertiary: z.string().max(40).nullable().optional(),
@@ -132,6 +162,21 @@ function publicSettingsPayload(
     locale: row.locale || "pt-BR",
     deploymentMode: row.deploymentMode || "platform",
     allowSignup: row.allowSignup !== false,
+    captionsDefault: row.captionsDefault !== false,
+    tabReturnEnabled: row.tabReturnEnabled !== false,
+    tabReturnMic: row.tabReturnMic || "closed",
+    tabReturnCamera: row.tabReturnCamera || "closed",
+    pageAccess: (() => {
+      const access = normalizePageAccessSettings(
+        row.pageAccess ?? DEFAULT_PAGE_ACCESS,
+      );
+      return {
+        pages: access.pages,
+        requestKey: access.requestKey
+          ? maskSecret(access.requestKey)
+          : { configured: false, preview: null, source: "none" as const },
+      };
+    })(),
     uiPrimary: row.uiPrimary || "#0ea5e9",
     uiSecondary: row.uiSecondary || "#38bdf8",
     uiTertiary: row.uiTertiary || "#818cf8",
@@ -159,12 +204,25 @@ function publicSettingsPayload(
     aiFallbackSummaryModelSource: openAi.sources.summaryModel,
     deepgramApiKey: deepgramMask,
     deepgramNote:
-      "A chave Deepgram na UI fica guardada para referência; o worker Python do agente continua a ler DEEPGRAM_API_KEY do .env.",
+      "A chave Deepgram resolve-se a partir da base de dados, com fallback para DEEPGRAM_API_KEY no .env (o worker Python usa o mesmo critério).",
     webhookEnabled: row.webhookEnabled,
     webhookUrl: row.webhookUrl || "",
     webhookSecret: row.webhookSecret?.trim()
       ? maskSecret(row.webhookSecret)
       : { configured: false, preview: null, source: "none" as const },
+    publicApiToken: row.publicApiToken?.trim()
+      ? {
+          ...maskSecret(row.publicApiToken),
+          createdAt: row.publicApiTokenCreatedAt?.toISOString() ?? null,
+          ownerIdentityId: row.publicApiTokenOwnerId ?? null,
+        }
+      : {
+          configured: false,
+          preview: null,
+          source: "none" as const,
+          createdAt: null,
+          ownerIdentityId: null,
+        },
     webhookEvents: events,
     recordingEnabled: recording.enabled,
     recordingEngine: recording.engine,
@@ -178,6 +236,8 @@ function publicSettingsPayload(
     recordingS3SecretKey: s3SecretMask,
     recordingS3EndpointSource: recording.sources.s3Endpoint,
     recordingS3BucketSource: recording.sources.s3Bucket,
+    liveStreamEnabled: row.liveStreamEnabled === true,
+    liveStreamQuality: row.liveStreamQuality === "1080p" ? "1080p" : "720p",
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -216,6 +276,34 @@ export async function PUT(req: NextRequest) {
   if (body.locale !== undefined) patch.locale = body.locale;
   if (body.deploymentMode !== undefined) patch.deploymentMode = body.deploymentMode;
   if (body.allowSignup !== undefined) patch.allowSignup = body.allowSignup;
+  if (body.captionsDefault !== undefined) {
+    patch.captionsDefault = body.captionsDefault;
+  }
+  if (body.tabReturnEnabled !== undefined) {
+    patch.tabReturnEnabled = body.tabReturnEnabled;
+  }
+  if (body.tabReturnMic !== undefined) patch.tabReturnMic = body.tabReturnMic;
+  if (body.tabReturnCamera !== undefined) {
+    patch.tabReturnCamera = body.tabReturnCamera;
+  }
+
+  if (body.pageAccess !== undefined) {
+    const current = normalizePageAccessSettings(
+      (await ensureAppSettings()).pageAccess ?? DEFAULT_PAGE_ACCESS,
+    );
+    let nextKey = current.requestKey;
+    if (body.pageAccess.requestKey !== undefined) {
+      if (body.pageAccess.requestKey === null) {
+        nextKey = null;
+      } else if (!shouldSkipSecretUpdate(body.pageAccess.requestKey)) {
+        nextKey = body.pageAccess.requestKey.trim() || null;
+      }
+    }
+    patch.pageAccess = {
+      requestKey: nextKey,
+      pages: body.pageAccess.pages,
+    };
+  }
 
   if (body.uiPrimary !== undefined) patch.uiPrimary = body.uiPrimary?.trim() || null;
   if (body.uiSecondary !== undefined) patch.uiSecondary = body.uiSecondary?.trim() || null;
@@ -285,6 +373,7 @@ export async function PUT(req: NextRequest) {
       summary: body.webhookEvents.summary,
       tasks: body.webhookEvents.tasks,
       recording: body.webhookEvents.recording ?? true,
+      attendance: body.webhookEvents.attendance ?? true,
     };
   }
 
@@ -318,6 +407,13 @@ export async function PUT(req: NextRequest) {
     patch.recordingS3SecretKey = body.recordingS3SecretKey!.trim() || null;
   } else if (body.recordingS3SecretKey === null) {
     patch.recordingS3SecretKey = null;
+  }
+
+  if (body.liveStreamEnabled !== undefined) {
+    patch.liveStreamEnabled = body.liveStreamEnabled;
+  }
+  if (body.liveStreamQuality !== undefined) {
+    patch.liveStreamQuality = body.liveStreamQuality;
   }
 
   const [updated] = await db

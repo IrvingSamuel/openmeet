@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { recordings } from "@/db/schema";
-import { assertMeetingHost } from "@/lib/hostAuth";
+import { assertMeetingModerator } from "@/lib/hostAuth";
 import { appendBrowserChunk } from "@/lib/recording";
 import { getSession } from "@/lib/session";
 
@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id: meetingId } = await ctx.params;
   const session = await getSession();
-  const auth = await assertMeetingHost({ meetingId, session });
+  const auth = await assertMeetingModerator({ meetingId, session });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

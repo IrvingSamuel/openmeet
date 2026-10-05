@@ -21,6 +21,9 @@ export async function fillSessionFromUser(
   session.name = user.name ?? undefined;
   session.avatarUrl = user.avatarUrl ?? undefined;
   session.role = user.role as UserRole;
+  // Normal login/setup must never keep a stale ops impersonation.
+  delete session.impersonatorIdentityId;
+  delete session.impersonatorEmail;
   await session.save();
 }
 

@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { ToastProvider, useToast } from "@/components/ui/Toast";
+import en from "../../messages/en.json";
+
+function wrap(ui: ReactNode) {
+  return (
+    <NextIntlClientProvider locale="en" messages={en}>
+      {ui}
+    </NextIntlClientProvider>
+  );
+}
 
 function Harness() {
   const toast = useToast();
@@ -16,9 +27,11 @@ function Harness() {
 describe("ToastProvider", () => {
   it("shows a toast pushed from a consumer", async () => {
     render(
-      <ToastProvider>
-        <Harness />
-      </ToastProvider>,
+      wrap(
+        <ToastProvider>
+          <Harness />
+        </ToastProvider>,
+      ),
     );
     await userEvent.click(screen.getByRole("button", { name: "ok" }));
     expect(await screen.findByText("Sala criada")).toBeInTheDocument();
@@ -26,9 +39,11 @@ describe("ToastProvider", () => {
 
   it("stacks multiple toasts", async () => {
     render(
-      <ToastProvider>
-        <Harness />
-      </ToastProvider>,
+      wrap(
+        <ToastProvider>
+          <Harness />
+        </ToastProvider>,
+      ),
     );
     await userEvent.click(screen.getByRole("button", { name: "ok" }));
     await userEvent.click(screen.getByRole("button", { name: "erro" }));
@@ -38,16 +53,37 @@ describe("ToastProvider", () => {
     });
   });
 
+  it("allows dismissing a toast with the close button", async () => {
+    const user = userEvent.setup();
+    render(
+      wrap(
+        <ToastProvider>
+          <Harness />
+        </ToastProvider>,
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "ok" }));
+    expect(await screen.findByText("Sala criada")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Dismiss notification" }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("Sala criada")).not.toBeInTheDocument();
+    });
+  });
+
   it("announces politely for screen readers", async () => {
     render(
-      <ToastProvider>
-        <Harness />
-      </ToastProvider>,
+      wrap(
+        <ToastProvider>
+          <Harness />
+        </ToastProvider>,
+      ),
     );
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
   });
 
   it("throws when useToast is used without a provider", () => {
-    expect(() => render(<Harness />)).toThrow(/ToastProvider/);
+    expect(() => render(wrap(<Harness />))).toThrow(/ToastProvider/);
   });
 });

@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { joinRequests } from "@/db/schema";
 import { getSession } from "@/lib/session";
-import { assertMeetingSlugHost } from "@/lib/hostAuth";
+import { assertMeetingSlugModerator } from "@/lib/hostAuth";
 
 export async function POST(
   _req: NextRequest,
@@ -11,7 +11,7 @@ export async function POST(
 ) {
   const { slug, id } = await ctx.params;
   const session = await getSession();
-  const auth = await assertMeetingSlugHost({ slug, session });
+  const auth = await assertMeetingSlugModerator({ slug, session });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

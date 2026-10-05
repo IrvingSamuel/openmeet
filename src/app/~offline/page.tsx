@@ -26,7 +26,10 @@ function resolveLocale(): OfflineLocale {
   const cookie = readCookie("NEXT_LOCALE");
   if (cookie && cookie in catalogs) return cookie as OfflineLocale;
 
-  const lang = navigator.language?.toLowerCase() ?? "";
+  const lang =
+    typeof navigator !== "undefined"
+      ? navigator.language?.toLowerCase() ?? ""
+      : "";
   if (lang.startsWith("pt")) return "pt";
   if (lang.startsWith("es")) return "es";
   if (lang.startsWith("fr")) return "fr";

@@ -11,48 +11,48 @@ import {
 } from "@/components/MeetingRoom";
 import { MeetingRoomErrorBoundary } from "@/components/MeetingRoomErrorBoundary";
 import { brandStyleString, type BrandTokens } from "@/lib/brand";
+import { tabInstanceId } from "@/lib/tab-instance";
 import { Aurora } from "@/components/motion/primitives";
 import { LogoMark } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Surface";
 
 type MeetingPayload = {
-  meeting: { id: string; slug: string; title: string; accessPolicy: string; status: string };
-  brand: (BrandTokens & { customCss?: string | null }) | null;
+  meeting: {
+    id: string;
+    slug: string;
+    title: string;
+    accessPolicy: string;
+    status: string;
+    redirectAfterMeet?: string | null;
+    externalInviteUrl?: string | null;
+    waitForHost?: boolean;
+    muteMicOnJoin?: boolean;
+    captionsEnabled?: boolean;
+    transcriptionEnabled?: boolean;
+    summaryEnabled?: boolean;
+  };
+  brand: (BrandTokens & { customCss?: string | null; faviconUrl?: string | null }) | null;
 };
 
 type Session = {
   token: string;
   serverUrl: string;
   meetingId?: string;
-  role: "host" | "participant" | "agent";
+  role: "host" | "moderator" | "participant" | "agent";
   displayName: string;
   video: boolean;
   audio: boolean;
   videoDeviceId?: string;
   audioDeviceId?: string;
+  redirectAfterMeet?: string | null;
   recording?: {
     enabled: boolean;
     engine: "egress" | "browser";
-    controlMode: "manual" | "auto";
+    controlMode: "manual" | "auto" | "ask";
     autoRecordingId?: string | null;
   } | null;
 };
-
-function tabInstanceId(): string {
-  try {
-    const existing = window.sessionStorage.getItem("openmeet:tab-id");
-    if (existing) return existing;
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID().slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
-    window.sessionStorage.setItem("openmeet:tab-id", id);
-    return id;
-  } catch {
-    return Math.random().toString(36).slice(2, 10);
-  }
-}
 
 export default function MeetingJoinPage() {
   const params = useParams<{ slug: string }>();
@@ -68,9 +68,11 @@ export default function MeetingJoinPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [joining, setJoining] = useState(false);
   const [waitingRequestId, setWaitingRequestId] = useState<string | null>(null);
+  const [waitingForHost, setWaitingForHost] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const meetingIdRef = useRef<string | undefined>(undefined);
+  const redirectAfterMeetRef = useRef<string | null>(null);
   const pendingJoinOpts = useRef<JoinOptions | null>(null);
   const consumingApprovalRef = useRef(false);
   const sessionRef = useRef<Session | null>(null);
@@ -103,10 +105,43 @@ export default function MeetingJoinPage() {
   useEffect(() => {
     if (!data?.brand) return;
     document.documentElement.style.cssText = brandStyleString(data.brand);
+    const faviconUrl = data.brand.faviconUrl;
+    let previousHref: string | null = null;
+    let link: HTMLLinkElement | null = null;
+    if (faviconUrl) {
+      link = document.querySelector('link[rel="icon"]');
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = "icon";
+        document.head.appendChild(link);
+      }
+      previousHref = link.href;
+      link.href = faviconUrl;
+    }
+    if (data.meeting.redirectAfterMeet) {
+      redirectAfterMeetRef.current = data.meeting.redirectAfterMeet;
+    }
     return () => {
       document.documentElement.style.cssText = "";
+      if (link && previousHref) link.href = previousHref;
     };
   }, [data]);
+
+  const goAfterMeet = useCallback(
+    (mode: "leave" | "end", meetingId?: string) => {
+      const redirect = redirectAfterMeetRef.current;
+      if (redirect) {
+        window.location.assign(redirect);
+        return;
+      }
+      if (mode === "end" && meetingId) {
+        router.push(`/m/${slug}/summary?meetingId=${meetingId}`);
+        return;
+      }
+      router.push("/dashboard");
+    },
+    [router, slug],
+  );
 
   const enterWithToken = useCallback(
     (
@@ -115,23 +150,32 @@ export default function MeetingJoinPage() {
         serverUrl: string;
         meetingId?: string;
         role?: string;
+        redirectAfterMeet?: string | null;
         recording?: Session["recording"];
       },
       opts: JoinOptions,
     ) => {
       meetingIdRef.current = json.meetingId;
+      if (json.redirectAfterMeet) {
+        redirectAfterMeetRef.current = json.redirectAfterMeet;
+      }
       setWaitingRequestId(null);
+      setWaitingForHost(false);
       pendingJoinOpts.current = null;
       setSession({
         token: json.token,
         serverUrl: json.serverUrl,
         meetingId: json.meetingId,
-        role: json.role === "host" ? "host" : "participant",
+        role:
+          json.role === "host" || json.role === "moderator"
+            ? json.role
+            : "participant",
         displayName: opts.displayName,
         video: opts.videoEnabled,
         audio: opts.audioEnabled,
         videoDeviceId: opts.videoDeviceId,
         audioDeviceId: opts.audioDeviceId,
+        redirectAfterMeet: json.redirectAfterMeet ?? redirectAfterMeetRef.current,
         recording: json.recording ?? null,
       });
     },
@@ -209,6 +253,10 @@ export default function MeetingJoinPage() {
           setWaitingRequestId(json.requestId);
           return;
         }
+        if (json.status === "waiting_for_host") {
+          setWaitingForHost(true);
+          return;
+        }
         enterWithToken(json, opts);
       } catch {
         setError(tErrors("networkFailed"));
@@ -272,9 +320,47 @@ export default function MeetingJoinPage() {
     };
   }, [waitingRequestId, slug, requestToken, enterWithToken, tErrors]);
 
+  // Poll until host is present (API private / wait_for_host)
+  useEffect(() => {
+    if (!waitingForHost || !pendingJoinOpts.current) return;
+    let cancelled = false;
+    const opts = pendingJoinOpts.current;
+
+    const tick = async () => {
+      try {
+        const { res, json } = await requestToken(opts);
+        if (cancelled) return;
+        if (!res.ok) {
+          if (json.error === "meeting_ended") {
+            setWaitingForHost(false);
+            setError(json.error);
+          }
+          return;
+        }
+        if (json.status === "waiting_for_host") return;
+        if (json.token) {
+          enterWithToken(json, opts);
+        }
+      } catch {
+        /* keep polling */
+      }
+    };
+
+    void tick();
+    const id = window.setInterval(tick, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [waitingForHost, requestToken, enterWithToken]);
+
   const cancelWait = useCallback(async () => {
     const requestId = waitingRequestId;
-    if (!requestId) return;
+    if (!requestId) {
+      setWaitingForHost(false);
+      pendingJoinOpts.current = null;
+      return;
+    }
     setError(null);
     try {
       const res = await fetch(
@@ -290,6 +376,7 @@ export default function MeetingJoinPage() {
         return;
       }
       setWaitingRequestId(null);
+      setWaitingForHost(false);
       pendingJoinOpts.current = null;
       consumingApprovalRef.current = false;
     } catch {
@@ -314,22 +401,21 @@ export default function MeetingJoinPage() {
           throw new Error(json.error || "end_failed");
         }
         meetingIdRef.current = undefined;
-        // Summary can run in the background — room is already emptied.
         fetch("/api/meetings/summary", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ meetingId }),
         }).catch(() => undefined);
         setSession(null);
-        router.push(`/m/${slug}/summary?meetingId=${meetingId}`);
+        goAfterMeet("end", meetingId);
         return;
       }
 
       meetingIdRef.current = undefined;
       setSession(null);
-      router.push("/dashboard");
+      goAfterMeet("leave", meetingId);
     },
-    [router, slug],
+    [goAfterMeet],
   );
 
   if (notFound) return <RoomNotFound />;
@@ -345,6 +431,8 @@ export default function MeetingJoinPage() {
           retryLabel={tRoom("retry")}
           leaveLabel={tRoom("leave")}
           onLeave={() => leave("leave")}
+          slug={data.meeting.slug}
+          meetingId={session.meetingId}
         >
           <MeetingRoom
             token={session.token}
@@ -362,6 +450,12 @@ export default function MeetingJoinPage() {
             meetingId={session.meetingId}
             role={session.role}
             recordingConfig={session.recording ?? null}
+            redirectAfterMeet={
+              session.redirectAfterMeet ?? data.meeting.redirectAfterMeet ?? null
+            }
+            externalInviteUrl={data.meeting.externalInviteUrl ?? null}
+            captionsEnabled={data.meeting.captionsEnabled !== false}
+            transcriptionEnabled={data.meeting.transcriptionEnabled !== false}
             initialVideo={session.video}
             initialAudio={session.audio}
             videoDeviceId={session.videoDeviceId}
@@ -385,12 +479,16 @@ export default function MeetingJoinPage() {
           }
           requireLogin={data.meeting.accessPolicy === "members"}
           showHostLoginHint={
-            data.meeting.accessPolicy === "invite" && !me.isLoggedIn
+            data.meeting.accessPolicy === "invite" &&
+            !data.meeting.waitForHost &&
+            !me.isLoggedIn
           }
           isLoggedIn={me.isLoggedIn}
           joining={joining}
-          waiting={Boolean(waitingRequestId)}
+          waiting={Boolean(waitingRequestId) || waitingForHost}
+          waitingForHost={waitingForHost}
           error={error}
+          defaultAudioEnabled={data.meeting.muteMicOnJoin === false}
           onJoin={join}
           onCancelWait={() => {
             void cancelWait();

@@ -23,6 +23,10 @@ import {
   SUMMARY_TRANSCRIPT_CHAR_CAP,
 } from "@/lib/transcript-sample";
 import { dispatchSummaryReadyWebhooks } from "@/lib/outbound-webhooks";
+import {
+  featuresFromRow,
+  SUMMARY_STATUS_DISABLED,
+} from "@/lib/meeting-features";
 
 export type SuggestedAction = {
   title: string;
@@ -54,12 +58,13 @@ export function emptyTranscriptSummaryMarkdown(locale: string): string {
 export async function tryClaimSummary(
   meetingId: string,
   force?: boolean,
-): Promise<"claimed" | "busy" | "ready"> {
+): Promise<"claimed" | "busy" | "ready" | "disabled"> {
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.id, meetingId),
   });
   if (!meeting) throw new Error("not_found");
 
+  if (!featuresFromRow(meeting).summary) return "disabled";
   if (!force && meeting.summaryStatus === "ready") return "ready";
   if (!force && meeting.summaryStatus === "running") return "busy";
 
@@ -93,11 +98,20 @@ export async function tryClaimSummary(
   return "claimed";
 }
 
+/** Returns null without generating when the meeting has the summary turned off. */
 export async function generateMeetingSummary(meetingId: string) {
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.id, meetingId),
   });
   if (!meeting) throw new Error("not_found");
+
+  if (!featuresFromRow(meeting).summary) {
+    await db
+      .update(meetings)
+      .set({ summaryStatus: SUMMARY_STATUS_DISABLED })
+      .where(eq(meetings.id, meeting.id));
+    return null;
+  }
 
   const segments = await db.query.transcriptSegments.findMany({
     where: eq(transcriptSegments.meetingId, meeting.id),

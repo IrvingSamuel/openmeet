@@ -4,6 +4,7 @@ import {
   APP_SETTINGS_ROW_ID,
   DEFAULT_WEBHOOK_EVENTS,
   appSettings,
+  type LiveStreamQuality,
   type RecordingControlMode,
   type RecordingEngine,
   type RecordingStorageBackend,
@@ -183,6 +184,7 @@ export function webhookEventsOrDefault(
     summary: events?.summary ?? DEFAULT_WEBHOOK_EVENTS.summary,
     tasks: events?.tasks ?? DEFAULT_WEBHOOK_EVENTS.tasks,
     recording: events?.recording ?? DEFAULT_WEBHOOK_EVENTS.recording,
+    attendance: events?.attendance ?? DEFAULT_WEBHOOK_EVENTS.attendance,
   };
 }
 
@@ -256,7 +258,8 @@ function asEngine(value: string | null | undefined): RecordingEngine {
 }
 
 function asControlMode(value: string | null | undefined): RecordingControlMode {
-  return value === "auto" ? "auto" : "manual";
+  if (value === "auto" || value === "ask") return value;
+  return "manual";
 }
 
 function asStorage(value: string | null | undefined): RecordingStorageBackend {
@@ -298,6 +301,23 @@ export async function resolveRecordingConfig(): Promise<ResolvedRecordingConfig>
       s3Bucket: bucketDb ? "db" : bucketEnv ? "env" : "none",
       s3Endpoint: endpointDb ? "db" : endpointEnv ? "env" : "none",
     },
+  };
+}
+
+export type ResolvedLiveStreamConfig = {
+  enabled: boolean;
+  quality: LiveStreamQuality;
+};
+
+function asLiveStreamQuality(value: string | null | undefined): LiveStreamQuality {
+  return value === "1080p" ? "1080p" : "720p";
+}
+
+export async function resolveLiveStreamConfig(): Promise<ResolvedLiveStreamConfig> {
+  const row = await getAppSettings();
+  return {
+    enabled: Boolean(row?.liveStreamEnabled),
+    quality: asLiveStreamQuality(row?.liveStreamQuality),
   };
 }
 

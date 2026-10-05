@@ -84,6 +84,7 @@ describe("webhookEventsOrDefault", () => {
       summary: true,
       tasks: true,
       recording: true,
+      attendance: true,
     });
     expect(webhookEventsOrDefault({ transcript: false } as never)).toEqual({
       transcript: false,
@@ -91,6 +92,7 @@ describe("webhookEventsOrDefault", () => {
       summary: true,
       tasks: true,
       recording: true,
+      attendance: true,
     });
   });
 });
