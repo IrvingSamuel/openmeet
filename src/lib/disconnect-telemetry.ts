@@ -16,6 +16,7 @@ export const CLIENT_ERROR_LIMITS = {
   message: 500,
   stack: 2500,
   componentStack: 1500,
+  lang: 35,
 } as const;
 
 export type ClientErrorDetails = {
@@ -25,7 +26,30 @@ export type ClientErrorDetails = {
   componentStack?: string;
   /** Set when the boundary auto-reloaded instead of showing the crash screen. */
   reloaded?: boolean;
+  /** `<html lang>` at the time of the crash. */
+  htmlLang?: string;
+  /** Google Translate adds `translated-ltr`/`translated-rtl` to `<html>`. */
+  translated?: boolean;
+  navigatorLanguage?: string;
 };
+
+const TRANSLATED_CLASS = /\btranslated-(ltr|rtl)\b/;
+
+function pageLanguageContext(): Pick<
+  ClientErrorDetails,
+  "htmlLang" | "translated" | "navigatorLanguage"
+> {
+  if (typeof document === "undefined") return {};
+  const html = document.documentElement;
+  return {
+    htmlLang: clip(html.lang, CLIENT_ERROR_LIMITS.lang),
+    translated: TRANSLATED_CLASS.test(html.className),
+    navigatorLanguage: clip(
+      typeof navigator === "undefined" ? undefined : navigator.language,
+      CLIENT_ERROR_LIMITS.lang,
+    ),
+  };
+}
 
 export type DisconnectTelemetryPayload = {
   event: DisconnectTelemetryEvent;
@@ -58,6 +82,7 @@ export function clientErrorDetails(
     message: clip(err.message, CLIENT_ERROR_LIMITS.message) ?? "",
     stack: clip(err.stack, CLIENT_ERROR_LIMITS.stack),
     componentStack: clip(componentStack, CLIENT_ERROR_LIMITS.componentStack),
+    ...pageLanguageContext(),
   };
 }
 

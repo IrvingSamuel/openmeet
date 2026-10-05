@@ -425,46 +425,52 @@ export default function MeetingJoinPage() {
     <>
       {data.brand?.customCss ? <style>{data.brand.customCss}</style> : null}
       {session ? (
-        <MeetingRoomErrorBoundary
-          title={tRoom("title")}
-          body={tRoom("body")}
-          retryLabel={tRoom("retry")}
-          leaveLabel={tRoom("leave")}
-          onLeave={() => leave("leave")}
-          slug={data.meeting.slug}
-          meetingId={session.meetingId}
-        >
-          <MeetingRoom
-            token={session.token}
-            serverUrl={session.serverUrl}
-            roomTitle={data.meeting.title}
-            roomSlug={data.meeting.slug}
-            logoUrl={data.brand?.logoUrl}
-            bgAnimation={data.brand?.bgAnimation}
-            patternUrl={data.brand?.patternUrl}
-            patternTintActive={
-              Boolean(
-                data.brand?.patternTint && data.brand.patternTint !== "none",
-              )
-            }
-            meetingId={session.meetingId}
-            role={session.role}
-            recordingConfig={session.recording ?? null}
-            redirectAfterMeet={
-              session.redirectAfterMeet ?? data.meeting.redirectAfterMeet ?? null
-            }
-            externalInviteUrl={data.meeting.externalInviteUrl ?? null}
-            captionsEnabled={data.meeting.captionsEnabled !== false}
-            transcriptionEnabled={data.meeting.transcriptionEnabled !== false}
-            initialVideo={session.video}
-            initialAudio={session.audio}
-            videoDeviceId={session.videoDeviceId}
-            audioDeviceId={session.audioDeviceId}
-            onRefreshSession={refreshSession}
+        // Machine translation rewrites text nodes React still owns, which
+        // crashes the live room. The room UI is already localized.
+        <div translate="no" className="notranslate">
+          <MeetingRoomErrorBoundary
+            title={tRoom("title")}
+            body={tRoom("body")}
+            retryLabel={tRoom("retry")}
+            leaveLabel={tRoom("leave")}
             onLeave={() => leave("leave")}
-            onEndForAll={() => leave("end")}
-          />
-        </MeetingRoomErrorBoundary>
+            slug={data.meeting.slug}
+            meetingId={session.meetingId}
+          >
+            <MeetingRoom
+              token={session.token}
+              serverUrl={session.serverUrl}
+              roomTitle={data.meeting.title}
+              roomSlug={data.meeting.slug}
+              logoUrl={data.brand?.logoUrl}
+              bgAnimation={data.brand?.bgAnimation}
+              patternUrl={data.brand?.patternUrl}
+              patternTintActive={
+                Boolean(
+                  data.brand?.patternTint && data.brand.patternTint !== "none",
+                )
+              }
+              meetingId={session.meetingId}
+              role={session.role}
+              recordingConfig={session.recording ?? null}
+              redirectAfterMeet={
+                session.redirectAfterMeet ??
+                data.meeting.redirectAfterMeet ??
+                null
+              }
+              externalInviteUrl={data.meeting.externalInviteUrl ?? null}
+              captionsEnabled={data.meeting.captionsEnabled !== false}
+              transcriptionEnabled={data.meeting.transcriptionEnabled !== false}
+              initialVideo={session.video}
+              initialAudio={session.audio}
+              videoDeviceId={session.videoDeviceId}
+              audioDeviceId={session.audioDeviceId}
+              onRefreshSession={refreshSession}
+              onLeave={() => leave("leave")}
+              onEndForAll={() => leave("end")}
+            />
+          </MeetingRoomErrorBoundary>
+        </div>
       ) : (
         <Lobby
           title={data.brand?.lobbyTitle || data.meeting.title}

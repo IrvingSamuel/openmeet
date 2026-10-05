@@ -113,7 +113,7 @@ export function FloatingMenu({
           transition={{ duration: 0.15 }}
           style={{ bottom: coords.bottom, left: coords.left }}
           className={cn(
-            "pointer-events-auto fixed z-[180] w-56 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_92%,black)] p-1.5 shadow-lift backdrop-blur-xl",
+            "notranslate pointer-events-auto fixed z-[180] w-56 overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--brand-bg)_92%,black)] p-1.5 shadow-lift backdrop-blur-xl",
             translateX,
             className,
           )}

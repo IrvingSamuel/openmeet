@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 import { resolveSystemUiTheme } from "@/lib/system-theme";
 
@@ -76,14 +77,18 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Browsers decide whether to offer translation from the served <html lang>,
+  // so it has to be right before hydration.
+  const locale = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${inter.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
     >
