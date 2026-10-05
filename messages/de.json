@@ -592,7 +592,8 @@
       "errors": {
         "live_disabled": "Livestreaming wurde vom Administrator deaktiviert.",
         "invalid_stream_key": "Ungültiger Streamschlüssel.",
-        "invalid_rtmp_url": "Diese RTMP-URL ist auf diesem Server nicht erlaubt. Verwende die Standardadresse von YouTube.",
+        "invalid_rtmp_url": "Ungültige RTMP-URL (muss mit rtmp:// oder rtmps:// beginnen).",
+        "rtmp_host_not_allowed": "Diese RTMP-URL ist auf diesem Server nicht erlaubt. Verwende die Standardadresse von YouTube.",
         "meeting_not_active": "Die Besprechung ist nicht aktiv.",
         "egress_start_failed": "Der Streaming-Dienst (Egress) konnte nicht gestartet werden. Prüfe, ob er läuft.",
         "egress_offline": "Der Streaming-Dienst (LiveKit Egress) ist offline. Bitte den Administrator, ihn zu installieren oder zu starten.",

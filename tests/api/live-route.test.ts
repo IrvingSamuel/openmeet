@@ -16,8 +16,13 @@ vi.mock("@/lib/app-settings", () => ({
   resolveLiveStreamConfig: (...a: unknown[]) => resolveLiveStreamConfig(...a),
 }));
 
-vi.mock("@/lib/session", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/hostAuth", () => ({ assertMeetingModerator: vi.fn() }));
+const latestLiveStream = vi.fn();
+const assertMeetingModerator = vi.fn();
+
+vi.mock("@/lib/session", () => ({ getSession: () => Promise.resolve({}) }));
+vi.mock("@/lib/hostAuth", () => ({
+  assertMeetingModerator: (...a: unknown[]) => assertMeetingModerator(...a),
+}));
 
 vi.mock("@/lib/live-stream", async () => {
   const actual =
@@ -28,7 +33,7 @@ vi.mock("@/lib/live-stream", async () => {
     meetingLiveStreamAllowed: actual.meetingLiveStreamAllowed,
     serializeLiveStream: actual.serializeLiveStream,
     refreshLiveStreamStatus: () => Promise.resolve(null),
-    latestLiveStream: () => Promise.resolve(undefined),
+    latestLiveStream: (...a: unknown[]) => latestLiveStream(...a),
     startMeetingLiveStream: vi.fn(),
     stopMeetingLiveStream: vi.fn(),
   };
@@ -56,6 +61,9 @@ beforeEach(() => {
   meetingsFindFirst.mockReset();
   resolveLiveStreamConfig.mockReset();
   resolveLiveStreamConfig.mockResolvedValue({ enabled: true, quality: "720p" });
+  latestLiveStream.mockReset();
+  latestLiveStream.mockResolvedValue(undefined);
+  assertMeetingModerator.mockReset();
 });
 
 afterEach(() => {
@@ -80,5 +88,41 @@ describe("GET /api/meetings/[id]/live — button hidden without permission", () 
   it("instance switch off beats the meeting permission", async () => {
     resolveLiveStreamConfig.mockResolvedValue({ enabled: false, quality: "720p" });
     expect(await enabledFor(true)).toBe(false);
+  });
+});
+
+describe("GET /api/meetings/[id]/live — lastError", () => {
+  async function lastErrorFor(moderator: boolean) {
+    meetingsFindFirst.mockResolvedValue({
+      id: MEETING_ID,
+      captionsEnabled: true,
+      liveStreamEnabled: true,
+    });
+    latestLiveStream.mockResolvedValue({
+      status: "failed",
+      error: "dial tcp a.rtmp.youtube.com:1935: connection refused",
+      endedAt: new Date(),
+    });
+    assertMeetingModerator.mockResolvedValue(
+      moderator
+        ? { ok: true, meeting: {} }
+        : { ok: false, status: 403, error: "forbidden" },
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await GET(req() as any, ctx);
+    return (await res.json()).lastError as string | null;
+  }
+
+  it("is returned to moderators", async () => {
+    expect(await lastErrorFor(true)).toContain("connection refused");
+  });
+
+  it("is hidden from everyone else", async () => {
+    expect(await lastErrorFor(false)).toBeNull();
+  });
+
+  it("does not check the session when there is no recent failure", async () => {
+    await enabledFor(true);
+    expect(assertMeetingModerator).not.toHaveBeenCalled();
   });
 });

@@ -8,9 +8,10 @@ const insertReturning = vi.fn();
 const updateReturning = vi.fn(() => Promise.resolve([]));
 const startRoomCompositeEgress = vi.fn();
 const listEgress = vi.fn();
+const txExecute = vi.fn(() => Promise.resolve([]));
 
-vi.mock("@/db", () => ({
-  db: {
+vi.mock("@/db", () => {
+  const db = {
     query: {
       meetings: { findFirst: (...a: unknown[]) => meetingsFindFirst(...a) },
       liveStreams: {
@@ -26,8 +27,11 @@ vi.mock("@/db", () => ({
         where: () => ({ returning: (...a: unknown[]) => updateReturning(...a) }),
       }),
     }),
-  },
-}));
+    execute: (...a: unknown[]) => txExecute(...(a as [])),
+    transaction: (fn: (tx: unknown) => unknown) => fn(db),
+  };
+  return { db };
+});
 
 vi.mock("@/lib/app-settings", () => ({
   resolveLiveStreamConfig: () =>
@@ -43,6 +47,7 @@ vi.mock("@/lib/recording", () => ({
 }));
 
 import {
+  checkRtmpUrl,
   maxConcurrentLiveStreams,
   meetingLiveStreamAllowed,
   normalizeRtmpUrl,
@@ -66,6 +71,7 @@ beforeEach(() => {
   insertReturning.mockReset();
   startRoomCompositeEgress.mockReset();
   listEgress.mockReset();
+  txExecute.mockClear();
 
   meetingsFindFirst.mockResolvedValue({
     id: "11111111-1111-4111-8111-111111111111",
@@ -124,6 +130,39 @@ describe("normalizeRtmpUrl", () => {
     expect(normalizeRtmpUrl("http://a.rtmp.youtube.com/live2")).toBeNull();
     expect(normalizeRtmpUrl("rtmp://a b/live2")).toBeNull();
   });
+
+  it("rejects characters where URL parsers disagree on the host", () => {
+    for (const url of [
+      "rtmp://a.rtmp.youtube.com?@127.0.0.1:6379/x",
+      "rtmp://a.rtmp.youtube.com#@127.0.0.1/x",
+      "rtmp://a.rtmp.youtube.com\\@127.0.0.1/x",
+      "rtmp://a.rtmp.youtube.com/live2?x=1",
+      "rtmp://127.0.0.1@a.rtmp.youtube.com/live2",
+    ]) {
+      expect(checkRtmpUrl(url)).toEqual({ ok: false, error: "invalid_rtmp_url" });
+    }
+    process.env.LIVE_STREAM_ALLOWED_HOSTS = "*";
+    expect(normalizeRtmpUrl("rtmp://evil?@127.0.0.1/x")).toBeNull();
+  });
+
+  it("returns the URL rebuilt from the parse, not the raw input", () => {
+    expect(normalizeRtmpUrl("RTMP://B.RTMP.YouTube.com:1935/live2//")).toBe(
+      "rtmp://b.rtmp.youtube.com:1935/live2",
+    );
+    expect(normalizeRtmpUrl("rtmp://a.rtmp.youtube.com")).toBe(
+      "rtmp://a.rtmp.youtube.com",
+    );
+  });
+
+  it("tells a malformed URL apart from a host that is not allowed", () => {
+    expect(checkRtmpUrl("http://x/y")).toMatchObject({ error: "invalid_rtmp_url" });
+    expect(checkRtmpUrl("rtmp://127.0.0.1/live")).toMatchObject({
+      error: "rtmp_host_not_allowed",
+    });
+    expect(checkRtmpUrl("rtmp://a.rtmp.youtube.com:6379/live2")).toMatchObject({
+      error: "rtmp_host_not_allowed",
+    });
+  });
 });
 
 describe("maxConcurrentLiveStreams", () => {
@@ -161,7 +200,31 @@ describe("startMeetingLiveStream", () => {
 
   it("rejects a destination outside the list without calling Egress", async () => {
     const res = await start("rtmp://127.0.0.1:1935/live");
-    expect(res).toMatchObject({ ok: false, error: "invalid_rtmp_url" });
+    expect(res).toMatchObject({
+      ok: false,
+      error: "rtmp_host_not_allowed",
+      status: 400,
+    });
+    expect(startRoomCompositeEgress).not.toHaveBeenCalled();
+  });
+
+  it("counts and inserts under the advisory lock", async () => {
+    const res = await start();
+    expect(res.ok).toBe(true);
+    expect(txExecute).toHaveBeenCalledTimes(1);
+    expect(insertReturning).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the stream another start created while it waited on the lock", async () => {
+    const racing = { id: "row-other", status: "starting", createdAt: new Date() };
+    // First lookup (before the lock) sees nothing; the one under the lock does.
+    liveStreamsFindFirst
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(racing);
+
+    const res = await start();
+    expect(res).toMatchObject({ ok: true, stream: racing });
+    expect(insertReturning).not.toHaveBeenCalled();
     expect(startRoomCompositeEgress).not.toHaveBeenCalled();
   });
 

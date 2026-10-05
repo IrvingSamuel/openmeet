@@ -52,7 +52,11 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       latest.endedAt &&
       Date.now() - latest.endedAt.getTime() < RECENT_FAILURE_MS
     ) {
-      lastError = latest.error;
+      // Raw Egress error (hosts, ports, upstream replies): moderators only,
+      // since this endpoint answers anyone holding the meeting id.
+      const session = await getSession();
+      const auth = await assertMeetingModerator({ meetingId, session });
+      if (auth.ok) lastError = latest.error;
     }
   }
 

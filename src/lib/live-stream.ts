@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   EgressStatus,
   EncodingOptionsPreset,
@@ -20,6 +20,8 @@ const ACTIVE_STATUSES: LiveStreamStatus[] = ["starting", "live", "ending"];
 const ORPHAN_AFTER_MS = 90_000;
 
 type LiveStreamRow = typeof liveStreams.$inferSelect;
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type Result<T> =
   | ({ ok: true } & T)
@@ -64,29 +66,51 @@ export function allowedRtmpHosts(): string[] | null {
   return hosts.length > 0 ? hosts : DEFAULT_ALLOWED_RTMP_HOSTS;
 }
 
-export function normalizeRtmpUrl(raw: string | undefined | null): string | null {
+type RtmpUrlCheck =
+  | { ok: true; url: string }
+  | { ok: false; error: "invalid_rtmp_url" | "rtmp_host_not_allowed" };
+
+export function checkRtmpUrl(raw: string | undefined | null): RtmpUrlCheck {
+  const invalid = { ok: false, error: "invalid_rtmp_url" } as const;
   const value = (raw?.trim() || DEFAULT_RTMP_URL).replace(/\/+$/, "");
-  if (value.length > 300 || /\s/.test(value)) return null;
-  if (!/^rtmps?:\/\/[^/]+/i.test(value)) return null;
+  if (value.length > 300 || /\s/.test(value)) return invalid;
+  if (!/^rtmps?:\/\/[^/]+/i.test(value)) return invalid;
+  // WHATWG URL and the RTMP client inside Egress may disagree on where the
+  // host ends around these (e.g. `rtmp://allowed?@127.0.0.1/x`), and none of
+  // them belongs in an ingest URL. Credentials would also hide the real host.
+  if (/[?#@\\]/.test(value)) return invalid;
 
   let parsed: URL;
   try {
     parsed = new URL(value);
   } catch {
-    return null;
+    return invalid;
   }
-  // Credentials embedded in the URL have no legitimate use here and would hide
-  // the real host from whoever reads the log.
-  if (parsed.username || parsed.password) return null;
 
+  // Non-special schemes (rtmp:) do not lowercase the host.
+  const host = parsed.hostname.toLowerCase();
   const allowed = allowedRtmpHosts();
   if (allowed) {
-    // Non-special schemes (rtmp:) do not lowercase the host.
-    const host = parsed.hostname.toLowerCase();
-    if (!allowed.includes(host)) return null;
-    if (!ALLOWED_RTMP_PORTS.includes(parsed.port)) return null;
+    if (!allowed.includes(host)) {
+      return { ok: false, error: "rtmp_host_not_allowed" };
+    }
+    if (!ALLOWED_RTMP_PORTS.includes(parsed.port)) {
+      return { ok: false, error: "rtmp_host_not_allowed" };
+    }
   }
-  return value;
+
+  // Egress gets the URL rebuilt from what was validated, never the raw input.
+  const port = parsed.port ? `:${parsed.port}` : "";
+  const path = parsed.pathname.replace(/\/+$/, "");
+  return {
+    ok: true,
+    url: `${parsed.protocol.toLowerCase()}//${host}${port}${path}`,
+  };
+}
+
+export function normalizeRtmpUrl(raw: string | undefined | null): string | null {
+  const check = checkRtmpUrl(raw);
+  return check.ok ? check.url : null;
 }
 
 /*
@@ -113,6 +137,8 @@ export function meetingLiveStreamAllowed(row: {
  */
 const DEFAULT_MAX_CONCURRENT = 2;
 
+const LIVE_START_LOCK = "openmeet:live_stream_start";
+
 export function maxConcurrentLiveStreams(): number | null {
   const raw = process.env.LIVE_STREAM_MAX_CONCURRENT?.trim().toLowerCase();
   if (!raw) return DEFAULT_MAX_CONCURRENT;
@@ -126,8 +152,8 @@ export function maxConcurrentLiveStreams(): number | null {
  * `live` because a webhook was lost must not hold a slot forever. A row with
  * no egressId yet is a start in flight — it counts while it is recent.
  */
-async function countRunningLiveStreams(): Promise<number> {
-  const rows = await db.query.liveStreams.findMany({
+async function countRunningLiveStreams(tx: Tx): Promise<number> {
+  const rows = await tx.query.liveStreams.findMany({
     where: inArray(liveStreams.status, ACTIVE_STATUSES),
     columns: { egressId: true, createdAt: true },
   });
@@ -232,10 +258,11 @@ export async function startMeetingLiveStream(opts: {
   if (!isValidStreamKey(streamKey)) {
     return { ok: false, error: "invalid_stream_key", status: 400 };
   }
-  const rtmpUrl = normalizeRtmpUrl(opts.rtmpUrl);
-  if (!rtmpUrl) {
-    return { ok: false, error: "invalid_rtmp_url", status: 400 };
+  const rtmp = checkRtmpUrl(opts.rtmpUrl);
+  if (!rtmp.ok) {
+    return { ok: false, error: rtmp.error, status: 400 };
   }
+  const rtmpUrl = rtmp.url;
 
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.id, opts.meetingId),
@@ -258,32 +285,63 @@ export async function startMeetingLiveStream(opts: {
   }
 
   const cap = maxConcurrentLiveStreams();
-  if (cap !== null) {
-    let running: number;
-    try {
-      running = await countRunningLiveStreams();
-    } catch (err) {
-      // Without knowing how many are running, refusing is the safe side.
-      console.error(
-        "[openmeet] live stream concurrency check failed",
-        redactRtmp(err instanceof Error ? err.message : String(err)),
+  const admission = await db.transaction(
+    async (tx): Promise<
+      | { row: LiveStreamRow; started: boolean }
+      | { error: "live_limit_reached" | "egress_offline" }
+    > => {
+      // Count + insert must be atomic, or simultaneous starts all see a free
+      // slot (and the same meeting can get two rows). Held until commit.
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${LIVE_START_LOCK}))`,
       );
-      return { ok: false, error: "egress_offline", status: 503 };
-    }
-    if (running >= cap) {
-      return { ok: false, error: "live_limit_reached", status: 429 };
-    }
-  }
 
-  const [row] = await db
-    .insert(liveStreams)
-    .values({
-      meetingId: opts.meetingId,
-      status: "starting",
-      startedBy: opts.startedBy ?? null,
-      startedAt: new Date(),
-    })
-    .returning();
+      const inFlight = await tx.query.liveStreams.findFirst({
+        where: and(
+          eq(liveStreams.meetingId, opts.meetingId),
+          inArray(liveStreams.status, ACTIVE_STATUSES),
+        ),
+        orderBy: [desc(liveStreams.createdAt)],
+      });
+      if (inFlight) return { row: inFlight, started: false };
+
+      if (cap !== null) {
+        let running: number;
+        try {
+          running = await countRunningLiveStreams(tx);
+        } catch (err) {
+          // Without knowing how many are running, refusing is the safe side.
+          console.error(
+            "[openmeet] live stream concurrency check failed",
+            redactRtmp(err instanceof Error ? err.message : String(err)),
+          );
+          return { error: "egress_offline" };
+        }
+        if (running >= cap) return { error: "live_limit_reached" };
+      }
+
+      const [inserted] = await tx
+        .insert(liveStreams)
+        .values({
+          meetingId: opts.meetingId,
+          status: "starting",
+          startedBy: opts.startedBy ?? null,
+          startedAt: new Date(),
+        })
+        .returning();
+      return { row: inserted, started: true };
+    },
+  );
+
+  if ("error" in admission) {
+    return admission.error === "live_limit_reached"
+      ? { ok: false, error: "live_limit_reached", status: 429 }
+      : { ok: false, error: "egress_offline", status: 503 };
+  }
+  if (!admission.started) {
+    return { ok: true, stream: admission.row };
+  }
+  const row = admission.row;
 
   try {
     const locale = await liveViewLocale();

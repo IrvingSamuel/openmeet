@@ -17,6 +17,7 @@ const KNOWN_ERRORS = new Set([
   "live_disabled",
   "invalid_stream_key",
   "invalid_rtmp_url",
+  "rtmp_host_not_allowed",
   "meeting_not_active",
   "egress_start_failed",
   "egress_offline",
