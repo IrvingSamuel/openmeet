@@ -570,7 +570,41 @@
     "recordingAskYes": "Oui",
     "recordingAskNotNow": "Pas maintenant",
     "recordingHint": "Démarrez l'enregistrement ici",
+    "liveStream": {
+      "title": "Diffuser en direct sur YouTube",
+      "activeTitle": "Diffusion en direct",
+      "body": "La réunion est diffusée du point de vue d'un spectateur : uniquement les caméras, l'audio et les sous-titres, sans barres ni boutons. Collez la clé de flux depuis YouTube Studio.",
+      "activeBody": "La réunion est à l'antenne. YouTube peut avoir quelques secondes de décalage.",
+      "startingBody": "Démarrage de la diffusion… l'apparition sur YouTube peut prendre jusqu'à 30 secondes.",
+      "captionsOff": "Les sous-titres sont désactivés pour cette réunion. La bande de sous-titres restera vide pendant la diffusion.",
+      "lastFailed": "La dernière diffusion a échoué : {detail}",
+      "streamKeyLabel": "Clé de flux",
+      "streamKeyHint": "YouTube Studio → Passer au direct → Clé de flux. La clé n'est jamais enregistrée.",
+      "advanced": "Options avancées",
+      "rtmpUrlLabel": "URL du serveur RTMP",
+      "rtmpUrlHint": "Valeur par défaut de YouTube. À modifier uniquement pour un autre service compatible RTMP.",
+      "start": "Démarrer la diffusion",
+      "stop": "Arrêter la diffusion",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "badgeLive": "EN DIRECT",
+      "badgeStarting": "DÉMARRAGE",
+      "errors": {
+        "live_disabled": "La diffusion en direct est désactivée par l'administrateur.",
+        "invalid_stream_key": "Clé de flux invalide.",
+        "invalid_rtmp_url": "URL RTMP invalide (doit commencer par rtmp:// ou rtmps://).",
+        "meeting_not_active": "La réunion n'est pas active.",
+        "egress_start_failed": "Impossible de démarrer le service de diffusion (Egress). Vérifiez qu'il est en cours d'exécution.",
+        "egress_offline": "Le service de diffusion (LiveKit Egress) est hors ligne. Demandez à l'administrateur de l'installer ou de le démarrer.",
+        "stop_failed": "Impossible d'arrêter la diffusion. Réessayez.",
+        "forbidden": "Seuls les hôtes et modérateurs peuvent diffuser.",
+        "unauthorized": "Session expirée. Reconnectez-vous.",
+        "generic": "Une erreur inattendue s'est produite."
+      }
+    },
     "controlBar": {
+      "startLiveStream": "Diffuser en direct",
+      "stopLiveStream": "Arrêter la diffusion en direct",
       "muteMic": "Couper le micro",
       "unmuteMic": "Activer le micro",
       "turnOffCam": "Éteindre la caméra",
@@ -821,7 +855,8 @@
       "webhooks": "Webhooks",
       "recording": "Enregistrement",
       "ui": "UI",
-      "api": "API"
+      "api": "API",
+      "liveStream": "Diffusion"
     },
     "api": {
       "heading": "Jeton de l’API publique",
@@ -987,6 +1022,32 @@
       "bodyLabel": "Body JSON",
       "sending": "Envoi…",
       "sendTest": "Envoyer un test de ce type"
+    },
+    "liveStream": {
+      "body": "Permet aux hôtes et modérateurs de diffuser la réunion sur YouTube (ou toute destination RTMP) du point de vue d'un spectateur : caméras, audio et sous-titres fixes uniquement.",
+      "enabled": "Diffusion en direct activée",
+      "qualityLabel": "Qualité",
+      "quality720": "720p 30fps (~3 Mbps) — recommandé",
+      "quality1080": "1080p 30fps (~4,5 Mbps) — plus de CPU",
+      "egressNote": "Nécessite le service livekit/egress (infra/docker-compose.egress.yml). Chaque diffusion consomme environ 4 vCPU sur le serveur. Laissez désactivé si le serveur manque de ressources.",
+      "save": "Enregistrer la diffusion",
+      "service": {
+        "title": "Service LiveKit Egress",
+        "checking": "vérification…",
+        "online": "en ligne",
+        "offline": "hors ligne",
+        "unchecked": "vérification désactivée (EGRESS_HEALTH_URL=none)",
+        "recheck": "Vérifier à nouveau",
+        "healthUrl": "Health check : {url}",
+        "installTitle": "Comment installer le module de diffusion",
+        "installIntro": "Egress n'a pas répondu. Tant qu'il est hors ligne, personne ne peut démarrer une diffusion. Sur le serveur, dans le dossier OpenMeet :",
+        "step1": "Créez la configuration Egress et renseignez api_key et api_secret avec les mêmes valeurs que livekit.yaml (LIVEKIT_API_KEY / LIVEKIT_API_SECRET du .env). Gardez health_port: 9187 (un port libre, identique à EGRESS_HEALTH_URL).",
+        "step2": "Démarrez le conteneur (nécessite Docker ; utilise network_mode: host et environ 4 vCPU par diffusion).",
+        "step3": "Autorisez la sortie TCP 1935 (rtmp://) ou 443 (rtmps://) dans le pare-feu.",
+        "step4": "Pour un état en temps réel, ajoutez le webhook de cette application à livekit.yaml et redémarrez LiveKit (facultatif : sans lui, l'état est interrogé périodiquement).",
+        "step5": "Facultatif, dans .env (redémarrez l'application ensuite) : URL utilisée par le Chrome d'Egress pour ouvrir la page spectateur, et URL du health check si Egress tourne sur un autre hôte.",
+        "docsHint": "Guide complet dans docs/05-live-stream.md et dans la section « Live streaming » du README."
+      }
     },
     "recording": {
       "enabled": "Enregistrement des réunions activé",

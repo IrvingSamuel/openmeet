@@ -425,6 +425,36 @@ export const recordings = pgTable(
   ],
 );
 
+export type LiveStreamQuality = "720p" | "1080p";
+export type LiveStreamStatus =
+  | "starting"
+  | "live"
+  | "ending"
+  | "ended"
+  | "failed";
+
+/** The RTMP stream key is never stored — it is only handed to Egress. */
+export const liveStreams = pgTable(
+  "live_streams",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    meetingId: uuid("meeting_id")
+      .notNull()
+      .references(() => meetings.id, { onDelete: "cascade" }),
+    egressId: text("egress_id"),
+    status: text("status").notNull().default("starting"),
+    error: text("error"),
+    startedBy: text("started_by"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("live_streams_meeting_idx").on(t.meetingId),
+    index("live_streams_egress_idx").on(t.egressId),
+  ],
+);
+
 export const APP_SETTINGS_ROW_ID = "00000000-0000-0000-0000-000000000001";
 
 export type WebhookEventsConfig = {
@@ -496,6 +526,9 @@ export const appSettings = pgTable("app_settings", {
   recordingS3Region: text("recording_s3_region"),
   recordingS3AccessKey: text("recording_s3_access_key"),
   recordingS3SecretKey: text("recording_s3_secret_key"),
+  /** RTMP live stream via LiveKit Egress (heavy: ~4 vCPU per stream). */
+  liveStreamEnabled: boolean("live_stream_enabled").notNull().default(false),
+  liveStreamQuality: text("live_stream_quality").notNull().default("720p"),
   uiPrimary: text("ui_primary").default("#0ea5e9"),
   uiSecondary: text("ui_secondary").default("#38bdf8"),
   uiTertiary: text("ui_tertiary").default("#818cf8"),

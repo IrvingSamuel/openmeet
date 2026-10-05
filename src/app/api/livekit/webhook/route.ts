@@ -6,6 +6,10 @@ import { getWebhookReceiver } from "@/lib/livekit";
 import { activateMeetingIfScheduled } from "@/lib/meeting-lifecycle";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
+import {
+  handleLiveStreamEgressWebhook,
+  stopMeetingLiveStream,
+} from "@/lib/live-stream";
 import { handleEgressWebhook, stopMeetingRecording } from "@/lib/recording";
 
 async function findMeetingByLivekitRoom(roomName: string) {
@@ -67,6 +71,10 @@ export async function POST(req: NextRequest) {
             "[openmeet] stop recording on room_finished",
             err,
           );
+        });
+
+        void stopMeetingLiveStream({ meetingId: meeting.id }).catch((err) => {
+          console.error("[openmeet] stop live stream on room_finished", err);
         });
 
         // Never-started (scheduled) meetings skip webhooks/summary.
@@ -144,7 +152,10 @@ export async function POST(req: NextRequest) {
         event.event === "egress_ended") &&
       event.egressInfo
     ) {
-      await handleEgressWebhook(event.egressInfo);
+      const wasLiveStream = await handleLiveStreamEgressWebhook(
+        event.egressInfo,
+      );
+      if (!wasLiveStream) await handleEgressWebhook(event.egressInfo);
     }
 
     return NextResponse.json({ ok: true });

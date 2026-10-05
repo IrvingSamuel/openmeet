@@ -1,0 +1,338 @@
+import { and, desc, eq, inArray } from "drizzle-orm";
+import {
+  EgressStatus,
+  EncodingOptionsPreset,
+  StreamOutput,
+  StreamProtocol,
+  type EgressInfo,
+} from "livekit-server-sdk";
+import { db } from "@/db";
+import { liveStreams, meetings, type LiveStreamStatus } from "@/db/schema";
+import { resolveLiveStreamConfig, resolveLocale } from "@/lib/app-settings";
+import { getEgressClient } from "@/lib/recording";
+import { locales, routing, type AppLocale } from "@/i18n/routing";
+
+export const DEFAULT_RTMP_URL = "rtmp://a.rtmp.youtube.com/live2";
+
+const ACTIVE_STATUSES: LiveStreamStatus[] = ["starting", "live", "ending"];
+
+/** Egress that never reported back after this long is considered gone. */
+const ORPHAN_AFTER_MS = 90_000;
+
+type LiveStreamRow = typeof liveStreams.$inferSelect;
+
+type Result<T> =
+  | ({ ok: true } & T)
+  | { ok: false; error: string; status: number; detail?: string };
+
+/** Stream keys must never reach logs or the DB. */
+function redactRtmp(message: string): string {
+  return message.replace(/(rtmps?:\/\/[^\s"']+\/)[^\s"'/]+/gi, "$1••••");
+}
+
+function isValidStreamKey(key: string) {
+  return /^[A-Za-z0-9_\-.]{4,200}$/.test(key);
+}
+
+function normalizeRtmpUrl(raw: string | undefined | null): string | null {
+  const value = (raw?.trim() || DEFAULT_RTMP_URL).replace(/\/+$/, "");
+  if (value.length > 300 || /\s/.test(value)) return null;
+  if (!/^rtmps?:\/\/[^/]+/i.test(value)) return null;
+  return value;
+}
+
+async function liveViewLocale(): Promise<AppLocale> {
+  const prefix = (await resolveLocale()).slice(0, 2).toLowerCase();
+  return (locales as readonly string[]).includes(prefix)
+    ? (prefix as AppLocale)
+    : routing.defaultLocale;
+}
+
+function liveViewBaseUrl(): string {
+  const base =
+    process.env.LIVE_VIEW_BASE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    "http://127.0.0.1:3332";
+  return base.replace(/\/+$/, "");
+}
+
+const HEALTH_TIMEOUT_MS = 2_000;
+
+export type EgressHealth = {
+  /** null when the check is disabled (EGRESS_HEALTH_URL=none). */
+  online: boolean | null;
+  healthUrl: string | null;
+};
+
+/** `health_port` from egress.yaml; Egress answers its status as JSON on `/`. */
+function egressHealthUrl(): string | null {
+  const raw = process.env.EGRESS_HEALTH_URL?.trim();
+  if (raw && ["none", "off", "false", "0"].includes(raw.toLowerCase())) {
+    return null;
+  }
+  return raw || "http://127.0.0.1:9187/";
+}
+
+export async function checkEgressHealth(): Promise<EgressHealth> {
+  const healthUrl = egressHealthUrl();
+  if (!healthUrl) return { online: null, healthUrl: null };
+  try {
+    const res = await fetch(healthUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
+    });
+    // Another service (e.g. a web server) on the same port would answer 200
+    // with HTML, so only a JSON status body counts as Egress being up.
+    const isJson = (res.headers.get("content-type") ?? "").includes(
+      "application/json",
+    );
+    if (!res.ok || !isJson) return { online: false, healthUrl };
+    try {
+      JSON.parse(await res.text());
+    } catch {
+      return { online: false, healthUrl };
+    }
+    return { online: true, healthUrl };
+  } catch {
+    return { online: false, healthUrl };
+  }
+}
+
+export async function activeLiveStream(meetingId: string) {
+  return db.query.liveStreams.findFirst({
+    where: and(
+      eq(liveStreams.meetingId, meetingId),
+      inArray(liveStreams.status, ACTIVE_STATUSES),
+    ),
+    orderBy: [desc(liveStreams.createdAt)],
+  });
+}
+
+export async function latestLiveStream(meetingId: string) {
+  return db.query.liveStreams.findFirst({
+    where: eq(liveStreams.meetingId, meetingId),
+    orderBy: [desc(liveStreams.createdAt)],
+  });
+}
+
+export async function startMeetingLiveStream(opts: {
+  meetingId: string;
+  streamKey: string;
+  rtmpUrl?: string | null;
+  startedBy?: string | null;
+}): Promise<Result<{ stream: LiveStreamRow }>> {
+  const config = await resolveLiveStreamConfig();
+  if (!config.enabled) {
+    return { ok: false, error: "live_disabled", status: 403 };
+  }
+
+  const streamKey = opts.streamKey.trim();
+  if (!isValidStreamKey(streamKey)) {
+    return { ok: false, error: "invalid_stream_key", status: 400 };
+  }
+  const rtmpUrl = normalizeRtmpUrl(opts.rtmpUrl);
+  if (!rtmpUrl) {
+    return { ok: false, error: "invalid_rtmp_url", status: 400 };
+  }
+
+  const meeting = await db.query.meetings.findFirst({
+    where: eq(meetings.id, opts.meetingId),
+  });
+  if (!meeting || meeting.status !== "active") {
+    return { ok: false, error: "meeting_not_active", status: 409 };
+  }
+
+  const existing = await activeLiveStream(opts.meetingId);
+  if (existing) {
+    return { ok: true, stream: existing };
+  }
+
+  const health = await checkEgressHealth();
+  if (health.online === false) {
+    return { ok: false, error: "egress_offline", status: 503 };
+  }
+
+  const [row] = await db
+    .insert(liveStreams)
+    .values({
+      meetingId: opts.meetingId,
+      status: "starting",
+      startedBy: opts.startedBy ?? null,
+      startedAt: new Date(),
+    })
+    .returning();
+
+  try {
+    const locale = await liveViewLocale();
+    const client = getEgressClient();
+    const info = await client.startRoomCompositeEgress(
+      meeting.livekitRoomName,
+      new StreamOutput({
+        protocol: StreamProtocol.RTMP,
+        urls: [`${rtmpUrl}/${streamKey}`],
+      }),
+      {
+        customBaseUrl: `${liveViewBaseUrl()}/${locale}/live-view/${meeting.id}`,
+        encodingOptions:
+          config.quality === "1080p"
+            ? EncodingOptionsPreset.H264_1080P_30
+            : EncodingOptionsPreset.H264_720P_30,
+      },
+    );
+    const [updated] = await db
+      .update(liveStreams)
+      .set({ egressId: info.egressId, status: statusFromEgress(info.status) })
+      .where(eq(liveStreams.id, row.id))
+      .returning();
+    return { ok: true, stream: updated ?? row };
+  } catch (err) {
+    const message = redactRtmp(err instanceof Error ? err.message : String(err));
+    console.error("[openmeet] live stream egress start failed", message);
+    await db
+      .update(liveStreams)
+      .set({ status: "failed", error: message, endedAt: new Date() })
+      .where(eq(liveStreams.id, row.id));
+    return {
+      ok: false,
+      error: "egress_start_failed",
+      status: 502,
+      detail: message,
+    };
+  }
+}
+
+export async function stopMeetingLiveStream(opts: {
+  meetingId: string;
+}): Promise<Result<{ stream: LiveStreamRow | null }>> {
+  const row = await activeLiveStream(opts.meetingId);
+  if (!row) return { ok: true, stream: null };
+
+  if (!row.egressId) {
+    const [ended] = await db
+      .update(liveStreams)
+      .set({ status: "ended", endedAt: new Date() })
+      .where(eq(liveStreams.id, row.id))
+      .returning();
+    return { ok: true, stream: ended ?? row };
+  }
+
+  if (row.status === "ending") return { ok: true, stream: row };
+
+  try {
+    await getEgressClient().stopEgress(row.egressId);
+    const [updated] = await db
+      .update(liveStreams)
+      .set({ status: "ending" })
+      .where(eq(liveStreams.id, row.id))
+      .returning();
+    return { ok: true, stream: updated ?? row };
+  } catch (err) {
+    const message = redactRtmp(err instanceof Error ? err.message : String(err));
+    console.error("[openmeet] live stream egress stop failed", message);
+    // Egress already gone (crashed / room closed): close the row anyway.
+    const [failed] = await db
+      .update(liveStreams)
+      .set({ status: "ended", error: message, endedAt: new Date() })
+      .where(eq(liveStreams.id, row.id))
+      .returning();
+    return { ok: true, stream: failed ?? row };
+  }
+}
+
+function statusFromEgress(status: EgressStatus): LiveStreamStatus {
+  switch (status) {
+    case EgressStatus.EGRESS_ACTIVE:
+      return "live";
+    case EgressStatus.EGRESS_ENDING:
+      return "ending";
+    case EgressStatus.EGRESS_COMPLETE:
+      return "ended";
+    case EgressStatus.EGRESS_FAILED:
+    case EgressStatus.EGRESS_ABORTED:
+    case EgressStatus.EGRESS_LIMIT_REACHED:
+      return "failed";
+    default:
+      return "starting";
+  }
+}
+
+async function applyEgressInfo(row: LiveStreamRow, info: EgressInfo) {
+  const status = statusFromEgress(info.status);
+  if (status === row.status) return row;
+  const finished = status === "ended" || status === "failed";
+  const [updated] = await db
+    .update(liveStreams)
+    .set({
+      status,
+      ...(finished ? { endedAt: new Date() } : {}),
+      ...(status === "failed"
+        ? {
+            error: redactRtmp(
+              info.error || `egress_status_${EgressStatus[info.status]}`,
+            ),
+          }
+        : {}),
+    })
+    .where(eq(liveStreams.id, row.id))
+    .returning();
+  return updated ?? row;
+}
+
+/** Returns true when the egress belonged to a live stream. */
+export async function handleLiveStreamEgressWebhook(info: EgressInfo) {
+  if (!info.egressId) return false;
+  const row = await db.query.liveStreams.findFirst({
+    where: eq(liveStreams.egressId, info.egressId),
+  });
+  if (!row) return false;
+  await applyEgressInfo(row, info);
+  return true;
+}
+
+/**
+ * Poll Egress directly — LiveKit webhooks may not be routed to this app
+ * (shared livekit.yaml), so the status endpoint reconciles on read.
+ */
+export async function refreshLiveStreamStatus(
+  meetingId: string,
+): Promise<LiveStreamRow | null> {
+  const row = await activeLiveStream(meetingId);
+  if (!row?.egressId) return row ?? null;
+
+  try {
+    const [info] = await getEgressClient().listEgress({
+      egressId: row.egressId,
+    });
+    if (info) {
+      const updated = await applyEgressInfo(row, info);
+      return ACTIVE_STATUSES.includes(updated.status as LiveStreamStatus)
+        ? updated
+        : null;
+    }
+    const age = Date.now() - (row.startedAt ?? row.createdAt).getTime();
+    if (age > ORPHAN_AFTER_MS) {
+      await db
+        .update(liveStreams)
+        .set({ status: "ended", endedAt: new Date() })
+        .where(eq(liveStreams.id, row.id));
+      return null;
+    }
+  } catch (err) {
+    console.warn(
+      "[openmeet] live stream status refresh failed",
+      redactRtmp(err instanceof Error ? err.message : String(err)),
+    );
+  }
+  return row;
+}
+
+export function serializeLiveStream(row: LiveStreamRow | null) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    status: row.status as LiveStreamStatus,
+    error: row.error,
+    startedAt: row.startedAt?.toISOString() ?? null,
+    endedAt: row.endedAt?.toISOString() ?? null,
+  };
+}

@@ -24,6 +24,7 @@ import { useMeetingDevices } from "@/hooks/useMeetingDevices";
 import { useToast } from "@/components/ui/Toast";
 import { springSoft } from "@/components/motion/primitives";
 import {
+  IconBroadcast,
   IconCaptions,
   IconChat,
   IconGrid,
@@ -78,6 +79,9 @@ export function ControlBar({
   highlightRecording,
   recordingHint,
   onToggleRecording,
+  canLiveStream = false,
+  liveStreamActive = false,
+  onLiveStreamClick,
   onLeave,
   onEndForAll,
   handRaised = false,
@@ -113,6 +117,10 @@ export function ControlBar({
   highlightRecording?: boolean;
   recordingHint?: string;
   onToggleRecording?: () => void;
+  /** Moderator + live streaming enabled in /admin. */
+  canLiveStream?: boolean;
+  liveStreamActive?: boolean;
+  onLiveStreamClick?: () => void;
   onLeave: () => void;
   onEndForAll?: () => void | Promise<void>;
   handRaised?: boolean;
@@ -474,6 +482,20 @@ export function ControlBar({
           >
             <IconSettings />
           </MoreItem>
+          {canLiveStream ? (
+            <MoreItem
+              label={liveStreamActive ? t("stopLiveStream") : t("startLiveStream")}
+              active={liveStreamActive}
+              onClick={() => {
+                setMoreOpen(false);
+                onLiveStreamClick?.();
+              }}
+            >
+              <IconBroadcast
+                className={liveStreamActive ? "text-rose-400" : undefined}
+              />
+            </MoreItem>
+          ) : null}
           {compact ? (
             <MoreItem
               label={handRaised ? t("lowerHand") : t("raiseHand")}

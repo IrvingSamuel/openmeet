@@ -40,6 +40,7 @@ export function ParticipantTile({
   onMute,
   onCameraOff,
   moderationBusy,
+  readOnly,
   className,
 }: {
   trackRef: TrackReferenceOrPlaceholder;
@@ -52,6 +53,8 @@ export function ParticipantTile({
   onMute?: () => void;
   onCameraOff?: () => void;
   moderationBusy?: boolean;
+  /** Spectator / live-stream view: no interactive controls at all. */
+  readOnly?: boolean;
   className?: string;
 }) {
   const t = useTranslations("room.participantTile");
@@ -78,6 +81,7 @@ export function ParticipantTile({
     useElementFullscreen<HTMLDivElement>();
 
   const showModeration =
+    !readOnly &&
     Boolean(canModerate) &&
     !participant.isLocal &&
     !isScreenShare &&
@@ -85,6 +89,7 @@ export function ParticipantTile({
   const showHand = Boolean(handRaised) && !isScreenShare;
 
   function handleDoubleClick() {
+    if (readOnly) return;
     if (isScreenShare) {
       void toggleFullscreen();
       return;
@@ -221,7 +226,7 @@ export function ParticipantTile({
         </span>
       ) : null}
 
-      {onPin && !isScreenShare ? (
+      {onPin && !readOnly && !isScreenShare ? (
         <button
           onClick={onPin}
           aria-label={pinned ? t("unpin") : t("pin")}
@@ -235,7 +240,7 @@ export function ParticipantTile({
         </button>
       ) : null}
 
-      {isScreenShare && showVideo ? (
+      {isScreenShare && showVideo && !readOnly ? (
         <button
           type="button"
           onClick={(e) => {

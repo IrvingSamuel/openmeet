@@ -571,7 +571,41 @@
     "recordingAskYes": "Sim",
     "recordingAskNotNow": "Agora não",
     "recordingHint": "Inicie a gravação aqui",
+    "liveStream": {
+      "title": "Transmitir ao vivo no YouTube",
+      "activeTitle": "Transmissão ao vivo",
+      "body": "A reunião será transmitida com a visão de um espectador: apenas as câmeras, o áudio e as legendas, sem barras nem botões. Cole a chave de transmissão do YouTube Studio.",
+      "activeBody": "A reunião está no ar. O YouTube pode ter alguns segundos de atraso.",
+      "startingBody": "A iniciar a transmissão… pode levar até 30 segundos até aparecer no YouTube.",
+      "captionsOff": "As legendas estão desativadas nesta reunião. A faixa de legenda ficará vazia na transmissão.",
+      "lastFailed": "A última transmissão falhou: {detail}",
+      "streamKeyLabel": "Chave de transmissão",
+      "streamKeyHint": "YouTube Studio → Transmitir ao vivo → Chave de transmissão. A chave não fica guardada.",
+      "advanced": "Opções avançadas",
+      "rtmpUrlLabel": "URL do servidor RTMP",
+      "rtmpUrlHint": "Padrão do YouTube. Altere apenas para outro serviço compatível com RTMP.",
+      "start": "Iniciar transmissão",
+      "stop": "Encerrar transmissão",
+      "cancel": "Cancelar",
+      "close": "Fechar",
+      "badgeLive": "AO VIVO",
+      "badgeStarting": "A INICIAR",
+      "errors": {
+        "live_disabled": "A transmissão ao vivo está desativada pelo administrador.",
+        "invalid_stream_key": "Chave de transmissão inválida.",
+        "invalid_rtmp_url": "URL RTMP inválida (deve começar por rtmp:// ou rtmps://).",
+        "meeting_not_active": "A reunião não está ativa.",
+        "egress_start_failed": "Não foi possível iniciar o serviço de transmissão (Egress). Verifique se está em execução.",
+        "egress_offline": "O serviço de transmissão (LiveKit Egress) está offline. Peça ao administrador para instalá-lo ou iniciá-lo.",
+        "stop_failed": "Não foi possível encerrar a transmissão. Tente novamente.",
+        "forbidden": "Apenas anfitriões e moderadores podem transmitir.",
+        "unauthorized": "Sessão expirada. Entre novamente.",
+        "generic": "Ocorreu um erro inesperado."
+      }
+    },
     "controlBar": {
+      "startLiveStream": "Transmitir ao vivo",
+      "stopLiveStream": "Encerrar transmissão ao vivo",
       "muteMic": "Silenciar microfone",
       "unmuteMic": "Ativar microfone",
       "turnOffCam": "Desligar câmera",
@@ -827,7 +861,8 @@
       "webhooks": "Webhooks",
       "recording": "Gravação",
       "ui": "UI",
-      "api": "API"
+      "api": "API",
+      "liveStream": "Transmissão"
     },
     "api": {
       "heading": "Token da API pública",
@@ -993,6 +1028,32 @@
       "bodyLabel": "Body JSON",
       "sending": "A enviar…",
       "sendTest": "Enviar teste deste tipo"
+    },
+    "liveStream": {
+      "body": "Permite que anfitriões e moderadores transmitam a reunião para o YouTube (ou outro destino RTMP) com a visão de um espectador: só câmeras, áudio e legenda fixa.",
+      "enabled": "Transmissão ao vivo ativa",
+      "qualityLabel": "Qualidade",
+      "quality720": "720p 30fps (~3 Mbps) — recomendado",
+      "quality1080": "1080p 30fps (~4,5 Mbps) — mais CPU",
+      "egressNote": "Requer o serviço livekit/egress (infra/docker-compose.egress.yml). Cada transmissão consome cerca de 4 vCPU no servidor. Mantenha desativado se o servidor não tiver recursos.",
+      "save": "Guardar transmissão",
+      "service": {
+        "title": "Serviço LiveKit Egress",
+        "checking": "a verificar…",
+        "online": "online",
+        "offline": "offline",
+        "unchecked": "verificação desativada (EGRESS_HEALTH_URL=none)",
+        "recheck": "Verificar novamente",
+        "healthUrl": "Health check: {url}",
+        "installTitle": "Como instalar o addon de transmissão",
+        "installIntro": "O Egress não respondeu. Enquanto estiver offline, ninguém consegue iniciar uma transmissão. Na pasta do OpenMeet, no servidor:",
+        "step1": "Crie a configuração do Egress e preencha api_key e api_secret com os mesmos valores do livekit.yaml (LIVEKIT_API_KEY / LIVEKIT_API_SECRET do .env). Mantenha health_port: 9187 (porta livre, igual ao EGRESS_HEALTH_URL).",
+        "step2": "Suba o container (requer Docker; usa network_mode: host e cerca de 4 vCPU por transmissão).",
+        "step3": "Libere a saída TCP 1935 (rtmp://) ou 443 (rtmps://) no firewall.",
+        "step4": "Para o estado em tempo real, adicione o webhook desta app ao livekit.yaml e reinicie o LiveKit (opcional: sem ele, o estado é consultado por polling).",
+        "step5": "Opcional, no .env (reinicie a app depois): URL usada pelo Chrome do Egress para abrir a página de espectador e URL do health check, se o Egress estiver noutro host.",
+        "docsHint": "Guia completo em docs/05-live-stream.md e na secção \"Live streaming\" do README."
+      }
     },
     "recording": {
       "enabled": "Gravação de reuniões activa",

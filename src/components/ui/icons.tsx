@@ -270,6 +270,14 @@ export const IconRecord = (p: IconProps) => (
   </Base>
 );
 
+export const IconBroadcast = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+    <path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8" />
+  </Base>
+);
+
 export const IconHand = (p: IconProps) => (
   <Base {...p}>
     <path d="M8 11V6.5a1.5 1.5 0 0 1 3 0V11" />

@@ -20,6 +20,7 @@ import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import {
   IconArrowRight,
   IconBolt,
+  IconBroadcast,
   IconCheck,
   IconCopy,
   IconFileText,
@@ -104,6 +105,8 @@ type AdminSettings = {
   recordingS3Region: string;
   recordingS3AccessKey: SecretMask;
   recordingS3SecretKey: SecretMask;
+  liveStreamEnabled: boolean;
+  liveStreamQuality: "720p" | "1080p";
   publicApiToken: SecretMask & {
     createdAt?: string | null;
     ownerIdentityId?: string | null;
@@ -123,6 +126,7 @@ const TABS = [
   { key: "ui", icon: IconSparkles },
   { key: "ai", icon: IconSparkles },
   { key: "recording", icon: IconVideo },
+  { key: "liveStream", icon: IconBroadcast },
   { key: "webhooks", icon: IconBolt },
   { key: "api", icon: IconShield },
 ] as const;
@@ -391,6 +395,14 @@ export default function AdminPage() {
     if (s3AccessDraft.trim()) patch.recordingS3AccessKey = s3AccessDraft.trim();
     if (s3SecretDraft.trim()) patch.recordingS3SecretKey = s3SecretDraft.trim();
     await save(patch);
+  }
+
+  async function saveLiveStream() {
+    if (!settings) return;
+    await save({
+      liveStreamEnabled: settings.liveStreamEnabled,
+      liveStreamQuality: settings.liveStreamQuality,
+    });
   }
 
   async function clearS3Access() {
@@ -1347,6 +1359,48 @@ export default function AdminPage() {
               </div>
             ) : null}
 
+            {tab === "liveStream" ? (
+              <div className="max-w-xl space-y-5">
+                <p className="text-sm text-ink-muted">{t("liveStream.body")}</p>
+                <LiveStreamServicePanel />
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-line"
+                    checked={settings.liveStreamEnabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        liveStreamEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>{t("liveStream.enabled")}</span>
+                </label>
+                <Select
+                  label={t("liveStream.qualityLabel")}
+                  value={settings.liveStreamQuality}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      liveStreamQuality: e.target.value as "720p" | "1080p",
+                    })
+                  }
+                >
+                  <option value="720p">{t("liveStream.quality720")}</option>
+                  <option value="1080p">{t("liveStream.quality1080")}</option>
+                </Select>
+                <p className="text-xs text-ink-faint">
+                  {t("liveStream.egressNote")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={saveLiveStream} disabled={saving}>
+                    {saving ? t("saving") : t("liveStream.save")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             {tab === "webhooks" ? (
               <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div className="space-y-5">
@@ -1591,6 +1645,118 @@ export default function AdminPage() {
         </AnimatePresence>
       </div>
     </Shell>
+  );
+}
+
+type EgressHealth = { online: boolean | null; healthUrl: string | null };
+
+const EGRESS_INSTALL_STEPS: Array<{ key: string; code?: string }> = [
+  {
+    key: "step1",
+    code: "cp infra/egress.yaml.example infra/egress.yaml",
+  },
+  {
+    key: "step2",
+    code: "docker compose -f infra/docker-compose.egress.yml up -d",
+  },
+  { key: "step3" },
+  {
+    key: "step4",
+    code: "webhook:\n  api_key: <LIVEKIT_API_KEY>\n  urls:\n    - http://127.0.0.1:3332/api/livekit/webhook",
+  },
+  {
+    key: "step5",
+    code: "LIVE_VIEW_BASE_URL=http://127.0.0.1:3332\nEGRESS_HEALTH_URL=http://127.0.0.1:9187/",
+  },
+];
+
+function LiveStreamServicePanel() {
+  const t = useTranslations("admin.liveStream.service");
+  const [health, setHealth] = useState<EgressHealth | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const check = useCallback(async () => {
+    setChecking(true);
+    try {
+      const res = await fetch("/api/admin/live-stream/health", {
+        cache: "no-store",
+      });
+      setHealth(
+        res.ok
+          ? ((await res.json()) as EgressHealth)
+          : { online: false, healthUrl: null },
+      );
+    } catch {
+      setHealth({ online: false, healthUrl: null });
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void check();
+  }, [check]);
+
+  const status =
+    health === null
+      ? "checking"
+      : health.online === null
+        ? "unchecked"
+        : health.online
+          ? "online"
+          : "offline";
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-line bg-white/[0.03] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <span
+            className={cn(
+              "h-2.5 w-2.5 rounded-full",
+              status === "online" && "bg-emerald-400",
+              status === "offline" && "bg-rose-400",
+              (status === "checking" || status === "unchecked") &&
+                "bg-ink-faint",
+            )}
+          />
+          <span className="font-medium">{t("title")}</span>
+          <span className="text-ink-muted">· {t(status)}</span>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          loading={checking}
+          onClick={() => void check()}
+        >
+          {t("recheck")}
+        </Button>
+      </div>
+      {health?.healthUrl && status !== "online" ? (
+        <p className="text-xs text-ink-faint">
+          {t("healthUrl", { url: health.healthUrl })}
+        </p>
+      ) : null}
+
+      {status === "offline" ? (
+        <div className="space-y-3 border-t border-line pt-4">
+          <h3 className="text-sm font-semibold">{t("installTitle")}</h3>
+          <p className="text-xs text-ink-muted">{t("installIntro")}</p>
+          <ol className="list-decimal space-y-3 pl-5 text-sm">
+            {EGRESS_INSTALL_STEPS.map((step) => (
+              <li key={step.key} className="space-y-1.5">
+                <span className="text-ink-muted">{t(step.key)}</span>
+                {step.code ? (
+                  <pre className="overflow-x-auto rounded-lg border border-line bg-black/40 px-3 py-2 font-mono text-[11px] leading-relaxed text-brand-secondary">
+                    {step.code}
+                  </pre>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          <p className="text-xs text-ink-faint">{t("docsHint")}</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

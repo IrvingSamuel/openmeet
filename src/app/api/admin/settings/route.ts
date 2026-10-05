@@ -81,6 +81,8 @@ const putSchema = z.object({
   recordingS3Region: z.string().max(80).nullable().optional(),
   recordingS3AccessKey: z.string().nullable().optional(),
   recordingS3SecretKey: z.string().nullable().optional(),
+  liveStreamEnabled: z.boolean().optional(),
+  liveStreamQuality: z.enum(["720p", "1080p"]).optional(),
   uiPrimary: z.string().max(40).nullable().optional(),
   uiSecondary: z.string().max(40).nullable().optional(),
   uiTertiary: z.string().max(40).nullable().optional(),
@@ -234,6 +236,8 @@ function publicSettingsPayload(
     recordingS3SecretKey: s3SecretMask,
     recordingS3EndpointSource: recording.sources.s3Endpoint,
     recordingS3BucketSource: recording.sources.s3Bucket,
+    liveStreamEnabled: row.liveStreamEnabled === true,
+    liveStreamQuality: row.liveStreamQuality === "1080p" ? "1080p" : "720p",
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -403,6 +407,13 @@ export async function PUT(req: NextRequest) {
     patch.recordingS3SecretKey = body.recordingS3SecretKey!.trim() || null;
   } else if (body.recordingS3SecretKey === null) {
     patch.recordingS3SecretKey = null;
+  }
+
+  if (body.liveStreamEnabled !== undefined) {
+    patch.liveStreamEnabled = body.liveStreamEnabled;
+  }
+  if (body.liveStreamQuality !== undefined) {
+    patch.liveStreamQuality = body.liveStreamQuality;
   }
 
   const [updated] = await db

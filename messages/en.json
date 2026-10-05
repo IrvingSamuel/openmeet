@@ -581,7 +581,41 @@
     "recordingAskYes": "Yes",
     "recordingAskNotNow": "Not now",
     "recordingHint": "Start recording here",
+    "liveStream": {
+      "title": "Go live on YouTube",
+      "activeTitle": "Live stream",
+      "body": "The meeting is streamed from a spectator's point of view: only cameras, audio and captions, with no bars or buttons. Paste the stream key from YouTube Studio.",
+      "activeBody": "The meeting is on air. YouTube may lag a few seconds behind.",
+      "startingBody": "Starting the stream… it can take up to 30 seconds to appear on YouTube.",
+      "captionsOff": "Captions are disabled for this meeting. The caption strip will stay empty on the stream.",
+      "lastFailed": "The last stream failed: {detail}",
+      "streamKeyLabel": "Stream key",
+      "streamKeyHint": "YouTube Studio → Go live → Stream key. The key is never stored.",
+      "advanced": "Advanced options",
+      "rtmpUrlLabel": "RTMP server URL",
+      "rtmpUrlHint": "YouTube default. Change only for another RTMP-compatible service.",
+      "start": "Start stream",
+      "stop": "End stream",
+      "cancel": "Cancel",
+      "close": "Close",
+      "badgeLive": "LIVE",
+      "badgeStarting": "STARTING",
+      "errors": {
+        "live_disabled": "Live streaming is disabled by the administrator.",
+        "invalid_stream_key": "Invalid stream key.",
+        "invalid_rtmp_url": "Invalid RTMP URL (must start with rtmp:// or rtmps://).",
+        "meeting_not_active": "The meeting is not active.",
+        "egress_start_failed": "Could not start the streaming service (Egress). Check that it is running.",
+        "egress_offline": "The streaming service (LiveKit Egress) is offline. Ask the administrator to install or start it.",
+        "stop_failed": "Could not end the stream. Please try again.",
+        "forbidden": "Only hosts and moderators can go live.",
+        "unauthorized": "Session expired. Please sign in again.",
+        "generic": "Something went wrong."
+      }
+    },
     "controlBar": {
+      "startLiveStream": "Go live",
+      "stopLiveStream": "End live stream",
       "muteMic": "Mute microphone",
       "unmuteMic": "Unmute microphone",
       "turnOffCam": "Turn camera off",
@@ -837,7 +871,8 @@
       "webhooks": "Webhooks",
       "recording": "Recording",
       "ui": "UI",
-      "api": "API"
+      "api": "API",
+      "liveStream": "Live stream"
     },
     "api": {
       "heading": "Public API token",
@@ -1003,6 +1038,32 @@
       "bodyLabel": "Body JSON",
       "sending": "Sending…",
       "sendTest": "Send test for this type"
+    },
+    "liveStream": {
+      "body": "Lets hosts and moderators stream the meeting to YouTube (or any RTMP destination) from a spectator's point of view: cameras, audio and a fixed caption strip only.",
+      "enabled": "Live streaming enabled",
+      "qualityLabel": "Quality",
+      "quality720": "720p 30fps (~3 Mbps) — recommended",
+      "quality1080": "1080p 30fps (~4.5 Mbps) — more CPU",
+      "egressNote": "Requires the livekit/egress service (infra/docker-compose.egress.yml). Each stream uses about 4 vCPU on the server. Keep it disabled if the server lacks resources.",
+      "save": "Save live stream",
+      "service": {
+        "title": "LiveKit Egress service",
+        "checking": "checking…",
+        "online": "online",
+        "offline": "offline",
+        "unchecked": "check disabled (EGRESS_HEALTH_URL=none)",
+        "recheck": "Check again",
+        "healthUrl": "Health check: {url}",
+        "installTitle": "How to install the streaming add-on",
+        "installIntro": "Egress did not respond. While it is offline nobody can start a stream. On the server, in the OpenMeet folder:",
+        "step1": "Create the Egress config and set api_key and api_secret to the same values as livekit.yaml (LIVEKIT_API_KEY / LIVEKIT_API_SECRET in .env). Keep health_port: 9187 (a free port matching EGRESS_HEALTH_URL).",
+        "step2": "Start the container (requires Docker; uses network_mode: host and about 4 vCPU per stream).",
+        "step3": "Allow outbound TCP 1935 (rtmp://) or 443 (rtmps://) in the firewall.",
+        "step4": "For real-time status, add this app's webhook to livekit.yaml and restart LiveKit (optional: without it, status is polled).",
+        "step5": "Optional, in .env (restart the app afterwards): URL Egress' Chrome uses to open the spectator page, and the health check URL if Egress runs on another host.",
+        "docsHint": "Full guide in docs/05-live-stream.md and in the README \"Live streaming\" section."
+      }
     },
     "recording": {
       "enabled": "Meeting recording enabled",

@@ -222,6 +222,70 @@ function loadPos(): Pos | null {
   return null;
 }
 
+/** Latest captions, oldest first, skipping repeats and cross-talk echoes. */
+function recentUniqueCaptions(captions: Caption[], max: number): Caption[] {
+  try {
+    const out: Caption[] = [];
+    for (let i = captions.length - 1; i >= 0 && out.length < max; i--) {
+      const c = captions[i];
+      const newest = out[0];
+      if (newest && captionKey(newest) === captionKey(c)) continue;
+      if (
+        newest &&
+        newest.speaker !== c.speaker &&
+        captionsSimilar(newest.text, c.text)
+      ) {
+        continue;
+      }
+      out.unshift(c);
+    }
+    return out;
+  } catch {
+    return captions.slice(-max);
+  }
+}
+
+/**
+ * Non-interactive caption strip for the live-stream view. Lives in its own
+ * reserved row under the stage so it never covers any camera.
+ */
+export function FixedCaptionsBar({
+  captions,
+  lines = 2,
+  className,
+}: {
+  captions: Caption[];
+  lines?: number;
+  className?: string;
+}) {
+  const recent = recentUniqueCaptions(captions, lines);
+  return (
+    <div
+      aria-live="polite"
+      className={
+        "pointer-events-none flex select-none flex-col items-center justify-center gap-1 overflow-hidden px-[4vw] text-center " +
+        (className ?? "")
+      }
+    >
+      {/* No exit/layout animation: lines must never overlap on the encoded video. */}
+      {recent.map((line, i) => (
+        <motion.p
+          key={`${line.speaker}-${line.text}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: i === recent.length - 1 ? 1 : 0.6 }}
+          transition={{ duration: 0.25 }}
+          className="line-clamp-2 max-w-[92vw] text-pretty text-[clamp(16px,2.6vh,30px)] font-medium leading-snug text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]"
+        >
+          <span className="font-semibold text-brand-secondary">
+            {line.speaker}:{" "}
+          </span>
+          {line.text}
+        </motion.p>
+      ))}
+    </div>
+  );
+}
+
 export function CaptionsOverlay({
   captions,
   visible,
@@ -233,29 +297,7 @@ export function CaptionsOverlay({
   onHide?: () => void;
 }) {
   const t = useTranslations("room.captions");
-  const uniqueRecent = (() => {
-    try {
-      const out: Caption[] = [];
-      for (let i = captions.length - 1; i >= 0 && out.length < 2; i--) {
-        const c = captions[i];
-        if (out.length && captionKey(out[out.length - 1]) === captionKey(c)) {
-          continue;
-        }
-        if (
-          out.length &&
-          out[out.length - 1].speaker !== c.speaker &&
-          captionsSimilar(out[out.length - 1].text, c.text)
-        ) {
-          continue;
-        }
-        out.unshift(c);
-      }
-      if (out.length > 1) return out.slice(-1);
-      return out;
-    } catch {
-      return captions.slice(-1);
-    }
-  })();
+  const uniqueRecent = recentUniqueCaptions(captions, 2).slice(-1);
 
   const [pos, setPos] = useState<Pos | null>(null);
   const drag = useRef<{

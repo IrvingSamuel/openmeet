@@ -46,6 +46,7 @@ import { ControlBar, type SidePanel as PanelKind } from "@/components/room/Contr
 import { SidePanel } from "@/components/room/SidePanel";
 import { ReactionBurstOverlay } from "@/components/room/ReactionBurstOverlay";
 import { CaptionsOverlay, useCaptions, useCopilotInsights } from "@/components/room/Captions";
+import { LiveStreamModal } from "@/components/room/LiveStreamModal";
 import { Badge } from "@/components/ui/Surface";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -61,6 +62,7 @@ import {
   useMeetingRecorder,
   type RecordingClientConfig,
 } from "@/hooks/useMeetingRecorder";
+import { useLiveStream } from "@/hooks/useLiveStream";
 import { useJoinRequests } from "@/hooks/useJoinRequests";
 import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
@@ -622,6 +624,8 @@ function RoomShell({
     isHost: canModerate,
     config: recordingConfig,
   });
+  const liveStream = useLiveStream({ room, meetingId, canModerate });
+  const [liveStreamModalOpen, setLiveStreamModalOpen] = useState(false);
   const declineAsk = recorder.declineAsk;
   const [recordingHint, setRecordingHint] = useState(false);
   const recordingHintTimerRef = useRef<number | null>(null);
@@ -1334,6 +1338,21 @@ function RoomShell({
               REC
             </span>
           ) : null}
+          {liveStream.active && liveStream.active.status !== "ending" ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide text-white",
+                liveStream.active.status === "live"
+                  ? "bg-rose-600 shadow-[0_0_12px_rgba(225,29,72,0.45)]"
+                  : "animate-pulse border border-rose-500/50 bg-rose-500/20 text-rose-100",
+              )}
+            >
+              <span className="h-2 w-2 rounded-full bg-white" />
+              {liveStream.active.status === "live"
+                ? t("liveStream.badgeLive")
+                : t("liveStream.badgeStarting")}
+            </span>
+          ) : null}
           <ConnectionBadge state={state} count={humans.length} />
           <button
             type="button"
@@ -1491,6 +1510,12 @@ function RoomShell({
               if (recorder.active) void recorder.stop();
               else void recorder.start();
             }}
+            canLiveStream={liveStream.canControl}
+            liveStreamActive={Boolean(liveStream.active)}
+            onLiveStreamClick={() => {
+              void liveStream.refresh();
+              setLiveStreamModalOpen(true);
+            }}
             onLeave={onLeave}
             onEndForAll={onEndForAll}
             handRaised={localHandRaised}
@@ -1570,6 +1595,22 @@ function RoomShell({
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      {liveStream.canControl ? (
+        <LiveStreamModal
+          open={liveStreamModalOpen}
+          onClose={() => {
+            setLiveStreamModalOpen(false);
+            liveStream.clearLastError();
+          }}
+          active={liveStream.active}
+          busy={liveStream.busy}
+          captionsEnabled={liveStream.captionsEnabled}
+          lastError={liveStream.lastError}
+          onStart={liveStream.start}
+          onStop={liveStream.stop}
+        />
+      ) : null}
     </div>
   );
 }

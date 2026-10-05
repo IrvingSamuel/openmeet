@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
 import { getRoomServiceClient } from "@/lib/livekit";
 import { endMeetingRow } from "@/lib/meeting-lifecycle";
+import { stopMeetingLiveStream } from "@/lib/live-stream";
 import { stopMeetingRecording } from "@/lib/recording";
 
 async function evictLiveKitRoom(livekitRoomName: string) {
@@ -46,6 +47,11 @@ export async function opsEndMeeting(ownerId: string, meetingId: string) {
     await stopMeetingRecording({ meetingId, force: true });
   } catch {
     // continue ending even if recording stop fails
+  }
+  try {
+    await stopMeetingLiveStream({ meetingId });
+  } catch {
+    // continue ending even if live stream stop fails
   }
 
   await endMeetingRow(meetingId);

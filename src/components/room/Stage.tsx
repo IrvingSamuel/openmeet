@@ -31,20 +31,24 @@ export function Stage({
   canModerate = false,
   roomSlug,
   meetingId,
+  readOnly = false,
 }: {
   layout: StageLayout;
   pinnedKey: string | null;
-  onPin: (key: string | null) => void;
+  onPin?: (key: string | null) => void;
   raisedIdentities?: ReadonlySet<string>;
   canModerate?: boolean;
   roomSlug?: string;
   meetingId?: string;
+  /** Spectator / live-stream view: no pin, no moderation, no tile buttons. */
+  readOnly?: boolean;
 }) {
   const { moderate, busyIdentity } = useModerateParticipant({
     roomSlug,
     meetingId,
-    enabled: canModerate,
+    enabled: canModerate && !readOnly,
   });
+  const pin = readOnly ? undefined : onPin;
   const t = useTranslations("room");
   const rootRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
@@ -69,9 +73,15 @@ export function Stage({
     { onlySubscribed: false },
   );
 
+  // In read-only mode the local participant is the hidden Egress recorder.
   const tracks = useMemo(
-    () => allTracks.filter((t) => !isAgentParticipant(t.participant)),
-    [allTracks],
+    () =>
+      allTracks.filter(
+        (t) =>
+          !isAgentParticipant(t.participant) &&
+          !(readOnly && t.participant.isLocal),
+      ),
+    [allTracks, readOnly],
   );
 
   const micTracks = useTracks(
@@ -113,9 +123,9 @@ export function Stage({
   useEffect(() => {
     if (!pinnedKey) return;
     if (!tracks.some((t) => trackKey(t) === pinnedKey)) {
-      onPin(null);
+      pin?.(null);
     }
-  }, [tracks, pinnedKey, onPin]);
+  }, [tracks, pinnedKey, pin]);
 
   const others = featured
     ? tracks.filter((t) => trackKey(t) !== trackKey(featured))
@@ -145,9 +155,15 @@ export function Stage({
           micRef={micByIdentity.get(featured.participant.identity)}
           pinned={pinnedKey === trackKey(featured)}
           handRaised={raisedIdentities.has(featured.participant.identity)}
-          onPin={() =>
-            onPin(pinnedKey === trackKey(featured) ? null : trackKey(featured))
+          onPin={
+            pin
+              ? () =>
+                  pin(
+                    pinnedKey === trackKey(featured) ? null : trackKey(featured),
+                  )
+              : undefined
           }
+          readOnly={readOnly}
           canModerate={canModerate}
           onMute={() => void moderate(featured.participant.identity, "mute")}
           onCameraOff={() =>
@@ -172,7 +188,8 @@ export function Stage({
                 compact
                 pinned={pinnedKey === trackKey(ref)}
                 handRaised={raisedIdentities.has(ref.participant.identity)}
-                onPin={() => onPin(trackKey(ref))}
+                onPin={pin ? () => pin(trackKey(ref)) : undefined}
+                readOnly={readOnly}
                 canModerate={canModerate}
                 onMute={() => void moderate(ref.participant.identity, "mute")}
                 onCameraOff={() =>
@@ -207,7 +224,8 @@ export function Stage({
           micRef={micByIdentity.get(ref.participant.identity)}
           pinned={pinnedKey === trackKey(ref)}
           handRaised={raisedIdentities.has(ref.participant.identity)}
-          onPin={() => onPin(trackKey(ref))}
+          onPin={pin ? () => pin(trackKey(ref)) : undefined}
+          readOnly={readOnly}
           canModerate={canModerate}
           onMute={() => void moderate(ref.participant.identity, "mute")}
           onCameraOff={() =>
