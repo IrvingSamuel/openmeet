@@ -1,14 +1,14 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { existsSync } from "fs";
 import { stat } from "fs/promises";
 import {
   EncodedFileOutput,
   EncodedFileType,
   EgressClient,
+  EgressInfo,
   EgressStatus,
   EncodingOptionsPreset,
   S3Upload,
-  type EgressInfo,
 } from "livekit-server-sdk";
 import { db } from "@/db";
 import { meetings, recordings } from "@/db/schema";
@@ -463,6 +463,92 @@ export async function handleEgressWebhook(info: EgressInfo) {
       .set({ status: "uploading" })
       .where(eq(recordings.id, row.id));
   }
+}
+
+export type StuckRecordingOutcome =
+  | "recovered_from_egress"
+  | "recovered_from_disk"
+  | "failed_in_egress"
+  | "still_running"
+  | "unrecoverable";
+
+/**
+ * Egress recordings left in `uploading` because their EGRESS_COMPLETE update
+ * was rejected (e.g. size over the old integer column) or the webhook was
+ * lost. Replays them through handleEgressWebhook so `recording.ready` goes
+ * out the normal way. Egress is asked first; when it no longer knows the
+ * egress, a local MP4 on disk is taken as the finished file.
+ */
+export async function recoverStuckEgressRecordings(): Promise<
+  Array<{ id: string; outcome: StuckRecordingOutcome; bytes?: number }>
+> {
+  const rows = await db.query.recordings.findMany({
+    where: and(
+      eq(recordings.engine, "egress"),
+      eq(recordings.status, "uploading"),
+      isNotNull(recordings.egressId),
+    ),
+  });
+  if (rows.length === 0) return [];
+
+  const config = await resolveRecordingConfig();
+  const client = getEgressClient();
+  const results: Array<{
+    id: string;
+    outcome: StuckRecordingOutcome;
+    bytes?: number;
+  }> = [];
+
+  for (const row of rows) {
+    const egressId = row.egressId!;
+    let info: EgressInfo | undefined;
+    try {
+      [info] = await client.listEgress({ egressId });
+    } catch (err) {
+      console.warn(
+        "[openmeet] stuck recording: egress lookup failed, trying disk",
+        egressId,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+
+    if (info) {
+      if (info.status === EgressStatus.EGRESS_COMPLETE) {
+        await handleEgressWebhook(info);
+        results.push({ id: row.id, outcome: "recovered_from_egress" });
+      } else if (
+        info.status === EgressStatus.EGRESS_FAILED ||
+        info.status === EgressStatus.EGRESS_ABORTED ||
+        info.status === EgressStatus.EGRESS_LIMIT_REACHED
+      ) {
+        await handleEgressWebhook(info);
+        results.push({ id: row.id, outcome: "failed_in_egress" });
+      } else {
+        results.push({ id: row.id, outcome: "still_running" });
+      }
+      continue;
+    }
+
+    const absolute =
+      row.storageBackend === "local"
+        ? localPathFor(config, row.meetingId, row.id, "mp4")
+        : null;
+    if (!absolute || !existsSync(absolute)) {
+      results.push({ id: row.id, outcome: "unrecoverable" });
+      continue;
+    }
+    const { size } = await stat(absolute);
+    await handleEgressWebhook(
+      new EgressInfo({
+        egressId,
+        status: EgressStatus.EGRESS_COMPLETE,
+        fileResults: [{ filename: absolute, size: BigInt(size) }],
+      }),
+    );
+    results.push({ id: row.id, outcome: "recovered_from_disk", bytes: size });
+  }
+
+  return results;
 }
 
 export function serializeRecording(
