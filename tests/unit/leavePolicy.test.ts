@@ -1,6 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { DisconnectReason } from "livekit-client";
-import { disconnectOutcome, shouldExitMeeting } from "@/lib/leavePolicy";
+import { ConnectionError, DisconnectReason } from "livekit-client";
+import {
+  disconnectOutcome,
+  isSelfCancelledConnect,
+  shouldExitMeeting,
+} from "@/lib/leavePolicy";
+
+describe("isSelfCancelledConnect", () => {
+  it("matches the connect abort raised by our own room.disconnect()", () => {
+    expect(
+      isSelfCancelledConnect(ConnectionError.cancelled("Client initiated disconnect")),
+    ).toBe(true);
+  });
+
+  it("keeps real connection failures visible", () => {
+    expect(isSelfCancelledConnect(ConnectionError.timeout("timed out"))).toBe(false);
+    expect(
+      isSelfCancelledConnect(ConnectionError.serverUnreachable("could not establish signal connection")),
+    ).toBe(false);
+    expect(isSelfCancelledConnect(new Error("Client initiated disconnect"))).toBe(false);
+  });
+});
 
 describe("shouldExitMeeting", () => {
   it("navigates away only on intentional leave", () => {

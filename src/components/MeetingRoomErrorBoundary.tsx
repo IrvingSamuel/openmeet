@@ -2,6 +2,15 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
+import {
+  clientErrorDetails,
+  reportDisconnectTelemetry,
+} from "@/lib/disconnect-telemetry";
+import {
+  canAutoReload,
+  isChunkLoadError,
+  markAutoReload,
+} from "@/lib/chunk-reload";
 
 type Props = {
   children: ReactNode;
@@ -10,27 +19,33 @@ type Props = {
   retryLabel: string;
   leaveLabel: string;
   onLeave?: () => void;
-  /** Optional correlation for console logs (meeting slug). */
+  /** Meeting slug, used to correlate console logs and telemetry. */
   slug?: string;
-  /** Optional correlation for console logs (meeting id). */
+  /** Meeting id, used to correlate console logs and telemetry. */
   meetingId?: string;
 };
 
 type State = {
   error: Error | null;
+  /** A stale chunk after a redeploy: the page reloads instead of showing the crash screen. */
+  reloading: boolean;
   /** Bumped on retry so children remount a clean LiveKit session. */
   retryKey: number;
 };
 
 export class MeetingRoomErrorBoundary extends Component<Props, State> {
-  state: State = { error: null, retryKey: 0 };
+  state: State = { error: null, reloading: false, retryKey: 0 };
 
-  static getDerivedStateFromError(error: Error) {
-    return { error };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return {
+      error,
+      reloading: isChunkLoadError(error) && canAutoReload(),
+    };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     const { slug, meetingId } = this.props;
+    const reload = this.state.reloading && markAutoReload();
     console.error("[MeetingRoomErrorBoundary]", {
       message: error.message,
       name: error.name,
@@ -38,18 +53,36 @@ export class MeetingRoomErrorBoundary extends Component<Props, State> {
       componentStack: info.componentStack,
       slug: slug ?? null,
       meetingId: meetingId ?? null,
+      reloading: reload,
     });
+    if (slug) {
+      reportDisconnectTelemetry({
+        event: "client_error",
+        slug,
+        meetingId,
+        error: { ...clientErrorDetails(error, info.componentStack), reloaded: reload },
+      });
+    }
+    if (reload) {
+      window.location.reload();
+    } else if (this.state.reloading) {
+      this.setState({ reloading: false });
+    }
   }
 
   private retry = () => {
     this.setState((prev) => ({
       error: null,
+      reloading: false,
       retryKey: prev.retryKey + 1,
     }));
   };
 
   render() {
-    const { error, retryKey } = this.state;
+    const { error, reloading, retryKey } = this.state;
+    if (error && reloading) {
+      return <div className="min-h-[100svh] bg-[var(--brand-bg-solid)]" aria-busy="true" />;
+    }
     if (error) {
       const { title, body, retryLabel, leaveLabel, onLeave } = this.props;
 

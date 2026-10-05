@@ -118,3 +118,26 @@ O design system vive em `src/app/globals.css` e `src/components/`. Cores, fontes
 
 - Capacidade: `scripts/capacity-snapshot.sh`
 - Apps PM2: `openmeet` + `openmeet-agent` (porta `3332`)
+
+### Atualizar com a app no ar
+
+Não rode `npm run build` direto em cima do `.next` com o PM2 servindo. Durante o build o servidor passa a responder com `Cannot find module './chunks/…'` e quem está numa reunião recebe a tela "Algo deu errado na reunião". Gere o build numa pasta separada e troque no fim:
+
+```bash
+git pull && npm ci
+NEXT_DIST_DIR=.next-staging npm run build
+rm -rf .next-prev && mv .next .next-prev && mv .next-staging .next
+pm2 reload openmeet
+```
+
+Abas abertas antes da atualização que pedirem um chunk antigo recarregam a página sozinhas, uma vez por minuto no máximo. Evite atualizar durante eventos ao vivo.
+
+### Erros de reunião no navegador
+
+Quando a tela "Algo deu errado na reunião" aparece, o erro real (mensagem e stack) é enviado ao servidor:
+
+```bash
+pm2 logs openmeet --err --nostream --lines 2000 | grep "openmeet:client-error"
+```
+
+Desconexões e reconexões aparecem como `[openmeet:disconnect]` em `pm2 logs openmeet --out`.

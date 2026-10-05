@@ -1,5 +1,20 @@
 import type { Room } from "livekit-client";
-import { DisconnectReason } from "livekit-client";
+import {
+  ConnectionError,
+  ConnectionErrorReason,
+  DisconnectReason,
+} from "livekit-client";
+
+/**
+ * A connect attempt aborted by our own `room.disconnect()` (unmount, leave,
+ * error-boundary teardown). Not a network failure, so never show it to users.
+ */
+export function isSelfCancelledConnect(err: unknown): boolean {
+  return (
+    err instanceof ConnectionError &&
+    err.reason === ConnectionErrorReason.Cancelled
+  );
+}
 
 /** Intentional leave navigates away; unexpected disconnect stays for recovery. */
 export function shouldExitMeeting(opts: {

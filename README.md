@@ -110,6 +110,21 @@ The add-on runs on [LiveKit Egress](https://docs.livekit.io/transport/self-hosti
 
 In a meeting, the host opens **More → Go live**, pastes the key from YouTube Studio, and everyone sees a **LIVE** badge. Details are in [docs/05-live-stream.md](docs/05-live-stream.md) (PT).
 
+## Updating a running install
+
+Do not run `npm run build` over the live `.next` while PM2 is serving it: until the build finishes the server answers with `Cannot find module './chunks/…'`, and anyone in a meeting gets the "Something went wrong in the meeting" screen. Build into a separate folder and swap at the end:
+
+```bash
+git pull && npm ci
+NEXT_DIST_DIR=.next-staging npm run build
+rm -rf .next-prev && mv .next .next-prev && mv .next-staging .next
+pm2 reload openmeet
+```
+
+Tabs opened before the update that request an old chunk reload themselves, at most once a minute. Avoid updating during live events.
+
+Meeting crashes caught in the browser are reported to the server and logged to stderr as `[openmeet:client-error]` (message, stack, component stack, user agent). Disconnects are logged as `[openmeet:disconnect]`.
+
 ## Branch model
 
 | Branch | Purpose |

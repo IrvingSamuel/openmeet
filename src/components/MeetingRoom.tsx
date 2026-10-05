@@ -27,7 +27,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { useTranslations } from "next-intl";
 import { cn, formatDuration } from "@/lib/utils";
-import { disconnectOutcome, releaseLocalMedia, shouldExitMeeting } from "@/lib/leavePolicy";
+import {
+  disconnectOutcome,
+  isSelfCancelledConnect,
+  releaseLocalMedia,
+  shouldExitMeeting,
+} from "@/lib/leavePolicy";
 import { detachFreezeDisconnect } from "@/lib/livekit-freeze-guard";
 import {
   isPageHidden,
@@ -274,7 +279,9 @@ export function MeetingRoom({
       return true;
     } catch (err) {
       console.error("[openmeet] reconnect failed", err);
-      toastRef.current.error(tErrors("reconnectFailed"));
+      if (!isSelfCancelledConnect(err)) {
+        toastRef.current.error(tErrors("reconnectFailed"));
+      }
       return false;
     }
   }, [room, activeToken, activeServerUrl, serverUrl, tErrors]);
@@ -465,6 +472,7 @@ export function MeetingRoom({
 
   const handleError = useCallback((err: Error) => {
     console.error("[openmeet] LiveKit error", err);
+    if (isSelfCancelledConnect(err)) return;
     toastRef.current.error(err.message || tErrors("connectionError"));
   }, [tErrors]);
 
