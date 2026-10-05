@@ -592,10 +592,12 @@
       "errors": {
         "live_disabled": "La transmisión en directo está desactivada por el administrador.",
         "invalid_stream_key": "Clave de transmisión no válida.",
-        "invalid_rtmp_url": "URL RTMP no válida (debe empezar por rtmp:// o rtmps://).",
+        "invalid_rtmp_url": "Esta URL RTMP no está permitida en este servidor. Usa la dirección predeterminada de YouTube.",
         "meeting_not_active": "La reunión no está activa.",
         "egress_start_failed": "No se pudo iniciar el servicio de transmisión (Egress). Comprueba que está en ejecución.",
         "egress_offline": "El servicio de transmisión (LiveKit Egress) está fuera de línea. Pide al administrador que lo instale o lo inicie.",
+        "live_limit_reached": "Este servidor alcanzó el límite de transmisiones simultáneas. Inténtalo de nuevo cuando termine otra.",
+        "live_not_allowed": "La transmisión en vivo no está habilitada para esta reunión.",
         "stop_failed": "No se pudo finalizar la transmisión. Inténtalo de nuevo.",
         "forbidden": "Solo anfitriones y moderadores pueden transmitir.",
         "unauthorized": "Sesión caducada. Inicia sesión de nuevo.",

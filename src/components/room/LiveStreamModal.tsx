@@ -20,6 +20,8 @@ const KNOWN_ERRORS = new Set([
   "meeting_not_active",
   "egress_start_failed",
   "egress_offline",
+  "live_limit_reached",
+  "live_not_allowed",
   "stop_failed",
   "forbidden",
   "unauthorized",

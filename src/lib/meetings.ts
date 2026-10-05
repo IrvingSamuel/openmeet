@@ -64,6 +64,8 @@ export type CreateMeetingInput = {
   captionsEnabled?: boolean;
   transcriptionEnabled?: boolean;
   summaryEnabled?: boolean;
+  /** Per-meeting live stream permission; omitted = instance default. */
+  liveStreamEnabled?: boolean | null;
 };
 
 export type CreatedMeetingResult = {
@@ -288,6 +290,7 @@ export async function createMeetingWithBrand(
       webhookUrl: input.webhookUrl ?? null,
       waitForHost,
       muteMicOnJoin,
+      liveStreamEnabled: input.liveStreamEnabled ?? null,
       ...featuresToColumns(features),
       ...(features.summary ? {} : { summaryStatus: SUMMARY_STATUS_DISABLED }),
       hostEntryTokenHash,

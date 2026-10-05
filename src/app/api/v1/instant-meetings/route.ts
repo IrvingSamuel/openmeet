@@ -58,6 +58,8 @@ const schema = z.object({
   mute_mic_on_join: z.boolean().optional(),
   /** AI features (default on; inherit from room_id when omitted). Summary needs transcription. */
   ...apiFeatureFields,
+  /** May hosts live stream this meeting? Omitted = LIVE_STREAM_MEETING_DEFAULT. */
+  live_stream_enabled: z.boolean().optional(),
 });
 
 function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWithBrand>>) {
@@ -79,6 +81,7 @@ function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWi
     wait_for_host: meeting.waitForHost,
     mute_mic_on_join: meeting.muteMicOnJoin !== false,
     ...apiFeaturesResponse(meeting),
+    live_stream_enabled: meeting.liveStreamEnabled ?? null,
   };
 }
 
@@ -173,6 +176,7 @@ export async function POST(req: NextRequest) {
       waitForHost,
       muteMicOnJoin: body.mute_mic_on_join,
       ...apiFeaturesToInput(body),
+      liveStreamEnabled: body.live_stream_enabled,
       issueHostEntry: true,
     });
 

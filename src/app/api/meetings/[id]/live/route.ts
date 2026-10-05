@@ -7,6 +7,7 @@ import { resolveLiveStreamConfig } from "@/lib/app-settings";
 import { assertMeetingModerator } from "@/lib/hostAuth";
 import {
   latestLiveStream,
+  meetingLiveStreamAllowed,
   refreshLiveStreamStatus,
   serializeLiveStream,
   startMeetingLiveStream,
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   }
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.id, meetingId),
-    columns: { id: true, captionsEnabled: true },
+    columns: { id: true, captionsEnabled: true, liveStreamEnabled: true },
   });
   if (!meeting) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -56,7 +57,8 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   }
 
   return NextResponse.json({
-    enabled: config.enabled,
+    // The button only shows with the instance switch on AND the meeting allowed.
+    enabled: config.enabled && meetingLiveStreamAllowed(meeting),
     captionsEnabled: meeting.captionsEnabled !== false,
     active: serializeLiveStream(active),
     lastError,

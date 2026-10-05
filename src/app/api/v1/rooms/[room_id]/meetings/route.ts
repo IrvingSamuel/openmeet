@@ -32,6 +32,8 @@ const schema = z.object({
   wait_for_host: z.boolean().optional(),
   mute_mic_on_join: z.boolean().optional(),
   ...apiFeatureFields,
+  /** May hosts live stream this meeting? Omitted = LIVE_STREAM_MEETING_DEFAULT. */
+  live_stream_enabled: z.boolean().optional(),
 });
 
 /**
@@ -143,6 +145,7 @@ export async function POST(
         waitForHost,
         muteMicOnJoin,
         ...apiFeaturesToInput(body),
+        liveStreamEnabled: body.live_stream_enabled,
         issueHostEntry: true,
       });
 
@@ -164,6 +167,7 @@ export async function POST(
         wait_for_host: meeting.waitForHost,
         mute_mic_on_join: meeting.muteMicOnJoin !== false,
         ...apiFeaturesResponse(meeting),
+        live_stream_enabled: meeting.liveStreamEnabled ?? null,
       },
       { status: 201 },
     );

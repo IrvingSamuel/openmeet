@@ -592,10 +592,12 @@
       "errors": {
         "live_disabled": "La diffusion en direct est désactivée par l'administrateur.",
         "invalid_stream_key": "Clé de flux invalide.",
-        "invalid_rtmp_url": "URL RTMP invalide (doit commencer par rtmp:// ou rtmps://).",
+        "invalid_rtmp_url": "Cette URL RTMP n'est pas autorisée sur ce serveur. Utilisez l'adresse YouTube par défaut.",
         "meeting_not_active": "La réunion n'est pas active.",
         "egress_start_failed": "Impossible de démarrer le service de diffusion (Egress). Vérifiez qu'il est en cours d'exécution.",
         "egress_offline": "Le service de diffusion (LiveKit Egress) est hors ligne. Demandez à l'administrateur de l'installer ou de le démarrer.",
+        "live_limit_reached": "Ce serveur a atteint sa limite de diffusions simultanées. Réessayez quand une autre se termine.",
+        "live_not_allowed": "La diffusion en direct n'est pas activée pour cette réunion.",
         "stop_failed": "Impossible d'arrêter la diffusion. Réessayez.",
         "forbidden": "Seuls les hôtes et modérateurs peuvent diffuser.",
         "unauthorized": "Session expirée. Reconnectez-vous.",

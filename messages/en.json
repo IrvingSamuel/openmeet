@@ -603,10 +603,12 @@
       "errors": {
         "live_disabled": "Live streaming is disabled by the administrator.",
         "invalid_stream_key": "Invalid stream key.",
-        "invalid_rtmp_url": "Invalid RTMP URL (must start with rtmp:// or rtmps://).",
+        "invalid_rtmp_url": "This RTMP URL is not allowed on this server. Use the default YouTube address.",
         "meeting_not_active": "The meeting is not active.",
         "egress_start_failed": "Could not start the streaming service (Egress). Check that it is running.",
         "egress_offline": "The streaming service (LiveKit Egress) is offline. Ask the administrator to install or start it.",
+        "live_limit_reached": "This server has reached its limit of simultaneous live streams. Try again when another one ends.",
+        "live_not_allowed": "Live streaming is not enabled for this meeting.",
         "stop_failed": "Could not end the stream. Please try again.",
         "forbidden": "Only hosts and moderators can go live.",
         "unauthorized": "Session expired. Please sign in again.",

@@ -592,10 +592,12 @@
       "errors": {
         "live_disabled": "Livestreaming wurde vom Administrator deaktiviert.",
         "invalid_stream_key": "Ungültiger Streamschlüssel.",
-        "invalid_rtmp_url": "Ungültige RTMP-URL (muss mit rtmp:// oder rtmps:// beginnen).",
+        "invalid_rtmp_url": "Diese RTMP-URL ist auf diesem Server nicht erlaubt. Verwende die Standardadresse von YouTube.",
         "meeting_not_active": "Die Besprechung ist nicht aktiv.",
         "egress_start_failed": "Der Streaming-Dienst (Egress) konnte nicht gestartet werden. Prüfe, ob er läuft.",
         "egress_offline": "Der Streaming-Dienst (LiveKit Egress) ist offline. Bitte den Administrator, ihn zu installieren oder zu starten.",
+        "live_limit_reached": "Dieser Server hat sein Limit gleichzeitiger Livestreams erreicht. Versuche es erneut, wenn ein anderer endet.",
+        "live_not_allowed": "Livestreaming ist für dieses Meeting nicht aktiviert.",
         "stop_failed": "Der Stream konnte nicht beendet werden. Bitte erneut versuchen.",
         "forbidden": "Nur Gastgeber und Moderatoren können streamen.",
         "unauthorized": "Sitzung abgelaufen. Bitte erneut anmelden.",

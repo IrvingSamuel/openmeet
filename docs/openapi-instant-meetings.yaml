@@ -670,6 +670,12 @@ components:
           $ref: "#/components/schemas/TranscriptionEnabled"
         summary_enabled:
           $ref: "#/components/schemas/SummaryEnabled"
+        live_stream_enabled:
+          type: boolean
+          description: |
+            Permite que anfitriões transmitam esta reunião ao vivo (YouTube/RTMP).
+            Omitido = LIVE_STREAM_MEETING_DEFAULT da instância ("on" por padrão).
+            O interruptor da instância (/admin → Transmissão) continua valendo.
 
     CreateInstantMeetingRequest:
       type: object
@@ -726,6 +732,12 @@ components:
           $ref: "#/components/schemas/TranscriptionEnabled"
         summary_enabled:
           $ref: "#/components/schemas/SummaryEnabled"
+        live_stream_enabled:
+          type: boolean
+          description: |
+            Permite que anfitriões transmitam esta reunião ao vivo (YouTube/RTMP).
+            Omitido = LIVE_STREAM_MEETING_DEFAULT da instância ("on" por padrão).
+            O interruptor da instância (/admin → Transmissão) continua valendo.
         identity:
           $ref: "#/components/schemas/BrandIdentity"
         palette:
@@ -796,6 +808,12 @@ components:
             Sempre false quando transcription_enabled=false. Com false, o resumo
             fica com status "disabled" e os webhooks summary.ready e
             tasks.generated não são enviados.
+        live_stream_enabled:
+          type: boolean
+          nullable: true
+          description: |
+            Valor gravado na reunião. null = segue LIVE_STREAM_MEETING_DEFAULT
+            da instância.
 
     CaptionsEnabled:
       type: boolean
