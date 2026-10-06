@@ -13,6 +13,9 @@ const clientErrorSchema = z.object({
   stack: z.string().max(CLIENT_ERROR_LIMITS.stack).optional(),
   componentStack: z.string().max(CLIENT_ERROR_LIMITS.componentStack).optional(),
   reloaded: z.boolean().optional(),
+  htmlLang: z.string().max(CLIENT_ERROR_LIMITS.lang).optional(),
+  translated: z.boolean().optional(),
+  navigatorLanguage: z.string().max(CLIENT_ERROR_LIMITS.lang).optional(),
 });
 
 const payloadSchema = z.object({

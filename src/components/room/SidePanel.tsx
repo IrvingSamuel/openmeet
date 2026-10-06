@@ -499,15 +499,18 @@ function PeoplePanel({
                   {initials(name)}
                 </span>
                 <span className="min-w-0 flex-1">
+                  {/* Each piece in its own element: a page translator replaces
+                      bare text nodes, and React inserting the hand icon next
+                      to one of them throws. */}
                   <span className="block truncate text-sm text-ink">
-                    {name}
+                    <span>{name}</span>
                     {handRaised ? (
                       <IconHand
                         className="ml-1.5 inline h-3.5 w-3.5 text-amber-400"
                         aria-label={t("handRaised")}
                       />
                     ) : null}
-                    {p.isLocal ? ` ${tLabels("youParen")}` : ""}
+                    {p.isLocal ? <span>{` ${tLabels("youParen")}`}</span> : null}
                     {participantRole === "host" ||
                     participantRole === "moderator" ? (
                       <span className="ml-1.5 text-[10px] uppercase tracking-wide text-brand-secondary">
@@ -518,13 +521,11 @@ function PeoplePanel({
                     ) : null}
                   </span>
                   <span className="block text-[11px] text-ink-faint">
-                    {p.isMicrophoneEnabled ? tLabels("micActive") : tLabels("muted")}
-                    {p.isCameraEnabled
-                      ? ` · ${tLabels("cameraOn")}`
-                      : ` · ${tLabels("cameraOff")}`}
-                    {p.isScreenShareEnabled
-                      ? ` · ${tLabels("screenShare")}`
-                      : ""}
+                    {[
+                      p.isMicrophoneEnabled ? tLabels("micActive") : tLabels("muted"),
+                      p.isCameraEnabled ? tLabels("cameraOn") : tLabels("cameraOff"),
+                      ...(p.isScreenShareEnabled ? [tLabels("screenShare")] : []),
+                    ].join(" · ")}
                   </span>
                   {canChangeRole ? (
                     <button

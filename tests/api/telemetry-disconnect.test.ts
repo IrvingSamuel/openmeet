@@ -59,6 +59,9 @@ describe("POST /api/telemetry/disconnect", () => {
           stack: "TypeError: ...\n    at Stage (Stage.tsx:10)",
           componentStack: "\n    at Stage\n    at RoomShell",
           reloaded: false,
+          htmlLang: "pt",
+          translated: true,
+          navigatorLanguage: "pt-BR",
         },
       }),
     );
@@ -72,8 +75,26 @@ describe("POST /api/telemetry/disconnect", () => {
     expect(logged).toMatchObject({
       event: "client_error",
       slug: "ls9y8xbzf6",
-      error: { name: "TypeError", reloaded: false },
+      error: {
+        name: "TypeError",
+        reloaded: false,
+        htmlLang: "pt",
+        translated: true,
+        navigatorLanguage: "pt-BR",
+      },
     });
+  });
+
+  it("rejects client_error payloads with an oversized language tag", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const res = await post(
+      JSON.stringify({
+        event: "client_error",
+        slug: "x",
+        error: { name: "Error", message: "boom", htmlLang: "x".repeat(200) },
+      }),
+    );
+    expect(res.status).toBe(400);
   });
 
   it("rejects client_error payloads with oversized stacks", async () => {

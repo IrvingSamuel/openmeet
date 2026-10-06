@@ -740,7 +740,8 @@ function RecordingHintTooltip({
   return createPortal(
     <div
       role="status"
-      className="pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-full"
+      translate="no"
+      className="notranslate pointer-events-none fixed z-[80] -translate-x-1/2 -translate-y-full"
       style={{ left: pos.x, top: pos.y - 10 }}
     >
       <div className="whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-lift">
