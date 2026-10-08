@@ -13,6 +13,7 @@ const extractJsonBlock = vi.fn();
 const recordLlmUsage = vi.fn();
 const dispatchSummaryReadyWebhooks = vi.fn();
 const resolveLocale = vi.fn(async () => "pt-BR");
+const loadPresence = vi.fn();
 
 vi.mock("@/db", () => ({
   db: {
@@ -71,9 +72,24 @@ vi.mock("@/lib/outbound-webhooks", () => ({
     dispatchSummaryReadyWebhooks(...args),
 }));
 
+vi.mock("@/lib/meeting-presence", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/meeting-presence")>()),
+  loadMeetingPresence: (...args: unknown[]) => loadPresence(...args),
+}));
+
+beforeEach(() => {
+  loadPresence.mockResolvedValue({
+    sessions: 2,
+    hostJoined: true,
+    together: true,
+    durationSec: 1800,
+  });
+});
+
 import {
   emptyTranscriptSummaryMarkdown,
   generateMeetingSummary,
+  shortSoloSummaryMarkdown,
 } from "@/lib/meeting-summary";
 
 describe("emptyTranscriptSummaryMarkdown", () => {
@@ -149,6 +165,29 @@ describe("generateMeetingSummary — empty transcript", () => {
         summaryMarkdown: "Nenhum áudio foi detectado nesta reunião.",
         model: "skipped-no-transcript",
       }),
+    );
+    expect(dispatchSummaryReadyWebhooks).toHaveBeenCalledWith(meetingId);
+  });
+
+  it("skips Gemini and explains why for a short meeting with one person", async () => {
+    loadPresence.mockResolvedValue({
+      sessions: 1,
+      hostJoined: true,
+      together: false,
+      durationSec: 120,
+    });
+    meetingsFindFirst.mockResolvedValue({ id: meetingId, roomId: "room-1" });
+    segmentsFindMany.mockResolvedValue([
+      { speakerLabel: "Ana", text: "Alguém aí?" },
+    ]);
+
+    const result = await generateMeetingSummary(meetingId);
+
+    expect(callGeminiSafe).not.toHaveBeenCalled();
+    expect(result?.summaryMarkdown).toBe(shortSoloSummaryMarkdown("pt-BR"));
+    expect(result?.summaryMarkdown).toMatch(/menos de 5 minutos/);
+    expect(insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "skipped-short-solo" }),
     );
     expect(dispatchSummaryReadyWebhooks).toHaveBeenCalledWith(meetingId);
   });

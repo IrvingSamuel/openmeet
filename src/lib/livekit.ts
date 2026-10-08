@@ -177,6 +177,10 @@ export async function syncRoomMetadata(
   const client = getRoomServiceClient();
   const metadata = JSON.stringify(meta);
   const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
+  // Without departureTimeout LiveKit closes the room 20 s after the last
+  // participant leaves (the agent does not count), so a guest who reloads or
+  // steps out before the host arrives kills the meeting. Use the same grace.
+  const departureTimeout = emptyTimeout;
   try {
     // No agents on createRoom — that dispatches into empty rooms; the agent
     // then self-exits and leaves a stale dispatch. Dispatch only via
@@ -185,6 +189,7 @@ export async function syncRoomMetadata(
       name: livekitRoomName,
       metadata,
       emptyTimeout,
+      departureTimeout,
     });
     console.info(
       "[openmeet] syncRoomMetadata createRoom ok host=%s room=%s agent=%s",

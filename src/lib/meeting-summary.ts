@@ -22,6 +22,11 @@ import {
   sampleTranscriptForSummary,
   SUMMARY_TRANSCRIPT_CHAR_CAP,
 } from "@/lib/transcript-sample";
+import {
+  isShortSoloMeeting,
+  loadMeetingPresence,
+  SOLO_MEETING_MIN_SEC,
+} from "@/lib/meeting-presence";
 import { dispatchSummaryReadyWebhooks } from "@/lib/outbound-webhooks";
 import {
   featuresFromRow,
@@ -51,6 +56,22 @@ export function emptyTranscriptSummaryMarkdown(locale: string): string {
     es: "No se detectó audio en esta reunión.",
     fr: "Aucun audio n'a été détecté dans cette réunion.",
     de: "In diesem Meeting wurde kein Audio erkannt.",
+  };
+  return messages[key] || messages.pt;
+}
+
+/** Short report for a lone participant under SOLO_MEETING_MIN_SEC — no LLM call. */
+export function shortSoloSummaryMarkdown(locale: string): string {
+  const key = locale.toLowerCase().startsWith("pt")
+    ? "pt"
+    : locale.toLowerCase().slice(0, 2);
+  const minutes = SOLO_MEETING_MIN_SEC / 60;
+  const messages: Record<string, string> = {
+    pt: `Esta reunião teve apenas um participante e durou menos de ${minutes} minutos. Para economizar processamento, reuniões assim não geram resumo.`,
+    en: `This meeting had only one participant and lasted less than ${minutes} minutes. To save processing, meetings like this do not get a summary.`,
+    es: `Esta reunión tuvo un solo participante y duró menos de ${minutes} minutos. Para ahorrar procesamiento, estas reuniones no generan resumen.`,
+    fr: `Cette réunion n'a eu qu'un seul participant et a duré moins de ${minutes} minutes. Pour économiser du traitement, ces réunions ne génèrent pas de résumé.`,
+    de: `An diesem Meeting hat nur eine Person teilgenommen, und es dauerte weniger als ${minutes} Minuten. Um Rechenleistung zu sparen, wird für solche Meetings keine Zusammenfassung erstellt.`,
   };
   return messages[key] || messages.pt;
 }
@@ -124,10 +145,14 @@ export async function generateMeetingSummary(meetingId: string) {
   const transcript = sampleTranscriptForSummary(transcriptFull);
   const locale = await resolveLocale();
 
-  // No transcribed audio: skip Gemini to avoid token spend / hallucinated report.
-  if (!transcriptFull.trim()) {
-    const summaryMarkdown = emptyTranscriptSummaryMarkdown(locale);
-    const model = "skipped-no-transcript";
+  // Lone participant for a few minutes, or no transcribed audio: skip Gemini
+  // to avoid token spend / a hallucinated report, and say why.
+  const shortSolo = isShortSoloMeeting(await loadMeetingPresence(meeting.id));
+  if (shortSolo || !transcriptFull.trim()) {
+    const summaryMarkdown = shortSolo
+      ? shortSoloSummaryMarkdown(locale)
+      : emptyTranscriptSummaryMarkdown(locale);
+    const model = shortSolo ? "skipped-short-solo" : "skipped-no-transcript";
 
     await db
       .insert(meetingSummaries)
