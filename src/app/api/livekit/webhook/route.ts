@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
+import { meetingHostEverConnected } from "@/lib/hostAuth";
 import { getWebhookReceiver } from "@/lib/livekit";
 import { activateMeetingIfScheduled } from "@/lib/meeting-lifecycle";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
@@ -44,12 +45,30 @@ export async function POST(req: NextRequest) {
         ),
       });
       if (meeting) {
-        const wasActive = meeting.status === "active";
         const endedAt = new Date();
+        // Only guests came and went: keep the link usable. The next token
+        // mint recreates the LiveKit room and reactivates the meeting.
+        const hostJoined = await meetingHostEverConnected(meeting.id);
+        const wasActive = hostJoined && meeting.status === "active";
         await db
           .update(meetings)
-          .set({ status: "ended", endedAt })
-          .where(eq(meetings.id, meeting.id));
+          .set(
+            hostJoined
+              ? { status: "ended", endedAt }
+              : { status: "scheduled", livekitRoomSid: null },
+          )
+          .where(
+            and(
+              eq(meetings.id, meeting.id),
+              inArray(meetings.status, ["active", "scheduled"]),
+            ),
+          );
+        if (!hostJoined) {
+          console.info(
+            "[openmeet] room_finished before host joined; meeting %s kept open",
+            meeting.id,
+          );
+        }
 
         // Close sessions that were still in the room at end.
         await db
@@ -77,7 +96,7 @@ export async function POST(req: NextRequest) {
           console.error("[openmeet] stop live stream on room_finished", err);
         });
 
-        // Never-started (scheduled) meetings skip webhooks/summary.
+        // Never-started or host-less meetings skip webhooks/summary.
         if (wasActive) {
           void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
             console.error("[openmeet] meeting-ended webhooks failed", err);

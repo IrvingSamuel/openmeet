@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants, rooms } from "@/db/schema";
 import { hasHostEntryGrant } from "@/lib/host-entry";
@@ -217,6 +217,20 @@ export async function assertActiveHostOnMeeting(opts: {
       eq(participants.identityId, opts.session.identityId),
       eq(participants.role, "host"),
       isNull(participants.leftAt),
+    ),
+  });
+  return Boolean(hostRow);
+}
+
+/** True when a host participant ever connected to the LiveKit room. */
+export async function meetingHostEverConnected(
+  meetingId: string,
+): Promise<boolean> {
+  const hostRow = await db.query.participants.findFirst({
+    where: and(
+      eq(participants.meetingId, meetingId),
+      eq(participants.role, "host"),
+      isNotNull(participants.connectedAt),
     ),
   });
   return Boolean(hostRow);
