@@ -6,6 +6,7 @@ import {
   boolean,
   jsonb,
   integer,
+  bigint,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -419,7 +420,8 @@ export const recordings = pgTable(
     filepath: text("filepath"),
     objectKey: text("object_key"),
     mimeType: text("mime_type"),
-    bytes: integer("bytes"),
+    // Not integer: Egress MP4s pass 2 GiB after ~1h40 of 720p.
+    bytes: bigint("bytes", { mode: "number" }),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),

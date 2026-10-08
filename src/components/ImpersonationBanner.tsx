@@ -66,9 +66,7 @@ export function ImpersonationBanner() {
       <p className="min-w-0 truncate font-medium">
         Impersonating <strong>{who}</strong>
         <span className="opacity-80">
-          {" "}
-          (as {asAdmin}
-          {locale ? ` · ${locale}` : ""})
+          {` (as ${asAdmin}${locale ? ` · ${locale}` : ""})`}
         </span>
       </p>
       <Button

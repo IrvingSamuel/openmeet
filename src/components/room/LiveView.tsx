@@ -42,7 +42,8 @@ export function LiveView({
       audio={false}
       video={false}
       onDisconnected={() => console.log("END_RECORDING")}
-      className="h-screen w-screen overflow-hidden bg-[#05060f]"
+      translate="no"
+      className="notranslate h-screen w-screen overflow-hidden bg-[#05060f]"
     >
       <LiveViewStage />
       <RoomAudioRenderer />
