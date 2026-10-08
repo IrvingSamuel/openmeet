@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const receive = vi.fn();
 const meetingsFindFirst = vi.fn();
 const updateSet = vi.fn();
-const hostEverConnected = vi.fn();
+const loadPresence = vi.fn();
+const hasTranscript = vi.fn();
 const dispatchEnded = vi.fn();
 const generateSummary = vi.fn();
 const stopRecording = vi.fn();
@@ -14,8 +15,10 @@ vi.mock("@/lib/livekit", () => ({
   getWebhookReceiver: () => ({ receive }),
 }));
 
-vi.mock("@/lib/hostAuth", () => ({
-  meetingHostEverConnected: (...args: unknown[]) => hostEverConnected(...args),
+vi.mock("@/lib/meeting-presence", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/meeting-presence")>()),
+  loadMeetingPresence: (...args: unknown[]) => loadPresence(...args),
+  meetingHasTranscript: (...args: unknown[]) => hasTranscript(...args),
 }));
 
 vi.mock("@/db", () => ({
@@ -70,33 +73,63 @@ const meeting = {
   summaryStatus: "pending",
 };
 
+function presence(p: {
+  hostJoined?: boolean;
+  together?: boolean;
+  durationSec: number;
+}) {
+  return { sessions: 1, hostJoined: false, together: false, ...p };
+}
+
 beforeEach(() => {
   receive.mockResolvedValue({
     event: "room_finished",
     room: { name: "meet_weekly", sid: "RM_1" },
   });
   meetingsFindFirst.mockResolvedValue(meeting);
+  hasTranscript.mockResolvedValue(false);
   dispatchEnded.mockResolvedValue(undefined);
   generateSummary.mockResolvedValue(undefined);
   stopRecording.mockResolvedValue(undefined);
   stopLiveStream.mockResolvedValue(undefined);
 });
 
+function expectEnded() {
+  expect(updateSet).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "ended" }),
+  );
+  expect(dispatchEnded).toHaveBeenCalledWith(meeting.id);
+  expect(generateSummary).toHaveBeenCalledWith(meeting.id);
+}
+
 describe("room_finished", () => {
   it("ends the meeting once the host has joined", async () => {
-    hostEverConnected.mockResolvedValue(true);
-
+    loadPresence.mockResolvedValue(
+      presence({ hostJoined: true, durationSec: 60 }),
+    );
     const res = await webhook(webhookRequest());
     expect(res.status).toBe(200);
-    expect(updateSet).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "ended" }),
-    );
-    expect(dispatchEnded).toHaveBeenCalledWith(meeting.id);
-    expect(generateSummary).toHaveBeenCalledWith(meeting.id);
+    expectEnded();
   });
 
-  it("keeps the meeting joinable when only guests came and went", async () => {
-    hostEverConnected.mockResolvedValue(false);
+  it("ends a guests-only meeting where people talked", async () => {
+    loadPresence.mockResolvedValue(
+      presence({ together: true, durationSec: 29 * 60 }),
+    );
+    await webhook(webhookRequest());
+    expectEnded();
+  });
+
+  it("ends a lone guest who stayed over five minutes with a transcript", async () => {
+    loadPresence.mockResolvedValue(presence({ durationSec: 6 * 60 }));
+    hasTranscript.mockResolvedValue(true);
+    await webhook(webhookRequest());
+    expectEnded();
+  });
+
+  it("keeps the meeting joinable when a guest waited and left", async () => {
+    loadPresence.mockResolvedValue(presence({ durationSec: 90 }));
+    hasTranscript.mockResolvedValue(true);
 
     const res = await webhook(webhookRequest());
     expect(res.status).toBe(200);

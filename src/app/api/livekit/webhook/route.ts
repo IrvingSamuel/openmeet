@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
-import { meetingHostEverConnected } from "@/lib/hostAuth";
 import { getWebhookReceiver } from "@/lib/livekit";
 import { activateMeetingIfScheduled } from "@/lib/meeting-lifecycle";
+import {
+  loadMeetingPresence,
+  meetingHasTranscript,
+  meetingWasHeld,
+} from "@/lib/meeting-presence";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
 import {
@@ -46,14 +50,18 @@ export async function POST(req: NextRequest) {
       });
       if (meeting) {
         const endedAt = new Date();
-        // Only guests came and went: keep the link usable. The next token
-        // mint recreates the LiveKit room and reactivates the meeting.
-        const hostJoined = await meetingHostEverConnected(meeting.id);
-        const wasActive = hostJoined && meeting.status === "active";
+        // A guest who waited and left did not hold a meeting: keep the link
+        // usable. The next token mint recreates the room and reactivates it.
+        const presence = await loadMeetingPresence(meeting.id, endedAt);
+        const held = meetingWasHeld(
+          presence,
+          await meetingHasTranscript(meeting.id),
+        );
+        const wasActive = held && meeting.status === "active";
         await db
           .update(meetings)
           .set(
-            hostJoined
+            held
               ? { status: "ended", endedAt }
               : { status: "scheduled", livekitRoomSid: null },
           )
@@ -63,10 +71,11 @@ export async function POST(req: NextRequest) {
               inArray(meetings.status, ["active", "scheduled"]),
             ),
           );
-        if (!hostJoined) {
+        if (!held) {
           console.info(
-            "[openmeet] room_finished before host joined; meeting %s kept open",
+            "[openmeet] room_finished without a held meeting; meeting %s kept open (%ss alone)",
             meeting.id,
+            presence.durationSec,
           );
         }
 
@@ -96,7 +105,7 @@ export async function POST(req: NextRequest) {
           console.error("[openmeet] stop live stream on room_finished", err);
         });
 
-        // Never-started or host-less meetings skip webhooks/summary.
+        // Never-started or not-held meetings skip webhooks/summary.
         if (wasActive) {
           void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
             console.error("[openmeet] meeting-ended webhooks failed", err);

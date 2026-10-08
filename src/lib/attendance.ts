@@ -32,7 +32,7 @@ export type ParticipantAttendanceSource = {
   leftAt: Date | null;
 };
 
-function isAgentIdentity(livekitIdentity: string): boolean {
+export function isAgentIdentity(livekitIdentity: string): boolean {
   const id = livekitIdentity.toLowerCase();
   return id.startsWith("agent-") || id.startsWith("agent_");
 }
@@ -45,7 +45,10 @@ function sessionStart(row: ParticipantAttendanceSource): Date {
   return row.connectedAt ?? row.joinedAt;
 }
 
-function groupKey(row: ParticipantAttendanceSource): string {
+/** Same person across rejoins: identityId, else normalized guest name. */
+export function groupKey(
+  row: Pick<ParticipantAttendanceSource, "identityId" | "displayName">,
+): string {
   if (row.identityId) return `id:${row.identityId}`;
   return `name:${normalizeName(row.displayName)}`;
 }
