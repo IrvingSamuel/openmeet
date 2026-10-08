@@ -151,7 +151,10 @@ export function DeviceSettingsModal({
   return createPortal(
     <AnimatePresence>
       {open ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <div
+          translate="no"
+          className="notranslate fixed inset-0 z-[200] flex items-center justify-center p-4"
+        >
           <motion.div
             className="absolute inset-0 bg-black/70 backdrop-blur-md"
             initial={{ opacity: 0 }}

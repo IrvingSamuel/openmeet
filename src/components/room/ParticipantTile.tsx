@@ -76,6 +76,11 @@ export function ParticipantTile({
     isScreenShare && isRef && !publicationMuted && !trackRef.publication.track;
 
   const name = info.name || participant.identity;
+  // One text node: the local name is "" until the join completes, and
+  // inserting a sibling next to text a page translator replaced throws.
+  const label = `${name}${
+    isScreenShare ? ` · ${tLabels("screen").toLowerCase()}` : ""
+  }${participant.isLocal && !isScreenShare ? ` ${tLabels("youParen")}` : ""}`;
   const hue = hueFromString(participant.identity);
   const { ref: tileRef, active: fullscreen, toggle: toggleFullscreen } =
     useElementFullscreen<HTMLDivElement>();
@@ -162,13 +167,7 @@ export function ParticipantTile({
           ) : (
             <SpeakingDots active={speaking} />
           )}
-          <span className="truncate">
-            {name}
-            {isScreenShare ? ` · ${tLabels("screen").toLowerCase()}` : ""}
-            {participant.isLocal && !isScreenShare
-              ? ` ${tLabels("youParen")}`
-              : ""}
-          </span>
+          <span className="truncate">{label}</span>
         </span>
       </div>
 

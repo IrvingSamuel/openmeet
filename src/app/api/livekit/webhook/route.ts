@@ -4,6 +4,11 @@ import { db } from "@/db";
 import { meetings, participants } from "@/db/schema";
 import { getWebhookReceiver } from "@/lib/livekit";
 import { activateMeetingIfScheduled } from "@/lib/meeting-lifecycle";
+import {
+  loadMeetingPresence,
+  meetingHasTranscript,
+  meetingWasHeld,
+} from "@/lib/meeting-presence";
 import { generateMeetingSummary } from "@/lib/meeting-summary";
 import { dispatchMeetingEndedWebhooks } from "@/lib/outbound-webhooks";
 import {
@@ -44,12 +49,35 @@ export async function POST(req: NextRequest) {
         ),
       });
       if (meeting) {
-        const wasActive = meeting.status === "active";
         const endedAt = new Date();
+        // A guest who waited and left did not hold a meeting: keep the link
+        // usable. The next token mint recreates the room and reactivates it.
+        const presence = await loadMeetingPresence(meeting.id, endedAt);
+        const held = meetingWasHeld(
+          presence,
+          await meetingHasTranscript(meeting.id),
+        );
+        const wasActive = held && meeting.status === "active";
         await db
           .update(meetings)
-          .set({ status: "ended", endedAt })
-          .where(eq(meetings.id, meeting.id));
+          .set(
+            held
+              ? { status: "ended", endedAt }
+              : { status: "scheduled", livekitRoomSid: null },
+          )
+          .where(
+            and(
+              eq(meetings.id, meeting.id),
+              inArray(meetings.status, ["active", "scheduled"]),
+            ),
+          );
+        if (!held) {
+          console.info(
+            "[openmeet] room_finished without a held meeting; meeting %s kept open (%ss alone)",
+            meeting.id,
+            presence.durationSec,
+          );
+        }
 
         // Close sessions that were still in the room at end.
         await db
@@ -77,7 +105,7 @@ export async function POST(req: NextRequest) {
           console.error("[openmeet] stop live stream on room_finished", err);
         });
 
-        // Never-started (scheduled) meetings skip webhooks/summary.
+        // Never-started or not-held meetings skip webhooks/summary.
         if (wasActive) {
           void dispatchMeetingEndedWebhooks(meeting.id).catch((err) => {
             console.error("[openmeet] meeting-ended webhooks failed", err);
