@@ -15,6 +15,7 @@ import { cn, hueFromString, initials } from "@/lib/utils";
 import { shouldRenderVideoTrack } from "@/lib/videoTrack";
 import { useElementFullscreen } from "@/hooks/useElementFullscreen";
 import {
+  IconBroadcast,
   IconHand,
   IconMaximize,
   IconMicOff,
@@ -35,6 +36,9 @@ export function ParticipantTile({
   compact,
   pinned,
   onPin,
+  globalPinned,
+  onGlobalPin,
+  globalPinBusy,
   handRaised,
   canModerate,
   onMute,
@@ -48,6 +52,11 @@ export function ParticipantTile({
   compact?: boolean;
   pinned?: boolean;
   onPin?: () => void;
+  /** Pinned for everyone by a host/moderator. */
+  globalPinned?: boolean;
+  /** Moderators only: toggle the pin for everyone. */
+  onGlobalPin?: () => void;
+  globalPinBusy?: boolean;
   handRaised?: boolean;
   canModerate?: boolean;
   onMute?: () => void;
@@ -169,6 +178,16 @@ export function ParticipantTile({
           )}
           <span className="truncate">{label}</span>
         </span>
+        {globalPinned ? (
+          <span
+            data-testid="tile-global-pin-badge"
+            title={t("pinnedByHost")}
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-brand-secondary/50 bg-black/60 px-2 py-1 text-[11px] font-medium text-brand-secondary backdrop-blur"
+          >
+            <IconPin className="h-3 w-3" />
+            {compact ? null : <span>{t("pinnedByHost")}</span>}
+          </span>
+        ) : null}
       </div>
 
       {showHand || showModeration ? (
@@ -225,40 +244,71 @@ export function ParticipantTile({
         </span>
       ) : null}
 
-      {onPin && !readOnly && !isScreenShare ? (
-        <button
-          onClick={onPin}
-          aria-label={pinned ? t("unpin") : t("pin")}
-          className={cn(
-            "absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
-            hoverRevealClass,
-            pinned && "border-brand-secondary/60 text-brand-secondary opacity-100",
-          )}
-        >
-          <IconPin className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
+      {!readOnly ? (
+        <span className="absolute right-2 top-2 flex items-center gap-1">
+          {onGlobalPin && canModerate ? (
+            <button
+              type="button"
+              data-testid="tile-global-pin"
+              disabled={globalPinBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                onGlobalPin();
+              }}
+              aria-label={globalPinned ? t("unpinForEveryone") : t("pinForEveryone")}
+              title={globalPinned ? t("unpinForEveryone") : t("pinForEveryone")}
+              className={cn(
+                "grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200 disabled:opacity-40",
+                hoverRevealClass,
+                globalPinned &&
+                  "border-brand-secondary/60 text-brand-secondary opacity-100",
+              )}
+            >
+              <IconBroadcast className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
 
-      {isScreenShare && showVideo && !readOnly ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            void toggleFullscreen();
-          }}
-          aria-label={fullscreen ? t("exitFullscreen") : t("fullscreen")}
-          className={cn(
-            "absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
-            hoverRevealClass,
-            fullscreen && "border-brand-secondary/60 text-brand-secondary opacity-100",
-          )}
-        >
-          {fullscreen ? (
-            <IconMinimize className="h-3.5 w-3.5" />
-          ) : (
-            <IconMaximize className="h-3.5 w-3.5" />
-          )}
-        </button>
+          {onPin && !isScreenShare ? (
+            <button
+              type="button"
+              data-testid="tile-pin"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPin();
+              }}
+              aria-label={pinned ? t("unpin") : t("pin")}
+              className={cn(
+                "grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
+                hoverRevealClass,
+                pinned && "border-brand-secondary/60 text-brand-secondary opacity-100",
+              )}
+            >
+              <IconPin className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+
+          {isScreenShare && showVideo ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void toggleFullscreen();
+              }}
+              aria-label={fullscreen ? t("exitFullscreen") : t("fullscreen")}
+              className={cn(
+                "grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-black/55 text-white/80 backdrop-blur transition-all duration-200",
+                hoverRevealClass,
+                fullscreen && "border-brand-secondary/60 text-brand-secondary opacity-100",
+              )}
+            >
+              {fullscreen ? (
+                <IconMinimize className="h-3.5 w-3.5" />
+              ) : (
+                <IconMaximize className="h-3.5 w-3.5" />
+              )}
+            </button>
+          ) : null}
+        </span>
       ) : null}
     </div>
   );

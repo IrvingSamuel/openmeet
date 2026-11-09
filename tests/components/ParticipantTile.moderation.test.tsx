@@ -113,3 +113,40 @@ describe("ParticipantTile moderation controls", () => {
     expect(onCameraOff).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("ParticipantTile pin for everyone", () => {
+  it("hides the button when canModerate is false", () => {
+    renderWithIntl(
+      <ParticipantTile
+        trackRef={makeTrackRef({ identity: "remote-1" })}
+        canModerate={false}
+        onGlobalPin={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId("tile-global-pin")).toBeNull();
+  });
+
+  it("shows the button for moderators and calls the handler", async () => {
+    const onGlobalPin = vi.fn();
+    const user = userEvent.setup();
+    renderWithIntl(
+      <ParticipantTile
+        trackRef={makeTrackRef({ identity: "remote-1" })}
+        canModerate
+        onGlobalPin={onGlobalPin}
+      />,
+    );
+    await user.click(screen.getByTestId("tile-global-pin"));
+    expect(onGlobalPin).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the pinned badge to everyone", () => {
+    renderWithIntl(
+      <ParticipantTile
+        trackRef={makeTrackRef({ identity: "remote-1" })}
+        globalPinned
+      />,
+    );
+    expect(screen.getByTestId("tile-global-pin-badge")).toBeTruthy();
+  });
+});

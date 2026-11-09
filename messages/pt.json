@@ -127,7 +127,9 @@
       "joinRequest": "{name} está pedindo entrada.",
       "joinRequestMany": "{count} pessoas estão pedindo entrada.",
       "participantLeft": "{name} saiu da reunião.",
-      "chatMessage": "{name}: {message}"
+      "chatMessage": "{name}: {message}",
+      "pinnedForEveryone": "{by} fixou {name} para todos.",
+      "unpinnedForEveryone": "A fixação para todos foi removida."
     },
     "errors": {
       "generic": "Algo correu mal.",
@@ -699,7 +701,8 @@
       "presetBookshelf": "Estante",
       "presetGradient": "Gradiente",
       "presetNature": "Natureza",
-      "presetAbstract": "Abstrato"
+      "presetAbstract": "Abstrato",
+      "layoutLockedByModerator": "Layout definido pelo moderador"
     },
     "reactions": {
       "pickReaction": "Enviar uma reação",
@@ -771,7 +774,10 @@
       "hide": "Ocultar legendas"
     },
     "stage": {
-      "empty": "Ninguém na sala ainda"
+      "empty": "Ninguém na sala ainda",
+      "pageOf": "Página {current} de {total}",
+      "previousPage": "Página anterior",
+      "nextPage": "Próxima página"
     },
     "participantTile": {
       "pin": "Destacar participante",
@@ -781,7 +787,11 @@
       "exitFullscreen": "Sair da tela cheia",
       "handRaised": "Mão levantada",
       "muteParticipant": "Silenciar participante",
-      "cameraOffParticipant": "Desligar câmera do participante"
+      "cameraOffParticipant": "Desligar câmera do participante",
+      "pinForEveryone": "Fixar para todos",
+      "unpinForEveryone": "Remover fixação para todos",
+      "pinnedByHost": "Fixado pelo anfitrião",
+      "globalPinFailed": "Não foi possível alterar a fixação para todos."
     }
   },
   "summary": {

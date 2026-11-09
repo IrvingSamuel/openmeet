@@ -127,7 +127,9 @@
       "joinRequest": "{name} is requesting to join.",
       "joinRequestMany": "{count} people are requesting to join.",
       "participantLeft": "{name} left the meeting.",
-      "chatMessage": "{name}: {message}"
+      "chatMessage": "{name}: {message}",
+      "pinnedForEveryone": "{by} pinned {name} for everyone.",
+      "unpinnedForEveryone": "The pin for everyone was removed."
     },
     "errors": {
       "generic": "Something went wrong.",
@@ -709,7 +711,8 @@
       "presetBookshelf": "Bookshelf",
       "presetGradient": "Gradient",
       "presetNature": "Nature",
-      "presetAbstract": "Abstract"
+      "presetAbstract": "Abstract",
+      "layoutLockedByModerator": "Layout set by the moderator"
     },
     "reactions": {
       "pickReaction": "Send a reaction",
@@ -781,7 +784,10 @@
       "hide": "Hide captions"
     },
     "stage": {
-      "empty": "No one in the room yet"
+      "empty": "No one in the room yet",
+      "pageOf": "Page {current} of {total}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page"
     },
     "participantTile": {
       "pin": "Pin participant",
@@ -791,7 +797,11 @@
       "exitFullscreen": "Exit fullscreen",
       "handRaised": "Hand raised",
       "muteParticipant": "Mute participant",
-      "cameraOffParticipant": "Turn participant camera off"
+      "cameraOffParticipant": "Turn participant camera off",
+      "pinForEveryone": "Pin for everyone",
+      "unpinForEveryone": "Remove pin for everyone",
+      "pinnedByHost": "Pinned by host",
+      "globalPinFailed": "Could not change the pin for everyone."
     }
   },
   "summary": {

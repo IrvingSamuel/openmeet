@@ -10,6 +10,7 @@ import { ConnectionState, Room, Track, type RoomOptions } from "livekit-client";
 import { useEffect, useRef, useState } from "react";
 import { FixedCaptionsBar, useCaptions } from "@/components/room/Captions";
 import { Stage } from "@/components/room/Stage";
+import { useRoomSpotlight } from "@/hooks/useRoomSpotlight";
 
 /** Headless capture never goes to background; keep every video at full quality. */
 const LIVE_ROOM_OPTIONS: RoomOptions = {
@@ -55,6 +56,7 @@ function LiveViewStage() {
   const state = useConnectionState();
   const captions = useCaptions(null, { history: false, limit: 20 });
   const screenShares = useTracks([Track.Source.ScreenShare]);
+  const { globalKey } = useRoomSpotlight();
   const signalled = useRef(false);
 
   useEffect(() => {
@@ -70,8 +72,9 @@ function LiveViewStage() {
     <div className="flex h-full w-full flex-col">
       <div className="min-h-0 flex-1 p-[1.2vh] pb-0">
         <Stage
-          layout={screenShares.length > 0 ? "spotlight" : "grid"}
+          layout={screenShares.length > 0 || globalKey ? "spotlight" : "grid"}
           pinnedKey={null}
+          globalPinnedKey={globalKey}
           readOnly
         />
       </div>

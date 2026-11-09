@@ -126,7 +126,9 @@
       "joinRequest": "{name} möchte beitreten.",
       "joinRequestMany": "{count} Personen möchten beitreten.",
       "participantLeft": "{name} hat die Besprechung verlassen.",
-      "chatMessage": "{name}: {message}"
+      "chatMessage": "{name}: {message}",
+      "pinnedForEveryone": "{by} hat {name} für alle angeheftet.",
+      "unpinnedForEveryone": "Anheften für alle wurde aufgehoben."
     },
     "errors": {
       "generic": "Etwas ist schiefgelaufen.",
@@ -698,7 +700,8 @@
       "presetBookshelf": "Bücherregal",
       "presetGradient": "Verlauf",
       "presetNature": "Natur",
-      "presetAbstract": "Abstrakt"
+      "presetAbstract": "Abstrakt",
+      "layoutLockedByModerator": "Layout vom Moderator festgelegt"
     },
     "reactions": {
       "pickReaction": "Reaktion senden",
@@ -765,7 +768,10 @@
       "hide": "Untertitel ausblenden"
     },
     "stage": {
-      "empty": "Noch niemand im Raum"
+      "empty": "Noch niemand im Raum",
+      "pageOf": "Seite {current} von {total}",
+      "previousPage": "Vorherige Seite",
+      "nextPage": "Nächste Seite"
     },
     "participantTile": {
       "pin": "Teilnehmer anheften",
@@ -775,7 +781,11 @@
       "exitFullscreen": "Vollbild beenden",
       "handRaised": "Hand erhoben",
       "muteParticipant": "Teilnehmer stummschalten",
-      "cameraOffParticipant": "Kamera des Teilnehmers ausschalten"
+      "cameraOffParticipant": "Kamera des Teilnehmers ausschalten",
+      "pinForEveryone": "Für alle anheften",
+      "unpinForEveryone": "Anheften für alle aufheben",
+      "pinnedByHost": "Vom Host angeheftet",
+      "globalPinFailed": "Anheften für alle konnte nicht geändert werden."
     }
   },
   "summary": {

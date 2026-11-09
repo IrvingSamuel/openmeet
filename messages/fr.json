@@ -126,7 +126,9 @@
       "joinRequest": "{name} demande à entrer.",
       "joinRequestMany": "{count} personnes demandent à entrer.",
       "participantLeft": "{name} a quitté la réunion.",
-      "chatMessage": "{name} : {message}"
+      "chatMessage": "{name} : {message}",
+      "pinnedForEveryone": "{by} a épinglé {name} pour tous.",
+      "unpinnedForEveryone": "L’épingle pour tous a été retirée."
     },
     "errors": {
       "generic": "Une erreur s'est produite.",
@@ -698,7 +700,8 @@
       "presetBookshelf": "Bibliothèque",
       "presetGradient": "Dégradé",
       "presetNature": "Nature",
-      "presetAbstract": "Abstrait"
+      "presetAbstract": "Abstrait",
+      "layoutLockedByModerator": "Disposition définie par le modérateur"
     },
     "reactions": {
       "pickReaction": "Envoyer une réaction",
@@ -765,7 +768,10 @@
       "hide": "Masquer les sous-titres"
     },
     "stage": {
-      "empty": "Personne dans la salle pour l'instant"
+      "empty": "Personne dans la salle pour l'instant",
+      "pageOf": "Page {current} sur {total}",
+      "previousPage": "Page précédente",
+      "nextPage": "Page suivante"
     },
     "participantTile": {
       "pin": "Épingler le participant",
@@ -775,7 +781,11 @@
       "exitFullscreen": "Quitter le plein écran",
       "handRaised": "Main levée",
       "muteParticipant": "Couper le micro du participant",
-      "cameraOffParticipant": "Éteindre la caméra du participant"
+      "cameraOffParticipant": "Éteindre la caméra du participant",
+      "pinForEveryone": "Épingler pour tous",
+      "unpinForEveryone": "Retirer l’épingle pour tous",
+      "pinnedByHost": "Épinglé par l’hôte",
+      "globalPinFailed": "Impossible de modifier l’épingle pour tous."
     }
   },
   "summary": {
