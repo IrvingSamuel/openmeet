@@ -515,12 +515,16 @@ export const appSettings = pgTable("app_settings", {
   webhookUrl: text("webhook_url"),
   webhookSecret: text("webhook_secret"),
   webhookEnabled: boolean("webhook_enabled").notNull().default(false),
-  /** Bearer token for public v1 / MCP API (generated in Admin). */
+  /**
+   * @deprecated Migrated to `public_api_tokens`. Kept for one-shot data migration.
+   * Cleared after migrateLegacyPublicApiToken().
+   */
   publicApiToken: text("public_api_token"),
+  /** @deprecated See publicApiToken. */
   publicApiTokenCreatedAt: timestamp("public_api_token_created_at", {
     withTimezone: true,
   }),
-  /** Admin user id that generated the token — default owner when body omits owner. */
+  /** @deprecated See publicApiToken. */
   publicApiTokenOwnerId: uuid("public_api_token_owner_id"),
   webhookEvents: jsonb("webhook_events").$type<WebhookEventsConfig>(),
   recordingEnabled: boolean("recording_enabled").notNull().default(false),
@@ -567,5 +571,55 @@ export const llmUsage = pgTable(
     index("llm_usage_meeting_idx").on(t.meetingId),
     index("llm_usage_feature_idx").on(t.feature),
     index("llm_usage_created_idx").on(t.createdAt),
+  ],
+);
+
+/** Named Bearer tokens for public v1 / MCP API (one per integration). */
+export const publicApiTokens = pgTable(
+  "public_api_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    token: text("token").notNull(),
+    tokenPreview: text("token_preview").notNull(),
+    ownerIdentityId: uuid("owner_identity_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("public_api_tokens_active_name_idx").on(t.name),
+    index("public_api_tokens_revoked_idx").on(t.revokedAt),
+  ],
+);
+
+/** Access log for public API Bearer requests (attributed to a named token). */
+export const publicApiRequestLogs = pgTable(
+  "public_api_request_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tokenId: uuid("token_id").references(() => publicApiTokens.id, {
+      onDelete: "set null",
+    }),
+    /** Denormalized so logs survive revoke/delete. */
+    tokenName: text("token_name").notNull(),
+    tokenSource: text("token_source").notNull().default("db"), // db | env
+    method: text("method").notNull(),
+    path: text("path").notNull(),
+    statusCode: integer("status_code").notNull(),
+    durationMs: integer("duration_ms").notNull().default(0),
+    ip: text("ip"),
+    ownerIdentityId: uuid("owner_identity_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("public_api_request_logs_created_idx").on(t.createdAt),
+    index("public_api_request_logs_token_idx").on(t.tokenId),
   ],
 );

@@ -6,6 +6,7 @@ const identityBrandsFindFirst = vi.fn();
 const insertReturning = vi.fn();
 const usersFindFirst = vi.fn();
 const getAppSettings = vi.fn();
+const listActivePublicApiTokens = vi.fn();
 const insertedValues: unknown[] = [];
 
 vi.mock("@/lib/session", () => ({
@@ -14,6 +15,35 @@ vi.mock("@/lib/session", () => ({
 
 vi.mock("@/lib/app-settings", () => ({
   getAppSettings: (...args: unknown[]) => getAppSettings(...args),
+}));
+
+vi.mock("@/lib/public-api-tokens", () => ({
+  listActivePublicApiTokens: (...args: unknown[]) =>
+    listActivePublicApiTokens(...args),
+  touchPublicApiTokenLastUsed: vi.fn(),
+  migrateLegacyPublicApiToken: vi.fn(),
+}));
+
+vi.mock("@/lib/public-api-audit", () => ({
+  runAuthorizedPublicApi: async (
+    req: Request,
+    handler: (auth: {
+      ok: true;
+      defaultOwnerId?: string | null;
+      tokenId?: string | null;
+      tokenName?: string | null;
+      tokenSource?: "db" | "env";
+    }) => Promise<Response>,
+  ) => {
+    const { authorizePublicApi } = await import("@/lib/rooms");
+    const auth = await authorizePublicApi(req as never);
+    if (!auth.ok) {
+      return Response.json({ error: "unauthorized" }, { status: 401 });
+    }
+    return handler(auth as never);
+  },
+  recordPublicApiRequest: vi.fn(),
+  auditAuthorizedRequest: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -60,8 +90,10 @@ beforeEach(() => {
   insertReturning.mockReset();
   usersFindFirst.mockReset();
   getAppSettings.mockReset();
+  listActivePublicApiTokens.mockReset();
   insertedValues.length = 0;
   getAppSettings.mockResolvedValue(null);
+  listActivePublicApiTokens.mockResolvedValue([]);
   identityBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
   delete process.env.AGENT_SHARED_SECRET;

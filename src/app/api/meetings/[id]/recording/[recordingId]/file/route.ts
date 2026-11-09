@@ -5,7 +5,11 @@ import { stat } from "fs/promises";
 import { Readable } from "stream";
 import { db } from "@/db";
 import { meetings, recordings } from "@/db/schema";
-import { authorizePublicApi } from "@/lib/rooms";
+import {
+  authorizePublicApi,
+  type PublicApiAuthResult,
+} from "@/lib/rooms";
+import { auditAuthorizedRequest } from "@/lib/public-api-audit";
 import { getSession, type SessionData } from "@/lib/session";
 import { getRecordingSignedUrl } from "@/lib/recording-storage";
 
@@ -15,33 +19,39 @@ async function canAccessRecording(
   meetingId: string,
   session: SessionData,
   req: NextRequest,
-): Promise<boolean> {
+): Promise<
+  | { ok: true; via: "api"; auth: PublicApiAuthResult & { ok: true } }
+  | { ok: true; via: "session" }
+  | { ok: false }
+> {
   const api = await authorizePublicApi(req);
   if (api.ok) {
     const meeting = await db.query.meetings.findFirst({
       where: eq(meetings.id, meetingId),
     });
-    if (!meeting) return false;
+    if (!meeting) return { ok: false };
     if (
       api.defaultOwnerId &&
       meeting.ownerIdentityId !== api.defaultOwnerId
     ) {
-      return false;
+      return { ok: false };
     }
-    return true;
+    return { ok: true, via: "api", auth: api as PublicApiAuthResult & { ok: true } };
   }
 
-  if (!session.isLoggedIn || !session.identityId) return false;
+  if (!session.isLoggedIn || !session.identityId) return { ok: false };
 
   const meeting = await db.query.meetings.findFirst({
     where: eq(meetings.id, meetingId),
   });
-  if (!meeting) return false;
-  if (meeting.ownerIdentityId === session.identityId) return true;
+  if (!meeting) return { ok: false };
+  if (meeting.ownerIdentityId === session.identityId) {
+    return { ok: true, via: "session" };
+  }
 
   const { assertMeetingHost } = await import("@/lib/hostAuth");
   const auth = await assertMeetingHost({ meetingId, session });
-  return auth.ok;
+  return auth.ok ? { ok: true, via: "session" } : { ok: false };
 }
 
 function parseRange(
@@ -67,11 +77,20 @@ function parseRange(
 }
 
 export async function GET(req: NextRequest, ctx: Ctx) {
+  const started = Date.now();
   const { id: meetingId, recordingId } = await ctx.params;
   const session = await getSession();
-  if (!(await canAccessRecording(meetingId, session, req))) {
+  const access = await canAccessRecording(meetingId, session, req);
+  if (!access.ok) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
+
+  const finish = (res: NextResponse) => {
+    if (access.via === "api") {
+      auditAuthorizedRequest(req, access.auth, res, started);
+    }
+    return res;
+  };
 
   const row = await db.query.recordings.findFirst({
     where: and(
@@ -80,7 +99,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     ),
   });
   if (!row || row.status !== "ready") {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return finish(NextResponse.json({ error: "not_found" }, { status: 404 }));
   }
 
   const asDownload = req.nextUrl.searchParams.get("download") === "1";
@@ -93,11 +112,13 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
   if (row.storageBackend === "s3" && row.objectKey) {
     const url = await getRecordingSignedUrl({ objectKey: row.objectKey });
-    return NextResponse.redirect(url, 302);
+    return finish(NextResponse.redirect(url, 302));
   }
 
   if (!row.filepath || !existsSync(row.filepath)) {
-    return NextResponse.json({ error: "file_missing" }, { status: 404 });
+    return finish(
+      NextResponse.json({ error: "file_missing" }, { status: 404 }),
+    );
   }
 
   try {
@@ -111,31 +132,37 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       const chunkSize = end - start + 1;
       const stream = createReadStream(row.filepath, { start, end });
       const webStream = Readable.toWeb(stream) as ReadableStream;
-      return new NextResponse(webStream, {
-        status: 206,
-        headers: {
-          "Content-Type": contentType,
-          "Content-Length": String(chunkSize),
-          "Content-Range": `bytes ${start}-${end}/${size}`,
-          "Accept-Ranges": "bytes",
-          "Content-Disposition": disposition,
-          "Cache-Control": "private, no-store",
-        },
-      });
+      return finish(
+        new NextResponse(webStream, {
+          status: 206,
+          headers: {
+            "Content-Type": contentType,
+            "Content-Length": String(chunkSize),
+            "Content-Range": `bytes ${start}-${end}/${size}`,
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": disposition,
+            "Cache-Control": "private, no-store",
+          },
+        }),
+      );
     }
 
     const stream = createReadStream(row.filepath);
     const webStream = Readable.toWeb(stream) as ReadableStream;
-    return new NextResponse(webStream, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Length": String(size),
-        "Accept-Ranges": "bytes",
-        "Content-Disposition": disposition,
-        "Cache-Control": "private, no-store",
-      },
-    });
+    return finish(
+      new NextResponse(webStream, {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Length": String(size),
+          "Accept-Ranges": "bytes",
+          "Content-Disposition": disposition,
+          "Cache-Control": "private, no-store",
+        },
+      }),
+    );
   } catch {
-    return NextResponse.json({ error: "file_not_found" }, { status: 404 });
+    return finish(
+      NextResponse.json({ error: "file_not_found" }, { status: 404 }),
+    );
   }
 }

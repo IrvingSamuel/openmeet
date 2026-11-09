@@ -25,8 +25,8 @@ import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
+import { runAuthorizedPublicApi } from "@/lib/public-api-audit";
 import {
-  authorizePublicApi,
   createRoomWithBrand,
   resolveOwnerIdentityId,
 } from "@/lib/rooms";
@@ -35,9 +35,6 @@ import {
  * Minimal MCP-compatible HTTP endpoint for Meet tools.
  * Auth: Bearer public API token (Admin) or MEET_MCP_TOKEN.
  */
-async function authorize(req: NextRequest) {
-  return authorizePublicApi(req);
-}
 
 const ownerFields = {
   owner_identity_id: z.string().uuid().optional(),
@@ -289,18 +286,9 @@ async function meetGetTranscript(args: {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await authorize(req);
-  if (!auth.ok) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        error: { code: -32001, message: "unauthorized" },
-        id: null,
-      },
-      { status: 401 },
-    );
-  }
-
+  return runAuthorizedPublicApi(
+    req,
+    async (auth) => {
   const body = await req.json();
   const id = body.id ?? null;
 
@@ -526,4 +514,17 @@ export async function POST(req: NextRequest) {
     id,
     error: { code: -32601, message: "Method not found" },
   });
+    },
+    {
+      unauthorizedResponse: () =>
+        NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            error: { code: -32001, message: "unauthorized" },
+            id: null,
+          },
+          { status: 401 },
+        ),
+    },
+  );
 }

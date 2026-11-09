@@ -87,7 +87,8 @@ export async function GET() {
 </head>
 <body>
   <div id="redoc"></div>
-  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+  <!-- Pin UMD standalone: redoc.ly/latest now serves v3 ESM (import.meta) which breaks classic <script>. -->
+  <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.5/bundles/redoc.standalone.js"></script>
   <script>
     Redoc.init(
       "/api/openapi/instant-meetings",
