@@ -107,10 +107,14 @@ type AdminSettings = {
   recordingS3SecretKey: SecretMask;
   liveStreamEnabled: boolean;
   liveStreamQuality: "720p" | "1080p";
-  publicApiToken: SecretMask & {
-    createdAt?: string | null;
-    ownerIdentityId?: string | null;
-  };
+  publicApiTokens: Array<{
+    id: string;
+    name: string;
+    preview: string;
+    createdAt: string;
+    lastUsedAt: string | null;
+    ownerIdentityId: string | null;
+  }>;
 };
 
 type Me = {
@@ -169,6 +173,8 @@ export default function AdminPage() {
   const [exampleEvent, setExampleEvent] =
     useState<OutboundWebhookEvent>("summary.ready");
   const [apiTokenOnce, setApiTokenOnce] = useState<string | null>(null);
+  const [apiTokenOnceName, setApiTokenOnceName] = useState<string | null>(null);
+  const [apiTokenNameDraft, setApiTokenNameDraft] = useState("");
   const [apiBusy, setApiBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -418,25 +424,43 @@ export default function AdminPage() {
   }
 
   async function generateApiToken() {
+    const name = apiTokenNameDraft.trim();
+    if (!name) {
+      toast.error(t("api.nameRequired"));
+      return;
+    }
     setApiBusy(true);
     try {
-      const res = await fetch("/api/admin/settings/api-token", {
+      const res = await fetch("/api/admin/settings/api-tokens", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || t("api.generateFailed"));
+        if (data.error === "name_taken") {
+          toast.error(t("api.nameTaken"));
+        } else {
+          toast.error(data.error || t("api.generateFailed"));
+        }
         return;
       }
       setApiTokenOnce(data.token as string);
+      setApiTokenOnceName((data.name as string) ?? name);
+      setApiTokenNameDraft("");
       setSettings({
         ...settings!,
-        publicApiToken: {
-          configured: true,
-          preview: (data.preview as string) ?? null,
-          createdAt: (data.created_at as string) ?? null,
-          ownerIdentityId: (data.owner_identity_id as string) ?? null,
-        },
+        publicApiTokens: [
+          {
+            id: data.id as string,
+            name: (data.name as string) ?? name,
+            preview: (data.preview as string) ?? "",
+            createdAt: (data.created_at as string) ?? new Date().toISOString(),
+            lastUsedAt: null,
+            ownerIdentityId: (data.owner_identity_id as string) ?? null,
+          },
+          ...(settings?.publicApiTokens ?? []),
+        ],
       });
       toast.success(t("api.generated"));
     } catch {
@@ -446,11 +470,11 @@ export default function AdminPage() {
     }
   }
 
-  async function revokeApiToken() {
-    if (!window.confirm(t("api.revokeConfirm"))) return;
+  async function revokeApiToken(id: string, tokenName: string) {
+    if (!window.confirm(t("api.revokeConfirm", { name: tokenName }))) return;
     setApiBusy(true);
     try {
-      const res = await fetch("/api/admin/settings/api-token", {
+      const res = await fetch(`/api/admin/settings/api-tokens/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -458,15 +482,11 @@ export default function AdminPage() {
         toast.error(data.error || t("api.revokeFailed"));
         return;
       }
-      setApiTokenOnce(null);
       setSettings({
         ...settings!,
-        publicApiToken: {
-          configured: false,
-          preview: null,
-          createdAt: null,
-          ownerIdentityId: null,
-        },
+        publicApiTokens: (settings?.publicApiTokens ?? []).filter(
+          (tok) => tok.id !== id,
+        ),
       });
       toast.success(t("api.revoked"));
     } catch {
@@ -1567,32 +1587,63 @@ export default function AdminPage() {
                   <p className="mt-2 text-sm text-ink-muted">{t("api.body")}</p>
                 </div>
 
-                <div className="rounded-2xl border border-line bg-black/20 p-4 text-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-                    {t("api.statusLabel")}
-                  </p>
-                  <p className="mt-2 font-medium text-ink">
-                    {settings.publicApiToken?.configured
-                      ? t("api.configured", {
-                          preview: settings.publicApiToken.preview ?? "",
-                        })
-                      : t("api.notConfigured")}
-                  </p>
-                  {settings.publicApiToken?.createdAt ? (
-                    <p className="mt-1 text-xs text-ink-faint">
-                      {t("api.createdAt", {
-                        date: new Date(
-                          settings.publicApiToken.createdAt,
-                        ).toLocaleString(),
-                      })}
+                {(settings.publicApiTokens?.length ?? 0) === 0 ? (
+                  <div className="rounded-2xl border border-line bg-black/20 p-4 text-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                      {t("api.statusLabel")}
                     </p>
-                  ) : null}
-                </div>
+                    <p className="mt-2 font-medium text-ink">
+                      {t("api.notConfigured")}
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {settings.publicApiTokens.map((tok) => (
+                      <li
+                        key={tok.id}
+                        className="rounded-2xl border border-line bg-black/20 p-4 text-sm"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-ink">{tok.name}</p>
+                            <p className="mt-1 font-mono text-xs text-ink-muted">
+                              {tok.preview}
+                            </p>
+                            <p className="mt-1 text-xs text-ink-faint">
+                              {t("api.createdAt", {
+                                date: new Date(tok.createdAt).toLocaleString(),
+                              })}
+                            </p>
+                            {tok.lastUsedAt ? (
+                              <p className="mt-0.5 text-xs text-ink-faint">
+                                {t("api.lastUsedAt", {
+                                  date: new Date(
+                                    tok.lastUsedAt,
+                                  ).toLocaleString(),
+                                })}
+                              </p>
+                            ) : null}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            disabled={apiBusy}
+                            onClick={() => revokeApiToken(tok.id, tok.name)}
+                          >
+                            {t("api.revoke")}
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
                 {apiTokenOnce ? (
                   <div className="space-y-3 rounded-2xl border border-brand-secondary/40 bg-brand-secondary/10 p-4">
                     <p className="text-sm font-semibold text-ink">
                       {t("api.generatedHeading")}
+                      {apiTokenOnceName
+                        ? ` — ${apiTokenOnceName}`
+                        : null}
                     </p>
                     <p className="text-xs text-ink-muted">
                       {t("api.generatedWarning")}
@@ -1613,21 +1664,20 @@ export default function AdminPage() {
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-3 rounded-2xl border border-line bg-black/20 p-4">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
+                    {t("api.nameLabel")}
+                  </label>
+                  <Input
+                    value={apiTokenNameDraft}
+                    onChange={(e) => setApiTokenNameDraft(e.target.value)}
+                    placeholder={t("api.namePlaceholder")}
+                    maxLength={80}
+                    disabled={apiBusy}
+                  />
                   <Button onClick={generateApiToken} disabled={apiBusy}>
-                    {settings.publicApiToken?.configured
-                      ? t("api.rotate")
-                      : t("api.generate")}
+                    {t("api.generate")}
                   </Button>
-                  {settings.publicApiToken?.configured ? (
-                    <Button
-                      variant="ghost"
-                      onClick={revokeApiToken}
-                      disabled={apiBusy}
-                    >
-                      {t("api.revoke")}
-                    </Button>
-                  ) : null}
                 </div>
 
                 <a

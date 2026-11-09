@@ -126,7 +126,9 @@
       "joinRequest": "{name} está solicitando entrar.",
       "joinRequestMany": "{count} personas están solicitando entrar.",
       "participantLeft": "{name} salió de la reunión.",
-      "chatMessage": "{name}: {message}"
+      "chatMessage": "{name}: {message}",
+      "pinnedForEveryone": "{by} fijó a {name} para todos.",
+      "unpinnedForEveryone": "Se quitó la fijación para todos."
     },
     "errors": {
       "generic": "Algo salió mal.",
@@ -698,7 +700,8 @@
       "presetBookshelf": "Estantería",
       "presetGradient": "Degradado",
       "presetNature": "Naturaleza",
-      "presetAbstract": "Abstracto"
+      "presetAbstract": "Abstracto",
+      "layoutLockedByModerator": "Diseño definido por el moderador"
     },
     "reactions": {
       "pickReaction": "Enviar una reacción",
@@ -765,7 +768,10 @@
       "hide": "Ocultar subtítulos"
     },
     "stage": {
-      "empty": "Nadie en la sala todavía"
+      "empty": "Nadie en la sala todavía",
+      "pageOf": "Página {current} de {total}",
+      "previousPage": "Página anterior",
+      "nextPage": "Página siguiente"
     },
     "participantTile": {
       "pin": "Destacar participante",
@@ -775,7 +781,11 @@
       "exitFullscreen": "Salir de pantalla completa",
       "handRaised": "Mano levantada",
       "muteParticipant": "Silenciar participante",
-      "cameraOffParticipant": "Apagar cámara del participante"
+      "cameraOffParticipant": "Apagar cámara del participante",
+      "pinForEveryone": "Fijar para todos",
+      "unpinForEveryone": "Quitar fijación para todos",
+      "pinnedByHost": "Fijado por el anfitrión",
+      "globalPinFailed": "No se pudo cambiar la fijación para todos."
     }
   },
   "summary": {
@@ -862,16 +872,21 @@
       "liveStream": "Transmisión"
     },
     "api": {
-      "heading": "Token de la API pública",
-      "body": "Genere un Bearer token para que plataformas terceras usen POST /api/v1/*. El token da acceso completo a la API pública.",
+      "heading": "Tokens de la API pública",
+      "body": "Genere un Bearer token por integración para que plataformas terceras usen POST /api/v1/*. Cada token da acceso completo a la API pública.",
       "statusLabel": "Estado",
-      "notConfigured": "No configurado",
+      "notConfigured": "Ningún token activo",
       "configured": "Configurado: {preview}",
       "createdAt": "Creado el {date}",
+      "lastUsedAt": "Último uso el {date}",
+      "nameLabel": "Nombre de la integración",
+      "namePlaceholder": "p. ej. Chronos, CRM, Portal",
+      "nameRequired": "Indique un nombre para la integración.",
+      "nameTaken": "Ya existe un token activo con este nombre.",
       "generate": "Generar token",
       "rotate": "Rotar token",
       "revoke": "Revocar",
-      "revokeConfirm": "¿Revocar el token actual? Los clientes dejarán de autenticarse hasta generar otro.",
+      "revokeConfirm": "¿Revocar el token \"{name}\"? Los clientes con este token dejarán de autenticarse.",
       "generatedHeading": "Token generado — cópielo ahora",
       "generatedWarning": "Este valor solo se muestra una vez. Guárdelo en un lugar seguro.",
       "copy": "Copiar token",
@@ -1165,13 +1180,32 @@
     "eyebrowVersion": "OpenMeet Ops · v{version}",
     "tabs": {
       "overview": "Resumen",
-      "tenants": "Tenants"
+      "tenants": "Tenants",
+      "apiRequests": "API"
     },
     "titles": {
       "health": "Salud y métricas",
       "tenants": "Tenants",
       "tenant": "Tenant",
-      "meeting": "Reunión"
+      "meeting": "Reunión",
+      "apiRequests": "Peticiones de la API pública"
+    },
+    "apiRequests": {
+      "allTokens": "Todos los tokens",
+      "searchPlaceholder": "Filtrar por nombre, path o método",
+      "search": "Buscar",
+      "empty": "Aún no hay peticiones registradas.",
+      "loadMore": "Cargar más",
+      "loadError": "Error al cargar peticiones de la API",
+      "col": {
+        "time": "Cuándo",
+        "token": "Token",
+        "method": "Método",
+        "path": "Path",
+        "status": "Estado",
+        "duration": "Duración",
+        "ip": "IP"
+      }
     },
     "forbidden": {
       "title": "Ops — prohibido",

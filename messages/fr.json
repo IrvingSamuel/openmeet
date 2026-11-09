@@ -126,7 +126,9 @@
       "joinRequest": "{name} demande à entrer.",
       "joinRequestMany": "{count} personnes demandent à entrer.",
       "participantLeft": "{name} a quitté la réunion.",
-      "chatMessage": "{name} : {message}"
+      "chatMessage": "{name} : {message}",
+      "pinnedForEveryone": "{by} a épinglé {name} pour tous.",
+      "unpinnedForEveryone": "L’épingle pour tous a été retirée."
     },
     "errors": {
       "generic": "Une erreur s'est produite.",
@@ -698,7 +700,8 @@
       "presetBookshelf": "Bibliothèque",
       "presetGradient": "Dégradé",
       "presetNature": "Nature",
-      "presetAbstract": "Abstrait"
+      "presetAbstract": "Abstrait",
+      "layoutLockedByModerator": "Disposition définie par le modérateur"
     },
     "reactions": {
       "pickReaction": "Envoyer une réaction",
@@ -765,7 +768,10 @@
       "hide": "Masquer les sous-titres"
     },
     "stage": {
-      "empty": "Personne dans la salle pour l'instant"
+      "empty": "Personne dans la salle pour l'instant",
+      "pageOf": "Page {current} sur {total}",
+      "previousPage": "Page précédente",
+      "nextPage": "Page suivante"
     },
     "participantTile": {
       "pin": "Épingler le participant",
@@ -775,7 +781,11 @@
       "exitFullscreen": "Quitter le plein écran",
       "handRaised": "Main levée",
       "muteParticipant": "Couper le micro du participant",
-      "cameraOffParticipant": "Éteindre la caméra du participant"
+      "cameraOffParticipant": "Éteindre la caméra du participant",
+      "pinForEveryone": "Épingler pour tous",
+      "unpinForEveryone": "Retirer l’épingle pour tous",
+      "pinnedByHost": "Épinglé par l’hôte",
+      "globalPinFailed": "Impossible de modifier l’épingle pour tous."
     }
   },
   "summary": {
@@ -862,16 +872,21 @@
       "liveStream": "Diffusion"
     },
     "api": {
-      "heading": "Jeton de l’API publique",
-      "body": "Générez un Bearer token pour que des plateformes tierces appellent POST /api/v1/*. Le jeton donne un accès complet à l’API publique.",
+      "heading": "Jetons de l’API publique",
+      "body": "Générez un Bearer token par intégration pour que des plateformes tierces appellent POST /api/v1/*. Chaque jeton donne un accès complet à l’API publique.",
       "statusLabel": "État",
-      "notConfigured": "Non configuré",
+      "notConfigured": "Aucun jeton actif",
       "configured": "Configuré : {preview}",
       "createdAt": "Créé le {date}",
+      "lastUsedAt": "Dernière utilisation le {date}",
+      "nameLabel": "Nom de l’intégration",
+      "namePlaceholder": "ex. Chronos, CRM, Portail",
+      "nameRequired": "Indiquez un nom pour l’intégration.",
+      "nameTaken": "Un jeton actif porte déjà ce nom.",
       "generate": "Générer le jeton",
       "rotate": "Faire tourner le jeton",
       "revoke": "Révoquer",
-      "revokeConfirm": "Révoquer le jeton actuel ? Les clients échoueront à s’authentifier jusqu’à en générer un autre.",
+      "revokeConfirm": "Révoquer le jeton « {name} » ? Les clients qui l’utilisent échoueront à s’authentifier.",
       "generatedHeading": "Jeton généré — copiez-le maintenant",
       "generatedWarning": "Cette valeur n’est affichée qu’une seule fois. Conservez-la en lieu sûr.",
       "copy": "Copier le jeton",
@@ -1165,13 +1180,32 @@
     "eyebrowVersion": "OpenMeet Ops · v{version}",
     "tabs": {
       "overview": "Aperçu",
-      "tenants": "Tenants"
+      "tenants": "Tenants",
+      "apiRequests": "API"
     },
     "titles": {
       "health": "Santé et métriques",
       "tenants": "Tenants",
       "tenant": "Tenant",
-      "meeting": "Réunion"
+      "meeting": "Réunion",
+      "apiRequests": "Requêtes de l’API publique"
+    },
+    "apiRequests": {
+      "allTokens": "Tous les jetons",
+      "searchPlaceholder": "Filtrer par nom, chemin ou méthode",
+      "search": "Rechercher",
+      "empty": "Aucune requête enregistrée pour l’instant.",
+      "loadMore": "Charger plus",
+      "loadError": "Échec du chargement des requêtes API",
+      "col": {
+        "time": "Quand",
+        "token": "Jeton",
+        "method": "Méthode",
+        "path": "Chemin",
+        "status": "Statut",
+        "duration": "Durée",
+        "ip": "IP"
+      }
     },
     "forbidden": {
       "title": "Ops — interdit",

@@ -17,7 +17,8 @@ import {
   clampEmptyTimeoutSec,
   resolveEmptyTimeoutSec,
 } from "@/lib/meeting-timeouts";
-import { resolveV1Owner } from "@/lib/v1-auth";
+import { runAuthorizedPublicApi } from "@/lib/public-api-audit";
+import { resolveV1OwnerFromAuth } from "@/lib/v1-auth";
 import {
   apiFeatureFields,
   apiFeaturesResponse,
@@ -86,109 +87,112 @@ function meetingCreateResponse(result: Awaited<ReturnType<typeof createMeetingWi
 }
 
 export async function POST(req: NextRequest) {
-  let body: z.infer<typeof schema>;
-  try {
-    body = schema.parse(await req.json());
-  } catch (err) {
-    return NextResponse.json(
-      { error: "invalid_body", detail: String(err) },
-      { status: 400 },
-    );
-  }
+  return runAuthorizedPublicApi(req, async (auth) => {
+    let body: z.infer<typeof schema>;
+    try {
+      body = schema.parse(await req.json());
+    } catch (err) {
+      return NextResponse.json(
+        { error: "invalid_body", detail: String(err) },
+        { status: 400 },
+      );
+    }
 
-  const owner = await resolveV1Owner({
-    req,
-    owner_identity_id: body.owner_identity_id,
-    owner_user_id: body.owner_user_id,
-    external_id: body.external_id,
-    title: body.title,
-  });
-  if (owner instanceof NextResponse) return owner;
+    const owner = await resolveV1OwnerFromAuth({
+      auth,
+      owner_identity_id: body.owner_identity_id,
+      owner_user_id: body.owner_user_id,
+      external_id: body.external_id,
+      title: body.title,
+    });
+    if (owner instanceof NextResponse) return owner;
 
-  let emptyTimeoutSec: number | null = null;
-  try {
-    emptyTimeoutSec = clampEmptyTimeoutSec(body.empty_timeout_sec);
-  } catch {
-    return NextResponse.json(
-      {
-        error: "empty_timeout_sec_out_of_range",
-        detail: "empty_timeout_sec must be between 60 and 86400",
-      },
-      { status: 400 },
-    );
-  }
+    let emptyTimeoutSec: number | null = null;
+    try {
+      emptyTimeoutSec = clampEmptyTimeoutSec(body.empty_timeout_sec);
+    } catch {
+      return NextResponse.json(
+        {
+          error: "empty_timeout_sec_out_of_range",
+          detail: "empty_timeout_sec must be between 60 and 86400",
+        },
+        { status: 400 },
+      );
+    }
 
-  let redirectAfterMeet: string | null = null;
-  try {
-    redirectAfterMeet = parseRedirectAfterMeet(body.redirect_after_meet);
-  } catch (err) {
-    const code = err instanceof Error ? err.message : "redirect_after_meet_invalid";
-    return NextResponse.json({ error: code }, { status: 400 });
-  }
+    let redirectAfterMeet: string | null = null;
+    try {
+      redirectAfterMeet = parseRedirectAfterMeet(body.redirect_after_meet);
+    } catch (err) {
+      const code =
+        err instanceof Error ? err.message : "redirect_after_meet_invalid";
+      return NextResponse.json({ error: code }, { status: 400 });
+    }
 
-  let webhookUrl: string | null = null;
-  try {
-    webhookUrl = parseWebhookUrl(body.webhook_url);
-  } catch (err) {
-    const code = err instanceof Error ? err.message : "webhook_url_invalid";
-    return NextResponse.json({ error: code }, { status: 400 });
-  }
+    let webhookUrl: string | null = null;
+    try {
+      webhookUrl = parseWebhookUrl(body.webhook_url);
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "webhook_url_invalid";
+      return NextResponse.json({ error: code }, { status: 400 });
+    }
 
-  let externalInviteUrl: string | null = null;
-  try {
-    externalInviteUrl = parseExternalInviteUrl(body.external_invite_url);
-  } catch (err) {
-    const code =
-      err instanceof Error ? err.message : "external_invite_url_invalid";
-    return NextResponse.json({ error: code }, { status: 400 });
-  }
+    let externalInviteUrl: string | null = null;
+    try {
+      externalInviteUrl = parseExternalInviteUrl(body.external_invite_url);
+    } catch (err) {
+      const code =
+        err instanceof Error ? err.message : "external_invite_url_invalid";
+      return NextResponse.json({ error: code }, { status: 400 });
+    }
 
-  const ui = resolveApiBrandUi({
-    ui: body.ui,
-    identity: body.identity,
-    palette: body.palette,
-    advanced: body.advanced,
-  });
-
-  const title =
-    body.title?.trim() ||
-    `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
-
-  const accessPolicy = body.access_policy || "public";
-  const waitForHost =
-    body.wait_for_host !== undefined
-      ? body.wait_for_host
-      : accessPolicy === "invite";
-
-  try {
-    const result = await createMeetingWithBrand({
-      title,
-      ownerIdentityId: owner.ownerIdentityId,
-      boardId: body.board_id,
-      accessPolicy,
-      roomId: body.room_id ?? null,
-      ui,
-      useIdentityBrand: !ui,
-      emptyTimeoutSec,
-      redirectAfterMeet,
-      externalInviteUrl,
-      webhookUrl,
-      waitForHost,
-      muteMicOnJoin: body.mute_mic_on_join,
-      ...apiFeaturesToInput(body),
-      liveStreamEnabled: body.live_stream_enabled,
-      issueHostEntry: true,
+    const ui = resolveApiBrandUi({
+      ui: body.ui,
+      identity: body.identity,
+      palette: body.palette,
+      advanced: body.advanced,
     });
 
-    return NextResponse.json(meetingCreateResponse(result), { status: 201 });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message === "room_template_not_found") {
-      return NextResponse.json({ error: "room_not_found" }, { status: 404 });
+    const title =
+      body.title?.trim() ||
+      `Instant ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
+
+    const accessPolicy = body.access_policy || "public";
+    const waitForHost =
+      body.wait_for_host !== undefined
+        ? body.wait_for_host
+        : accessPolicy === "invite";
+
+    try {
+      const result = await createMeetingWithBrand({
+        title,
+        ownerIdentityId: owner.ownerIdentityId,
+        boardId: body.board_id,
+        accessPolicy,
+        roomId: body.room_id ?? null,
+        ui,
+        useIdentityBrand: !ui,
+        emptyTimeoutSec,
+        redirectAfterMeet,
+        externalInviteUrl,
+        webhookUrl,
+        waitForHost,
+        muteMicOnJoin: body.mute_mic_on_join,
+        ...apiFeaturesToInput(body),
+        liveStreamEnabled: body.live_stream_enabled,
+        issueHostEntry: true,
+      });
+
+      return NextResponse.json(meetingCreateResponse(result), { status: 201 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === "room_template_not_found") {
+        return NextResponse.json({ error: "room_not_found" }, { status: 404 });
+      }
+      return NextResponse.json(
+        { error: "create_failed", detail: message },
+        { status: 500 },
+      );
     }
-    return NextResponse.json(
-      { error: "create_failed", detail: message },
-      { status: 500 },
-    );
-  }
+  });
 }

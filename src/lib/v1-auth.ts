@@ -1,25 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
-  authorizePublicApi,
   resolveOwnerIdentityId,
+  type PublicApiAuthResult,
 } from "@/lib/rooms";
 
 /**
- * Resolve owner for public v1 APIs — Bearer token required (no session cookie).
- * Returns a NextResponse on auth/owner failure, otherwise the identity id.
+ * Resolve owner for public v1 APIs given an already-authorized Bearer result.
+ * Returns a NextResponse on owner failure, otherwise the identity id.
  */
-export async function resolveV1Owner(args: {
-  req: NextRequest;
+export async function resolveV1OwnerFromAuth(args: {
+  auth: PublicApiAuthResult & { ok: true };
   owner_identity_id?: string;
   owner_user_id?: string;
   external_id?: string;
   title?: string;
 }): Promise<{ ownerIdentityId: string } | NextResponse> {
-  const auth = await authorizePublicApi(args.req);
-  if (!auth.ok) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
   try {
     if (
       args.owner_identity_id ||
@@ -34,8 +29,8 @@ export async function resolveV1Owner(args: {
       return { ownerIdentityId };
     }
 
-    if (auth.defaultOwnerId) {
-      return { ownerIdentityId: auth.defaultOwnerId };
+    if (args.auth.defaultOwnerId) {
+      return { ownerIdentityId: args.auth.defaultOwnerId };
     }
 
     return NextResponse.json(

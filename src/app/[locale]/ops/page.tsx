@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { LogoMark, Wordmark } from "@/components/layout/Logo";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { OpsOverview } from "@/components/ops/OpsOverview";
+import { OpsApiRequests } from "@/components/ops/OpsApiRequests";
 import { cn } from "@/lib/utils";
 
 type TenantRow = {
@@ -127,6 +128,7 @@ type MeetingDetail = {
 type View =
   | { kind: "overview" }
   | { kind: "list" }
+  | { kind: "apiRequests" }
   | { kind: "tenant"; id: string }
   | { kind: "meeting"; tenantId: string; meetingId: string };
 
@@ -316,6 +318,7 @@ export default function OpsTenantsPage() {
     if (view.kind === "tenant")
       return detail?.user.email || tTitles("tenant");
     if (view.kind === "overview") return tTitles("health");
+    if (view.kind === "apiRequests") return tTitles("apiRequests");
     return tTitles("tenants");
   }, [view, detail, tTitles]);
 
@@ -403,12 +406,21 @@ export default function OpsTenantsPage() {
             >
               {t("tabs.tenants")}
             </Button>
+            <Button
+              size="sm"
+              variant={view.kind === "apiRequests" ? "primary" : "ghost"}
+              onClick={() => setView({ kind: "apiRequests" })}
+            >
+              {t("tabs.apiRequests")}
+            </Button>
           </div>
         </Reveal>
 
         <Reveal className="mt-6">
           <div className="flex flex-wrap items-center gap-3">
-            {view.kind !== "overview" && view.kind !== "list" && (
+            {view.kind !== "overview" &&
+              view.kind !== "list" &&
+              view.kind !== "apiRequests" && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -433,6 +445,12 @@ export default function OpsTenantsPage() {
         {view.kind === "overview" && (
           <section className="mt-6">
             <OpsOverview onLoadedVersion={setAppVersion} />
+          </section>
+        )}
+
+        {view.kind === "apiRequests" && (
+          <section className="mt-6">
+            <OpsApiRequests />
           </section>
         )}
 

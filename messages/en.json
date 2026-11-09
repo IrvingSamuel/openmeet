@@ -127,7 +127,9 @@
       "joinRequest": "{name} is requesting to join.",
       "joinRequestMany": "{count} people are requesting to join.",
       "participantLeft": "{name} left the meeting.",
-      "chatMessage": "{name}: {message}"
+      "chatMessage": "{name}: {message}",
+      "pinnedForEveryone": "{by} pinned {name} for everyone.",
+      "unpinnedForEveryone": "The pin for everyone was removed."
     },
     "errors": {
       "generic": "Something went wrong.",
@@ -709,7 +711,8 @@
       "presetBookshelf": "Bookshelf",
       "presetGradient": "Gradient",
       "presetNature": "Nature",
-      "presetAbstract": "Abstract"
+      "presetAbstract": "Abstract",
+      "layoutLockedByModerator": "Layout set by the moderator"
     },
     "reactions": {
       "pickReaction": "Send a reaction",
@@ -781,7 +784,10 @@
       "hide": "Hide captions"
     },
     "stage": {
-      "empty": "No one in the room yet"
+      "empty": "No one in the room yet",
+      "pageOf": "Page {current} of {total}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page"
     },
     "participantTile": {
       "pin": "Pin participant",
@@ -791,7 +797,11 @@
       "exitFullscreen": "Exit fullscreen",
       "handRaised": "Hand raised",
       "muteParticipant": "Mute participant",
-      "cameraOffParticipant": "Turn participant camera off"
+      "cameraOffParticipant": "Turn participant camera off",
+      "pinForEveryone": "Pin for everyone",
+      "unpinForEveryone": "Remove pin for everyone",
+      "pinnedByHost": "Pinned by host",
+      "globalPinFailed": "Could not change the pin for everyone."
     }
   },
   "summary": {
@@ -878,16 +888,21 @@
       "liveStream": "Live stream"
     },
     "api": {
-      "heading": "Public API token",
-      "body": "Generate a Bearer token for third-party platforms to call POST /api/v1/*. The token grants full access to the public API.",
+      "heading": "Public API tokens",
+      "body": "Generate one Bearer token per integration for third-party platforms to call POST /api/v1/*. Each token grants full access to the public API.",
       "statusLabel": "Status",
-      "notConfigured": "Not configured",
+      "notConfigured": "No active tokens",
       "configured": "Configured: {preview}",
       "createdAt": "Created {date}",
+      "lastUsedAt": "Last used {date}",
+      "nameLabel": "Integration name",
+      "namePlaceholder": "e.g. Chronos, CRM, Portal",
+      "nameRequired": "Enter a name for this integration.",
+      "nameTaken": "An active token with this name already exists.",
       "generate": "Generate token",
       "rotate": "Rotate token",
       "revoke": "Revoke",
-      "revokeConfirm": "Revoke the current token? Clients will fail auth until you generate another.",
+      "revokeConfirm": "Revoke the token \"{name}\"? Clients using it will fail auth.",
       "generatedHeading": "Token generated — copy it now",
       "generatedWarning": "This value is shown only once. Store it somewhere safe.",
       "copy": "Copy token",
@@ -1171,13 +1186,32 @@
     "eyebrowVersion": "OpenMeet Ops · v{version}",
     "tabs": {
       "overview": "Overview",
-      "tenants": "Tenants"
+      "tenants": "Tenants",
+      "apiRequests": "API"
     },
     "titles": {
       "health": "Health & metrics",
       "tenants": "Tenants",
       "tenant": "Tenant",
-      "meeting": "Meeting"
+      "meeting": "Meeting",
+      "apiRequests": "Public API requests"
+    },
+    "apiRequests": {
+      "allTokens": "All tokens",
+      "searchPlaceholder": "Filter by name, path or method",
+      "search": "Search",
+      "empty": "No requests recorded yet.",
+      "loadMore": "Load more",
+      "loadError": "Failed to load API requests",
+      "col": {
+        "time": "When",
+        "token": "Token",
+        "method": "Method",
+        "path": "Path",
+        "status": "Status",
+        "duration": "Duration",
+        "ip": "IP"
+      }
     },
     "forbidden": {
       "title": "Ops — forbidden",

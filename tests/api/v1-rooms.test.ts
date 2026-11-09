@@ -12,6 +12,7 @@ const usersFindFirst = vi.fn();
 const insertReturning = vi.fn();
 const insertValues = vi.fn();
 const getAppSettings = vi.fn();
+const listActivePublicApiTokens = vi.fn();
 
 vi.mock("@/lib/session", () => ({
   getSession: async () => session,
@@ -19,6 +20,35 @@ vi.mock("@/lib/session", () => ({
 
 vi.mock("@/lib/app-settings", () => ({
   getAppSettings: (...args: unknown[]) => getAppSettings(...args),
+}));
+
+vi.mock("@/lib/public-api-tokens", () => ({
+  listActivePublicApiTokens: (...args: unknown[]) =>
+    listActivePublicApiTokens(...args),
+  touchPublicApiTokenLastUsed: vi.fn(),
+  migrateLegacyPublicApiToken: vi.fn(),
+}));
+
+vi.mock("@/lib/public-api-audit", () => ({
+  runAuthorizedPublicApi: async (
+    req: Request,
+    handler: (auth: {
+      ok: true;
+      defaultOwnerId?: string | null;
+      tokenId?: string | null;
+      tokenName?: string | null;
+      tokenSource?: "db" | "env";
+    }) => Promise<Response>,
+  ) => {
+    const { authorizePublicApi } = await import("@/lib/rooms");
+    const auth = await authorizePublicApi(req as never);
+    if (!auth.ok) {
+      return Response.json({ error: "unauthorized" }, { status: 401 });
+    }
+    return handler(auth as never);
+  },
+  recordPublicApiRequest: vi.fn(),
+  auditAuthorizedRequest: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({
@@ -73,6 +103,8 @@ beforeEach(() => {
   insertValues.mockReset();
   getAppSettings.mockReset();
   getAppSettings.mockResolvedValue(null);
+  listActivePublicApiTokens.mockReset();
+  listActivePublicApiTokens.mockResolvedValue([]);
   identityBrandsFindFirst.mockResolvedValue(undefined);
   roomBrandsFindFirst.mockResolvedValue(undefined);
   delete process.env.MEET_MCP_TOKEN;
@@ -157,10 +189,18 @@ describe("POST /api/v1/rooms", () => {
   });
 
   it("creates a room with DB public API token and default owner", async () => {
-    getAppSettings.mockResolvedValue({
-      publicApiToken: "db-token-value",
-      publicApiTokenOwnerId: "admin-owner",
-    });
+    listActivePublicApiTokens.mockResolvedValue([
+      {
+        id: "tok-chronos",
+        name: "Chronos",
+        token: "db-token-value",
+        tokenPreview: "••••alue",
+        ownerIdentityId: "admin-owner",
+        createdAt: new Date(),
+        revokedAt: null,
+        lastUsedAt: null,
+      },
+    ]);
     insertReturning
       .mockResolvedValueOnce([
         {

@@ -62,6 +62,7 @@ export type SidePanel = "none" | "chat" | "people" | "captions" | "copilot";
 export function ControlBar({
   layout,
   onLayoutChange,
+  layoutLocked = false,
   panel,
   onPanelChange,
   captionsOn,
@@ -98,6 +99,8 @@ export function ControlBar({
 }: {
   layout: StageLayout;
   onLayoutChange: (layout: StageLayout) => void;
+  /** A moderator pinned someone for everyone; the layout toggle is disabled. */
+  layoutLocked?: boolean;
   panel: SidePanel;
   onPanelChange: (panel: SidePanel) => void;
   captionsOn: boolean;
@@ -455,9 +458,17 @@ export function ControlBar({
           align="center"
         >
           <MoreItem
-            label={layout === "grid" ? t("spotlightMode") : t("gridMode")}
+            label={
+              layoutLocked
+                ? t("layoutLockedByModerator")
+                : layout === "grid"
+                  ? t("spotlightMode")
+                  : t("gridMode")
+            }
             active={layout === "spotlight"}
+            disabled={layoutLocked}
             onClick={() => {
+              if (layoutLocked) return;
               onLayoutChange(layout === "grid" ? "spotlight" : "grid");
               setMoreOpen(false);
             }}
@@ -588,6 +599,7 @@ function MoreItem({
   active,
   badge,
   badgeTone = "brand",
+  disabled,
 }: {
   children: ReactNode;
   label: string;
@@ -595,14 +607,18 @@ function MoreItem({
   active?: boolean;
   badge?: string;
   badgeTone?: "brand" | "danger";
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
-        active
+        disabled
+          ? "cursor-not-allowed text-ink-faint opacity-60"
+          : active
           ? "bg-[color-mix(in_srgb,var(--brand-primary)_22%,transparent)] text-ink"
           : "text-ink-muted hover:bg-white/[0.06] hover:text-ink",
       )}

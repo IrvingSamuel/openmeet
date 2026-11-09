@@ -68,6 +68,7 @@ import {
   type RecordingClientConfig,
 } from "@/hooks/useMeetingRecorder";
 import { useLiveStream } from "@/hooks/useLiveStream";
+import { useRoomSpotlight } from "@/hooks/useRoomSpotlight";
 import { useJoinRequests } from "@/hooks/useJoinRequests";
 import { useHandRaise } from "@/hooks/useHandRaise";
 import { useRoomReactions } from "@/hooks/useRoomReactions";
@@ -743,11 +744,70 @@ function RoomShell({
 
   const [layout, setLayout] = useState<StageLayout>("grid");
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const {
+    spotlight,
+    globalKey,
+    setGlobal,
+    busy: globalPinBusy,
+  } = useRoomSpotlight({ roomSlug });
+  const layoutLocked = Boolean(globalKey) && !canModerate;
+  const layoutLockedRef = useRef(layoutLocked);
+  layoutLockedRef.current = layoutLocked;
+  const stageLayout: StageLayout = layoutLocked ? "spotlight" : layout;
 
-  function handlePin(key: string | null) {
+  const handlePin = useCallback((key: string | null) => {
+    if (layoutLockedRef.current) return;
     setPinnedKey(key);
     if (key) setLayout("spotlight");
-  }
+  }, []);
+
+  const handleGlobalPin = useCallback(
+    async (key: string | null) => {
+      const ok = await setGlobal(key);
+      if (!ok) toast.error(t("participantTile.globalPinFailed"));
+    },
+    [setGlobal, toast, t],
+  );
+
+  // Follow the room-wide pin into spotlight; restore the old layout after.
+  const layoutBeforeGlobalPin = useRef<StageLayout | null>(null);
+  useEffect(() => {
+    if (globalKey) {
+      setLayout((current) => {
+        if (layoutBeforeGlobalPin.current === null) {
+          layoutBeforeGlobalPin.current = current;
+        }
+        return "spotlight";
+      });
+    } else if (layoutBeforeGlobalPin.current !== null) {
+      setLayout(layoutBeforeGlobalPin.current);
+      layoutBeforeGlobalPin.current = null;
+    }
+  }, [globalKey]);
+
+  // Tell everyone who pinned whom; skip the state found on join.
+  const lastSpotlightKey = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const prev = lastSpotlightKey.current;
+    lastSpotlightKey.current = globalKey;
+    if (prev === undefined || prev === globalKey) return;
+    const nameOf = (identity: string) => {
+      if (identity === room.localParticipant.identity) {
+        return room.localParticipant.name || identity;
+      }
+      const p = room.remoteParticipants.get(identity);
+      return p?.name || identity;
+    };
+    const by = spotlight?.by ? nameOf(spotlight.by) : tLabels("host");
+    if (globalKey) {
+      const pinnedIdentity = globalKey.slice(0, globalKey.lastIndexOf(":"));
+      toast.push(
+        tToast("pinnedForEveryone", { by, name: nameOf(pinnedIdentity) }),
+      );
+    } else {
+      toast.push(tToast("unpinnedForEveryone"));
+    }
+  }, [globalKey, spotlight, room, toast, tToast, tLabels]);
 
   const screenShareTracks = useTracks(
     [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
@@ -1260,6 +1320,7 @@ function RoomShell({
           void lp.setCameraEnabled(false);
         }
       } else if (key === "g") {
+        if (layoutLockedRef.current) return;
         setLayout((l) => (l === "grid" ? "spotlight" : "grid"));
       } else if (key === "c" && captionsEnabled) {
         setCaptionsOn((v) => !v);
@@ -1414,9 +1475,13 @@ function RoomShell({
       <main className="relative z-10 isolate flex min-h-0 flex-1 gap-3 p-2 sm:p-4">
         <div className="relative min-w-0 flex-1">
           <Stage
-            layout={layout}
+            layout={stageLayout}
             pinnedKey={pinnedKey}
             onPin={handlePin}
+            globalPinnedKey={globalKey}
+            onGlobalPin={canModerate ? handleGlobalPin : undefined}
+            globalPinBusy={globalPinBusy}
+            layoutLocked={layoutLocked}
             raisedIdentities={raisedIdentities}
             canModerate={canModerate}
             roomSlug={roomSlug}
@@ -1458,6 +1523,9 @@ function RoomShell({
               joinBusyId={joinBusyId}
               onJoinDecide={decideJoin}
               raisedIdentities={raisedIdentities}
+              globalPinnedKey={globalKey}
+              onGlobalPin={canModerate ? handleGlobalPin : undefined}
+              globalPinBusy={globalPinBusy}
             />
           ) : null}
         </div>
@@ -1488,6 +1556,9 @@ function RoomShell({
             joinBusyId={joinBusyId}
             onJoinDecide={decideJoin}
             raisedIdentities={raisedIdentities}
+            globalPinnedKey={globalKey}
+            onGlobalPin={canModerate ? handleGlobalPin : undefined}
+            globalPinBusy={globalPinBusy}
           />
         ) : null}
       </main>
@@ -1496,8 +1567,9 @@ function RoomShell({
       <div className="pointer-events-none relative z-50 flex shrink-0 justify-center px-2 pb-safe">
         <div className="pointer-events-auto pb-3 sm:pb-5">
           <ControlBar
-            layout={layout}
+            layout={stageLayout}
             onLayoutChange={setLayout}
+            layoutLocked={layoutLocked}
             panel={panel}
             onPanelChange={setPanel}
             captionsOn={captionsOn}

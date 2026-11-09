@@ -18,6 +18,11 @@ import {
   webhookEventsOrDefault,
 } from "@/lib/app-settings";
 import {
+  listActivePublicApiTokens,
+  migrateLegacyPublicApiToken,
+  toPublicApiTokenPublic,
+} from "@/lib/public-api-tokens";
+import {
   DEFAULT_PAGE_ACCESS,
   normalizePageAccessSettings,
 } from "@/lib/page-access";
@@ -105,13 +110,15 @@ async function requireAdmin() {
   return { session };
 }
 
-function publicSettingsPayload(
+async function publicSettingsPayload(
   row: typeof appSettings.$inferSelect,
   ai: Awaited<ReturnType<typeof resolveAiConfig>>,
   openAi: Awaited<ReturnType<typeof resolveOpenAiLlmConfigAsync>>,
   recording: Awaited<ReturnType<typeof resolveRecordingConfig>>,
 ) {
   const events = webhookEventsOrDefault(row.webhookEvents);
+  await migrateLegacyPublicApiToken();
+  const publicApiTokenRows = await listActivePublicApiTokens();
   const geminiKeyMask = row.geminiApiKey?.trim()
     ? maskSecret(row.geminiApiKey)
     : {
@@ -210,19 +217,7 @@ function publicSettingsPayload(
     webhookSecret: row.webhookSecret?.trim()
       ? maskSecret(row.webhookSecret)
       : { configured: false, preview: null, source: "none" as const },
-    publicApiToken: row.publicApiToken?.trim()
-      ? {
-          ...maskSecret(row.publicApiToken),
-          createdAt: row.publicApiTokenCreatedAt?.toISOString() ?? null,
-          ownerIdentityId: row.publicApiTokenOwnerId ?? null,
-        }
-      : {
-          configured: false,
-          preview: null,
-          source: "none" as const,
-          createdAt: null,
-          ownerIdentityId: null,
-        },
+    publicApiTokens: publicApiTokenRows.map(toPublicApiTokenPublic),
     webhookEvents: events,
     recordingEnabled: recording.enabled,
     recordingEngine: recording.engine,
@@ -250,7 +245,9 @@ export async function GET() {
   const ai = await resolveAiConfig();
   const openAi = await resolveOpenAiLlmConfigAsync();
   const recording = await resolveRecordingConfig();
-  return NextResponse.json(publicSettingsPayload(row, ai, openAi, recording));
+  return NextResponse.json(
+    await publicSettingsPayload(row, ai, openAi, recording),
+  );
 }
 
 export async function PUT(req: NextRequest) {
@@ -430,6 +427,6 @@ export async function PUT(req: NextRequest) {
   const recording = await resolveRecordingConfig();
   return NextResponse.json({
     ok: true,
-    ...publicSettingsPayload(row, ai, openAi, recording),
+    ...(await publicSettingsPayload(row, ai, openAi, recording)),
   });
 }

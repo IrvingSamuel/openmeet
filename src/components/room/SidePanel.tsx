@@ -16,6 +16,7 @@ import {
   IconArrowRight,
   IconHand,
   IconMicOff,
+  IconPin,
   IconVideoOff,
 } from "@/components/ui/icons";
 import type { SidePanel as PanelKind } from "@/components/room/ControlBar";
@@ -57,6 +58,9 @@ export function SidePanel({
   joinBusyId = null,
   onJoinDecide,
   raisedIdentities = new Set<string>(),
+  globalPinnedKey = null,
+  onGlobalPin,
+  globalPinBusy = false,
 }: {
   panel: PanelKind;
   onClose: () => void;
@@ -85,6 +89,11 @@ export function SidePanel({
     decision: "approve" | "deny",
   ) => Promise<boolean>;
   raisedIdentities?: ReadonlySet<string>;
+  /** Track key pinned for everyone (room metadata). */
+  globalPinnedKey?: string | null;
+  /** Moderators only: set/clear the pin for everyone. */
+  onGlobalPin?: (key: string | null) => void;
+  globalPinBusy?: boolean;
 }) {
   const t = useTranslations("room.sidePanel");
   const tLabels = useTranslations("common.labels");
@@ -141,6 +150,9 @@ export function SidePanel({
               joinBusyId={joinBusyId}
               onJoinDecide={onJoinDecide}
               raisedIdentities={raisedIdentities}
+              globalPinnedKey={globalPinnedKey}
+              onGlobalPin={onGlobalPin}
+              globalPinBusy={globalPinBusy}
             />
           ) : null}
           {panel === "captions" ? (
@@ -396,6 +408,9 @@ function PeoplePanel({
   joinBusyId,
   onJoinDecide,
   raisedIdentities = new Set<string>(),
+  globalPinnedKey = null,
+  onGlobalPin,
+  globalPinBusy = false,
 }: {
   roomSlug?: string;
   meetingId?: string;
@@ -408,8 +423,12 @@ function PeoplePanel({
     decision: "approve" | "deny",
   ) => Promise<boolean>;
   raisedIdentities?: ReadonlySet<string>;
+  globalPinnedKey?: string | null;
+  onGlobalPin?: (key: string | null) => void;
+  globalPinBusy?: boolean;
 }) {
   const participants = useParticipants();
+  const tTile = useTranslations("room.participantTile");
   const toast = useToast();
   const t = useTranslations("room.sidePanel");
   const tLabels = useTranslations("common.labels");
@@ -480,6 +499,11 @@ function PeoplePanel({
                 participantRole !== "host",
             );
             const handRaised = raisedIdentities.has(p.identity);
+            const cameraKey = `${p.identity}:camera`;
+            const pinnedForEveryone =
+              globalPinnedKey !== null &&
+              globalPinnedKey.startsWith(`${p.identity}:`);
+            const canGlobalPin = Boolean(canModerate && onGlobalPin);
             return (
               <motion.li
                 key={p.identity}
@@ -547,6 +571,35 @@ function PeoplePanel({
                     </button>
                   ) : null}
                 </span>
+                {canGlobalPin ? (
+                  <button
+                    type="button"
+                    data-testid="people-global-pin"
+                    title={
+                      pinnedForEveryone
+                        ? tTile("unpinForEveryone")
+                        : tTile("pinForEveryone")
+                    }
+                    aria-label={
+                      pinnedForEveryone
+                        ? tTile("unpinForEveryone")
+                        : tTile("pinForEveryone")
+                    }
+                    aria-pressed={pinnedForEveryone}
+                    disabled={globalPinBusy}
+                    onClick={() =>
+                      onGlobalPin?.(pinnedForEveryone ? null : cameraKey)
+                    }
+                    className={cn(
+                      "grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-colors disabled:opacity-40",
+                      pinnedForEveryone
+                        ? "border-brand-secondary/60 text-brand-secondary"
+                        : "border-line text-ink-muted hover:bg-white/[0.06] hover:text-ink",
+                    )}
+                  >
+                    <IconPin className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
                 {canModerateParticipant ? (
                   <span className="flex shrink-0 gap-1">
                     <button

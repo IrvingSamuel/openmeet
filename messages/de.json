@@ -126,7 +126,9 @@
       "joinRequest": "{name} möchte beitreten.",
       "joinRequestMany": "{count} Personen möchten beitreten.",
       "participantLeft": "{name} hat die Besprechung verlassen.",
-      "chatMessage": "{name}: {message}"
+      "chatMessage": "{name}: {message}",
+      "pinnedForEveryone": "{by} hat {name} für alle angeheftet.",
+      "unpinnedForEveryone": "Anheften für alle wurde aufgehoben."
     },
     "errors": {
       "generic": "Etwas ist schiefgelaufen.",
@@ -698,7 +700,8 @@
       "presetBookshelf": "Bücherregal",
       "presetGradient": "Verlauf",
       "presetNature": "Natur",
-      "presetAbstract": "Abstrakt"
+      "presetAbstract": "Abstrakt",
+      "layoutLockedByModerator": "Layout vom Moderator festgelegt"
     },
     "reactions": {
       "pickReaction": "Reaktion senden",
@@ -765,7 +768,10 @@
       "hide": "Untertitel ausblenden"
     },
     "stage": {
-      "empty": "Noch niemand im Raum"
+      "empty": "Noch niemand im Raum",
+      "pageOf": "Seite {current} von {total}",
+      "previousPage": "Vorherige Seite",
+      "nextPage": "Nächste Seite"
     },
     "participantTile": {
       "pin": "Teilnehmer anheften",
@@ -775,7 +781,11 @@
       "exitFullscreen": "Vollbild beenden",
       "handRaised": "Hand erhoben",
       "muteParticipant": "Teilnehmer stummschalten",
-      "cameraOffParticipant": "Kamera des Teilnehmers ausschalten"
+      "cameraOffParticipant": "Kamera des Teilnehmers ausschalten",
+      "pinForEveryone": "Für alle anheften",
+      "unpinForEveryone": "Anheften für alle aufheben",
+      "pinnedByHost": "Vom Host angeheftet",
+      "globalPinFailed": "Anheften für alle konnte nicht geändert werden."
     }
   },
   "summary": {
@@ -862,16 +872,21 @@
       "liveStream": "Livestream"
     },
     "api": {
-      "heading": "Öffentliches API-Token",
-      "body": "Erzeugen Sie ein Bearer-Token für Drittplattformen für POST /api/v1/*. Das Token gewährt vollen Zugriff auf die öffentliche API.",
+      "heading": "Öffentliche API-Tokens",
+      "body": "Erzeugen Sie ein Bearer-Token pro Integration für Drittplattformen für POST /api/v1/*. Jedes Token gewährt vollen Zugriff auf die öffentliche API.",
       "statusLabel": "Status",
-      "notConfigured": "Nicht konfiguriert",
+      "notConfigured": "Keine aktiven Tokens",
       "configured": "Konfiguriert: {preview}",
       "createdAt": "Erstellt am {date}",
+      "lastUsedAt": "Zuletzt verwendet am {date}",
+      "nameLabel": "Integrationsname",
+      "namePlaceholder": "z. B. Chronos, CRM, Portal",
+      "nameRequired": "Geben Sie einen Namen für die Integration an.",
+      "nameTaken": "Ein aktives Token mit diesem Namen existiert bereits.",
       "generate": "Token erzeugen",
       "rotate": "Token rotieren",
       "revoke": "Widerrufen",
-      "revokeConfirm": "Aktuelles Token widerrufen? Clients scheitern an der Auth, bis Sie ein neues erzeugen.",
+      "revokeConfirm": "Token \"{name}\" widerrufen? Clients mit diesem Token scheitern an der Auth.",
       "generatedHeading": "Token erzeugt — jetzt kopieren",
       "generatedWarning": "Dieser Wert wird nur einmal angezeigt. Bewahren Sie ihn sicher auf.",
       "copy": "Token kopieren",
@@ -1165,13 +1180,32 @@
     "eyebrowVersion": "OpenMeet Ops · v{version}",
     "tabs": {
       "overview": "Übersicht",
-      "tenants": "Tenants"
+      "tenants": "Tenants",
+      "apiRequests": "API"
     },
     "titles": {
       "health": "Gesundheit & Kennzahlen",
       "tenants": "Tenants",
       "tenant": "Tenant",
-      "meeting": "Meeting"
+      "meeting": "Meeting",
+      "apiRequests": "Öffentliche API-Anfragen"
+    },
+    "apiRequests": {
+      "allTokens": "Alle Tokens",
+      "searchPlaceholder": "Nach Name, Pfad oder Methode filtern",
+      "search": "Suchen",
+      "empty": "Noch keine Anfragen erfasst.",
+      "loadMore": "Mehr laden",
+      "loadError": "API-Anfragen konnten nicht geladen werden",
+      "col": {
+        "time": "Wann",
+        "token": "Token",
+        "method": "Methode",
+        "path": "Pfad",
+        "status": "Status",
+        "duration": "Dauer",
+        "ip": "IP"
+      }
     },
     "forbidden": {
       "title": "Ops — verboten",

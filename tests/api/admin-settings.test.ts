@@ -44,6 +44,31 @@ vi.mock("@/lib/outbound-webhooks", async () => {
   };
 });
 
+const listActivePublicApiTokens = vi.fn();
+const migrateLegacyPublicApiToken = vi.fn();
+
+vi.mock("@/lib/public-api-tokens", () => ({
+  listActivePublicApiTokens: (...args: unknown[]) =>
+    listActivePublicApiTokens(...args),
+  migrateLegacyPublicApiToken: (...args: unknown[]) =>
+    migrateLegacyPublicApiToken(...args),
+  toPublicApiTokenPublic: (row: {
+    id: string;
+    name: string;
+    tokenPreview: string;
+    createdAt: Date;
+    lastUsedAt: Date | null;
+    ownerIdentityId: string | null;
+  }) => ({
+    id: row.id,
+    name: row.name,
+    preview: row.tokenPreview,
+    createdAt: row.createdAt.toISOString(),
+    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+    ownerIdentityId: row.ownerIdentityId ?? null,
+  }),
+}));
+
 vi.mock("@/db", () => ({
   db: {
     update: () => ({
@@ -169,6 +194,10 @@ beforeEach(() => {
   invalidateAppSettingsCache.mockReset();
   updateReturning.mockReset();
   sendTestWebhook.mockReset();
+  listActivePublicApiTokens.mockReset();
+  migrateLegacyPublicApiToken.mockReset();
+  listActivePublicApiTokens.mockResolvedValue([]);
+  migrateLegacyPublicApiToken.mockResolvedValue(undefined);
   ensureAppSettings.mockResolvedValue(baseRow);
   resolveAiConfig.mockResolvedValue(baseAi);
   resolveOpenAiLlmConfigAsync.mockResolvedValue(baseOpenAi);

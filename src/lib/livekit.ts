@@ -86,7 +86,51 @@ export type RoomMetadataPayload = {
   slug: string;
   boardId?: string | null;
   features?: MeetingFeatures;
+  /** Participant pinned for everyone by a host/moderator. */
+  spotlight?: RoomSpotlight | null;
 };
+
+export type RoomSpotlight = {
+  /** Stage track key: `${identity}:${source}`. */
+  key: string;
+  /** LiveKit identity of the moderator who pinned it. */
+  by: string;
+  at: number;
+};
+
+function parseRoomMetadata(raw: string | undefined | null): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+async function readRoomMetadata(
+  livekitRoomName: string,
+): Promise<Record<string, unknown>> {
+  const client = getRoomServiceClient();
+  const [room] = await client.listRooms([livekitRoomName]);
+  return parseRoomMetadata(room?.metadata);
+}
+
+/** Set or clear the room-wide pin, keeping the rest of the room metadata. */
+export async function setRoomSpotlight(
+  livekitRoomName: string,
+  spotlight: RoomSpotlight | null,
+) {
+  const current = await readRoomMetadata(livekitRoomName);
+  const next = { ...current, spotlight };
+  await getRoomServiceClient().updateRoomMetadata(
+    livekitRoomName,
+    JSON.stringify(next),
+  );
+  return next;
+}
 
 /**
  * Ensure the named OpenMeet worker is dispatched (and foreign auto-agents are out).
@@ -175,7 +219,19 @@ export async function syncRoomMetadata(
 ) {
   const httpHost = getLiveKitHttpHost();
   const client = getRoomServiceClient();
-  const metadata = JSON.stringify(meta);
+  // Runs on every token mint; must not wipe a pin set by a moderator.
+  let spotlight = meta.spotlight;
+  if (spotlight === undefined) {
+    try {
+      const existing = await readRoomMetadata(livekitRoomName);
+      if (existing.spotlight) spotlight = existing.spotlight as RoomSpotlight;
+    } catch {
+      // Room does not exist yet.
+    }
+  }
+  const metadata = JSON.stringify(
+    spotlight === undefined ? meta : { ...meta, spotlight },
+  );
   const emptyTimeout = opts?.emptyTimeout ?? getLiveKitEmptyTimeoutSec();
   // Without departureTimeout LiveKit closes the room 20 s after the last
   // participant leaves (the agent does not count), so a guest who reloads or

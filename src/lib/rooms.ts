@@ -11,8 +11,11 @@ import {
   rooms,
   type RoomKind,
 } from "@/db/schema";
-import { getAppSettings } from "@/lib/app-settings";
 import { BOARD_THEMES } from "@/lib/brand";
+import {
+  listActivePublicApiTokens,
+  touchPublicApiTokenLastUsed,
+} from "@/lib/public-api-tokens";
 import {
   brandFieldsToPatch,
   type BrandFieldsInput,
@@ -249,11 +252,14 @@ export type PublicApiAuthResult = {
   ok: boolean;
   /** Admin who generated the DB token — used as default owner when body omits owner. */
   defaultOwnerId?: string | null;
+  tokenId?: string | null;
+  tokenName?: string | null;
+  tokenSource?: "db" | "env";
 };
 
 /**
  * Authorize public v1 / MCP Bearer tokens.
- * Priority: app_settings.publicApiToken → MEET_MCP_TOKEN (env).
+ * Priority: active rows in public_api_tokens → MEET_MCP_TOKEN (env).
  * Does not accept AGENT_SHARED_SECRET (agent-only via x-agent-secret).
  */
 export async function authorizePublicApi(req: {
@@ -262,18 +268,29 @@ export async function authorizePublicApi(req: {
   const token = extractBearerToken(req);
   if (!token) return { ok: false };
 
-  const settings = await getAppSettings();
-  const dbToken = settings?.publicApiToken?.trim() || "";
-  if (dbToken && safeEqualToken(token, dbToken)) {
-    return {
-      ok: true,
-      defaultOwnerId: settings?.publicApiTokenOwnerId ?? null,
-    };
+  const active = await listActivePublicApiTokens();
+  for (const row of active) {
+    if (row.token && safeEqualToken(token, row.token)) {
+      void touchPublicApiTokenLastUsed(row.id);
+      return {
+        ok: true,
+        defaultOwnerId: row.ownerIdentityId ?? null,
+        tokenId: row.id,
+        tokenName: row.name,
+        tokenSource: "db",
+      };
+    }
   }
 
   const envToken = process.env.MEET_MCP_TOKEN?.trim() || "";
   if (envToken && safeEqualToken(token, envToken)) {
-    return { ok: true, defaultOwnerId: null };
+    return {
+      ok: true,
+      defaultOwnerId: null,
+      tokenId: null,
+      tokenName: "MEET_MCP_TOKEN",
+      tokenSource: "env",
+    };
   }
 
   return { ok: false };
